@@ -1,11 +1,17 @@
 # yamllint disable rule:line-length
 ---
 global:
+  # -- Kubernetes cluster domain
   kubernetesClusterDomain: cluster.local
+  # -- Repository for Infrahub images
   infrahubRepository: opsmill/infrahub
+  # -- Default image pull policy
   imagePullPolicy: IfNotPresent
+  # -- Labels to use for all installed Kubernetes resources
   commonLabels: {}
+  # -- Annotations to use for all installed Kubernetes resources
   commonAnnotations: {}
+  # -- Labels to use for all configured pods
   podLabels: {}
 
 # ----------- Cache -----------
@@ -55,9 +61,12 @@ neo4j:
 
 # ----------- Infrahub Task Worker -----------
 infrahubTaskWorker:
+  # -- Number of replicas of the Infrahub Task Worker
   replicas: 2
+  # -- Resources request and limit to apply for the task worker
   resources: {}
   infrahubTaskWorker:
+    # -- Container arguments for the task worker
     args:
       - prefect
       - worker
@@ -67,6 +76,7 @@ infrahubTaskWorker:
       - --pool
       - infrahub-worker
       - --with-healthcheck
+    # -- Container environment for the task worker
     env:
       INFRAHUB_CACHE_PORT: 6379
       INFRAHUB_DB_TYPE: neo4j
@@ -80,22 +90,31 @@ infrahubTaskWorker:
       PREFECT_API_URL: "http://prefect-server:4200/api"
       PREFECT_WORKER_QUERY_SECONDS: 3
       PREFECT_AGENT_QUERY_INTERVAL: 3
+    # -- Image pull policy for the task worker
     imagePullPolicy: Always
+    # -- Image registry to use for the task worker
     imageRegistry: registry.opsmill.io
 
 # ----------- Infrahub Server -----------
 infrahubServer:
+  # -- Service type for the Infrahub API server
   type: ClusterIP
   ingress:
+    # -- Whether to enable Ingress for the Infrahub API server
     enabled: true
+    # -- Hostname to configure for the ingress
     hostname: infrahub-cluster.local
+    # -- Annotations to configure on the ingress
     annotations:
   persistence:
+    # -- Whether to enable data persistence for the Infrahub API server
     enabled: true
     size: 1Gi
     accessMode: ReadWriteOnce
+  # -- Resources request and limit to apply for the task worker
   resources: {}
   infrahubServer:
+    # -- Container arguments for the API server
     args:
       - gunicorn
       - --config
@@ -105,6 +124,7 @@ infrahubServer:
       - --logger-class
       - infrahub.serve.log.GunicornLogger
       - infrahub.server:app
+    # -- Container environment for the API server
     env:
       INFRAHUB_ALLOW_ANONYMOUS_ACCESS: "true"
       INFRAHUB_CACHE_PORT: 6379
@@ -117,31 +137,28 @@ infrahubServer:
       INFRAHUB_WORKFLOW_ADDRESS: prefect-server
       INFRAHUB_WORKFLOW_PORT: 4200
       PREFECT_API_URL: "http://prefect-server:4200/api"
+    # -- Image pull policy for the API server
     imagePullPolicy: Always
+    # -- Image registry to use for the API server
     imageRegistry: registry.opsmill.io
   ports:
     - name: "interface"
+      # -- Port on which to expose the API server service
       port: 8000
+      # -- Port on which Infrahub API server listens
       targetPort: 8000
 
-infrahubServerDbInitJob:
-  enabled: false
-  backoffLimit: 0
-  infrahubServerDbInitJob:
-    env:
-      infrahubCachePort: 6379
-      infrahubConfig: /config/infrahub.toml
-  waitForDatabase:
-    image:
-      repository: busybox
-      tag: latest
-
 infrahubDemoData:
+  # -- Whether to enable loading of demo data
   enabled: false
+  # -- Backoff limit for the Kubernetes job that will load the data
   backoffLimit: 4
+  # -- Image registry to use for the Kubernetes job
   imageRegistry: registry.opsmill.io
   env:
+    # -- Infrahub API token that will be used when loading the data
     INFRAHUB_API_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
+  # -- Container entrypoint for the demo data loading job
   command:
     - sh
     - -c
