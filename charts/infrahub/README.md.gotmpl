@@ -1,0 +1,62 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Infrahub Configuration
+
+The Infrahub configuration is structured as follows:
+
+- The `internal_address` is dynamically set based on the release name, namespace, and cluster domain.
+- Database, broker, cache, and other service addresses are set dynamically, referring to the relevant services within the Kubernetes cluster.
+- Ports for services like the database and cache are pulled from the `values.yaml` file, ensuring flexibility and ease of configuration changes.
+
+Using environment variables is also possible and recommended to set or override existing configuration values.
+
+It is possible to use Kubernetes secrets to configure credentials required by Infrahub such as the database credentials.
+The `envFromExistingSecret` parameter is available to pass environment variables from Kubernetes secrets.
+
+## Prerequisites
+
+- Kubernetes 1.12+
+- Helm 3.0+
+- PV provisioner support in the underlying infrastructure (if persistence is required)
+
+## Installing the Chart
+
+To install the chart with the release name `infrahub`:
+
+```sh
+helm install infrahub path/to/infrahub/chart
+```
+
+## Upgrading the Chart
+
+To upgrade the chart to a new version:
+
+```sh
+helm upgrade infrahub path/to/infrahub/chart
+```
+
+## Uninstalling the Chart
+
+To uninstall/delete the `infrahub` deployment:
+
+```sh
+helm delete infrahub
+```
+
+## Persistence
+
+The chart offers the ability to configure persistence for the database and other components. Check the `persistence` section of each component in `values.yaml` for more details.
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+
+For more detailed configuration and additional parameters, refer to the `values.yaml` file.
+

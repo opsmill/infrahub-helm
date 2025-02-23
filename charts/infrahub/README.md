@@ -1,26 +1,6 @@
-# Infrahub Helm Chart
+# infrahub
 
-## Description
-
-This Helm chart deploys Infrahub on Kubernetes. It provides configurable templates for various Kubernetes resources including caching, databases, and message queues, ensuring a scalable and efficient deployment of the Infrahub application.
-
-## Chart Structure
-
-The chart includes the following files and directories:
-
-- `Chart.yaml`: Chart metadata file.
-- `templates/`: Contains the template files for Kubernetes resources.
-  - `_helpers.tpl`: Template helpers/definitions.
-  - `cache.yaml`: Defines the cache (Redis) deployment, service, and PVC.
-  - `message-queue-configmap.yaml`: ConfigMap for RabbitMQ configuration.
-  - `database.yaml`: Database (Neo4j) deployment, service, and PVC.
-  - `infrahub-git.yaml`: Infrahub Git service deployment and service.
-  - `infrahub-server-db-init-job.yaml`: Initialization jobs for Infrahub Server.
-  - `infrahub-server-demo-data-job.yaml`: Job that loads demo dataset to Infrahub.
-  - `infrahub-server-ingress.yaml`: Ingress configuration for Infrahub Server.
-  - `infrahub-server.yaml`: Infrahub Server deployment and service.
-  - `message-queue.yaml`: Message Queue (RabbitMQ) deployment and service.
-- `values.yaml`: Defines configuration values for the chart.
+A Helm chart to deploy Infrahub on Kubernetes
 
 ## Infrahub Configuration
 
@@ -49,29 +29,6 @@ To install the chart with the release name `infrahub`:
 helm install infrahub path/to/infrahub/chart
 ```
 
-## Configuration
-
-The following table lists the configurable parameters in the `values.yaml` file and their default values.
-
-| Parameter | Description | Default |
-| --------- | ----------- | ------- |
-| `global.kubernetesClusterDomain` | Kubernetes cluster domain | `cluster.local`  |
-| `global.imageRegistry` | Image registry for pulling images | `registry.opsmill.io`  |
-| `global.infrahubRepository` | Repository for Infrahub images | `opsmill/infrahub-py3.11`  |
-| `global.infrahubTag` | Tag for Infrahub images | `0.14.0`  |
-| `global.imagePullPolicy` | Default image pull policy | `IfNotPresent`  |
-| `cache.type` | Service type for cache | `ClusterIP`  |
-| `cache.cache.image.repository` | The Redis image repository | `redis` |
-| `cache.cache.image.tag` | The Redis image tag | `"7.2"` |
-| `database.type` | Service type for cache | `ClusterIP`  |
-| `database.database.image.repository` | The Neo4j image repository | `neo4j` |
-| `database.database.image.tag` | The Neo4j image tag | `5.13-community` |
-| `messageQueue.messageQueue.image.repository` | The RabbitMQ image repository | `rabbitmq` |
-| `messageQueue.messageQueue.image.tag` | The RabbitMQ image tag | `3.12-management` |
-| ... | ... | ... |
-
-For more detailed configuration and additional parameters, refer to the `values.yaml` file.
-
 ## Upgrading the Chart
 
 To upgrade the chart to a new version:
@@ -92,6 +49,97 @@ helm delete infrahub
 
 The chart offers the ability to configure persistence for the database and other components. Check the `persistence` section of each component in `values.yaml` for more details.
 
-## Customization
+## Requirements
 
-The chart is customizable through `values.yaml`. For more complex customizations and usage scenarios, refer to the official Helm documentation.
+| Repository | Name | Version |
+|------------|------|---------|
+| https://helm.neo4j.com/neo4j/ | neo4j | 5.20.0 |
+| https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
+| https://prefecthq.github.io/prefect-helm | prefect-server | 2024.10.15184517 |
+| oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
+| oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
+| oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
+
+## Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| global.commonAnnotations | object | `{}` | Annotations to use for all installed Kubernetes resources |
+| global.commonLabels | object | `{}` | Labels to use for all installed Kubernetes resources |
+| global.imagePullPolicy | string | `"IfNotPresent"` | Default image pull policy |
+| global.infrahubRepository | string | `"opsmill/infrahub"` | Repository for Infrahub images |
+| global.kubernetesClusterDomain | string | `"cluster.local"` | Kubernetes cluster domain |
+| global.podLabels | object | `{}` | Labels to use for all configured pods |
+| infrahubDemoData.backoffLimit | int | `4` | Backoff limit for the Kubernetes job that will load the data |
+| infrahubDemoData.command | list | `["sh","-c","infrahubctl schema load models/base --wait 30 && infrahubctl run models/infrastructure_edge.py && infrahubctl menu load models/base_menu.yml && infrahubctl repository add demo-edge https://github.com/opsmill/infrahub-demo-edge --read-only"]` | Container entrypoint for the demo data loading job |
+| infrahubDemoData.enabled | bool | `false` | Whether to enable loading of demo data |
+| infrahubDemoData.env.INFRAHUB_API_TOKEN | string | `"06438eb2-8019-4776-878c-0941b1f1d1ec"` | Infrahub API token that will be used when loading the data |
+| infrahubDemoData.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the Kubernetes job |
+| infrahubServer.infrahubServer.args | list | `["gunicorn","--config","/source/backend/infrahub/serve/gunicorn_config.py","-w","2","--logger-class","infrahub.serve.log.GunicornLogger","infrahub.server:app"]` | Container arguments for the API server |
+| infrahubServer.infrahubServer.env | object | `{"INFRAHUB_ALLOW_ANONYMOUS_ACCESS":"true","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_INITIAL_ADMIN_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_LOG_LEVEL":"INFO","INFRAHUB_PRODUCTION":"false","INFRAHUB_SECURITY_SECRET_KEY":"327f747f-efac-42be-9e73-999f08f86b92","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_API_URL":"http://prefect-server:4200/api"}` | Container environment for the API server |
+| infrahubServer.infrahubServer.imagePullPolicy | string | `"Always"` | Image pull policy for the API server |
+| infrahubServer.infrahubServer.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the API server |
+| infrahubServer.ingress.annotations | string | `nil` | Annotations to configure on the ingress |
+| infrahubServer.ingress.enabled | bool | `true` | Whether to enable Ingress for the Infrahub API server |
+| infrahubServer.ingress.hostname | string | `"infrahub-cluster.local"` | Hostname to configure for the ingress |
+| infrahubServer.persistence.accessMode | string | `"ReadWriteOnce"` |  |
+| infrahubServer.persistence.enabled | bool | `true` | Whether to enable data persistence for the Infrahub API server |
+| infrahubServer.persistence.size | string | `"1Gi"` |  |
+| infrahubServer.ports[0].name | string | `"interface"` |  |
+| infrahubServer.ports[0].port | int | `8000` | Port on which to expose the API server service |
+| infrahubServer.ports[0].targetPort | int | `8000` | Port on which Infrahub API server listens |
+| infrahubServer.resources | object | `{}` | Resources request and limit to apply for the task worker |
+| infrahubServer.type | string | `"ClusterIP"` | Service type for the Infrahub API server |
+| infrahubTaskWorker.infrahubTaskWorker.args | list | `["prefect","worker","start","--type","infrahubasync","--pool","infrahub-worker","--with-healthcheck"]` | Container arguments for the task worker |
+| infrahubTaskWorker.infrahubTaskWorker.env | object | `{"INFRAHUB_API_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_LOG_LEVEL":"DEBUG","INFRAHUB_PRODUCTION":"false","INFRAHUB_TIMEOUT":"60","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_AGENT_QUERY_INTERVAL":3,"PREFECT_API_URL":"http://prefect-server:4200/api","PREFECT_WORKER_QUERY_SECONDS":3}` | Container environment for the task worker |
+| infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy | string | `"Always"` | Image pull policy for the task worker |
+| infrahubTaskWorker.infrahubTaskWorker.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the task worker |
+| infrahubTaskWorker.replicas | int | `2` | Number of replicas of the Infrahub Task Worker |
+| infrahubTaskWorker.resources | object | `{}` | Resources request and limit to apply for the task worker |
+| nats.config.jetstream.enabled | bool | `true` |  |
+| nats.enabled | bool | `false` |  |
+| neo4j.config."dbms.security.auth_minimum_password_length" | string | `"4"` |  |
+| neo4j.config."dbms.security.procedures.unrestricted" | string | `"apoc.*"` |  |
+| neo4j.enabled | bool | `true` |  |
+| neo4j.logInitialPassword | bool | `false` |  |
+| neo4j.nameOverride | string | `"database"` |  |
+| neo4j.neo4j.acceptLicenseAgreement | string | `"no"` |  |
+| neo4j.neo4j.edition | string | `"community"` |  |
+| neo4j.neo4j.minimumClusterSize | int | `1` |  |
+| neo4j.neo4j.name | string | `"infrahub"` |  |
+| neo4j.neo4j.password | string | `"admin"` |  |
+| neo4j.neo4j.resources | object | `{}` |  |
+| neo4j.services.admin.enabled | bool | `false` |  |
+| neo4j.services.neo4j.enabled | bool | `false` |  |
+| neo4j.services.neo4j.ports.bolt.enabled | bool | `true` |  |
+| neo4j.services.neo4j.ports.bolt.port | int | `7687` |  |
+| neo4j.services.neo4j.ports.bolt.targetPort | int | `7687` |  |
+| neo4j.volumes.data.mode | string | `"volume"` |  |
+| neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
+| prefect-server.enabled | bool | `true` |  |
+| prefect-server.postgresql.enabled | bool | `true` |  |
+| prefect-server.postgresql.image.tag | string | `"14.13.0"` |  |
+| prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |
+| prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |
+| prefect-server.server.env[0].value | string | `"/"` |  |
+| prefect-server.server.image.prefectTag | string | `"3.0.11-python3.12-kubernetes"` |  |
+| prefect-server.serviceAccount.create | bool | `false` |  |
+| rabbitmq.auth.password | string | `"infrahub"` |  |
+| rabbitmq.auth.username | string | `"infrahub"` |  |
+| rabbitmq.enabled | bool | `true` |  |
+| rabbitmq.metrics.enabled | bool | `true` |  |
+| rabbitmq.nameOverride | string | `"message-queue"` |  |
+| rabbitmq.persistence.enabled | bool | `false` |  |
+| rabbitmq.startupProbe.enabled | bool | `true` |  |
+| redis.architecture | string | `"standalone"` |  |
+| redis.auth.enabled | bool | `false` |  |
+| redis.enabled | bool | `true` |  |
+| redis.master.persistence.enabled | bool | `false` |  |
+| redis.master.service.ports.redis | int | `6379` |  |
+| redis.nameOverride | string | `"cache"` |  |
+
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs v1.14.2](https://github.com/norwoodj/helm-docs/releases/v1.14.2)
+
+For more detailed configuration and additional parameters, refer to the `values.yaml` file.
+
