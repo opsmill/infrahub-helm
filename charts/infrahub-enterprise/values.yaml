@@ -1,0 +1,65 @@
+# yamllint disable rule:line-length
+---
+infrahub:
+  global:
+    kubernetesClusterDomain: cluster.local
+    infrahubRepository: opsmill/infrahub-enterprise
+    imagePullPolicy: IfNotPresent
+  infrahubServer:
+    podSecurityContext:
+      runAsGroup: 1000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+    infrahubServer:
+      securityContext:
+        allowPrivilegeEscalation: false
+      args:
+        - gunicorn
+        - --config
+        - /source/community/backend/infrahub/serve/gunicorn_config.py
+        - -w
+        - "2"
+        - --logger-class
+        - infrahub.serve.log.GunicornLogger
+        - infrahub_enterprise.server:app
+      env:
+        INFRAHUB_ALLOW_ANONYMOUS_ACCESS: "true"
+        INFRAHUB_CACHE_PORT: 6379
+        INFRAHUB_DB_TYPE: neo4j
+        INFRAHUB_LOG_LEVEL: INFO
+        INFRAHUB_PRODUCTION: "false"
+        INFRAHUB_INITIAL_ADMIN_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
+        INFRAHUB_SECURITY_SECRET_KEY: 327f747f-efac-42be-9e73-999f08f86b92
+        INFRAHUB_GIT_REPOSITORIES_DIRECTORY: "/opt/infrahub/git"
+        INFRAHUB_WORKFLOW_ADDRESS: prefect-server
+        INFRAHUB_WORKFLOW_PORT: 4200
+        INFRAHUB_WORKFLOW_DEFAULT_WORKER_TYPE: "infrahubentasync"
+        PREFECT_API_URL: "http://prefect-server:4200/api"
+  infrahubTaskWorker:
+    podSecurityContext:
+      runAsGroup: 1000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+    infrahubTaskWorker:
+      securityContext:
+        allowPrivilegeEscalation: false
+      args:
+        - prefect
+        - worker
+        - start
+        - --type
+        - infrahubentasync
+        - --pool
+        - infrahub-worker
+        - --with-healthcheck
+  infrahubDemoData:
+    command:
+      - sh
+      - -c
+      - "infrahubctl schema load community/models/base --wait 30 && infrahubctl run community/models/infrastructure_edge.py && infrahubctl menu load community/models/base_menu.yml && infrahubctl repository add demo-edge https://github.com/opsmill/infrahub-demo-edge --read-only"
+  neo4j:
+    neo4j:
+      edition: "enterprise"
+      acceptLicenseAgreement: "yes"
