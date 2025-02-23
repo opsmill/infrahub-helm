@@ -1,0 +1,53 @@
+---
+# yamllint disable rule:truthy
+name: Publish Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        description: Wether to publish the Chart to Infrahub Private Registry
+        required: false
+        default: false
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        description: Wether to publish the Chart to Infrahub Private Registry
+        required: false
+        default: false
+
+jobs:
+  publish-helm-chart:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - chart_name: infrahub
+          - chart_name: infrahub-enterprise
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Helm
+        uses: azure/setup-helm@v4.2.0
+
+      - name: Login to Helm Registry
+        run: >
+          helm registry login ${{ vars.HARBOR_HOST }}
+          --username '${{ secrets.HARBOR_USERNAME }}'
+          --password '${{ secrets.HARBOR_PASSWORD }}'
+
+      - name: Package Helm Chart
+        run: |
+          helm package --dependency-update ./charts/${{ matrix.chart_name }}
+
+      - name: Push Helm Chart to OCI Registry
+        if: ${{ inputs.publish }}
+        run: |
+          helm push ./charts/${{ matrix.chart_name }}/*.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
+

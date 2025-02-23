@@ -1,0 +1,30 @@
+---
+# yamllint disable rule:truthy rule:truthy rule:line-length
+name: "CI"
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - stable
+      - release-*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-lint:
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - name: "Install Helm"
+        uses: azure/setup-helm@v4.2.0
+      - name: "Linting: helm lint infrahub"
+        run: "helm lint charts/infrahub"
+      - name: "Linting: helm lint infrahub enterprise"
+        run: "helm lint charts/infrahub-enterprise"
