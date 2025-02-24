@@ -5,6 +5,10 @@ name: Publish Helm Chart
 on:
   workflow_dispatch:
     inputs:
+      chart:
+        type: string
+        description: Which chart to publish
+        required: true
       publish:
         type: boolean
         description: Wether to publish the Chart to Infrahub Private Registry
@@ -12,6 +16,10 @@ on:
         default: false
   workflow_call:
     inputs:
+      chart:
+        type: string
+        description: Which chart to publish
+        required: true
       publish:
         type: boolean
         description: Wether to publish the Chart to Infrahub Private Registry
@@ -21,13 +29,6 @@ on:
 jobs:
   publish-helm-chart:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - chart_name: infrahub
-          - chart_name: infrahub-enterprise
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -44,10 +45,10 @@ jobs:
 
       - name: Package Helm Chart
         run: |
-          helm package --dependency-update ./charts/${{ matrix.chart_name }}
+          helm package --dependency-update ./charts/${{ inputs.chart }}
 
       - name: Push Helm Chart to OCI Registry
         if: ${{ inputs.publish }}
         run: |
-          helm push ./charts/${{ matrix.chart_name }}/*.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
+          helm push ./charts/${{ inputs.chart }}/*.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
 
