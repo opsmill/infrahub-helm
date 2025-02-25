@@ -50,5 +50,5 @@ jobs:
       - name: Push Helm Chart to OCI Registry
         if: ${{ inputs.publish }}
         run: |
-          helm push ./charts/${{ inputs.chart }}/*.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
+          helm push ${{ inputs.chart }}*.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
 
