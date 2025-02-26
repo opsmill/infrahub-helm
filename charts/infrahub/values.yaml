@@ -247,3 +247,16 @@ prefect-server:
         infrahub/service: task-manager-db
       persistence:
         enabled: false
+
+# -------------- Emma ---------------
+emma:
+  imageRegistry: registry.opsmill.io
+  imageName: opsmill/emma
+  version: latest
+  type: ClusterIP
+  env:
+    STREAMLIT_SERVER_BASE_URL_PATH: /emma
+  ports:
+    - name: "interface"
+      port: 8501
+      targetPort: 8501
