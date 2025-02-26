@@ -64,6 +64,14 @@ The chart offers the ability to configure persistence for the database and other
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| emma.env.STREAMLIT_SERVER_BASE_URL_PATH | string | `"/emma"` |  |
+| emma.imageName | string | `"opsmill/emma"` |  |
+| emma.imageRegistry | string | `"registry.opsmill.io"` |  |
+| emma.ports[0].name | string | `"interface"` |  |
+| emma.ports[0].port | int | `8501` |  |
+| emma.ports[0].targetPort | int | `8501` |  |
+| emma.type | string | `"ClusterIP"` |  |
+| emma.version | string | `"latest"` |  |
 | global.commonAnnotations | object | `{}` | Annotations to use for all installed Kubernetes resources |
 | global.commonLabels | object | `{}` | Labels to use for all installed Kubernetes resources |
 | global.imagePullPolicy | string | `"IfNotPresent"` | Default image pull policy |
