@@ -55,16 +55,7 @@ spec:
           {{- end }}
           image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
-          livenessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - curl -s -f -o /dev/null http://localhost:{{ (index .Values.infrahubServer.ports 0).port }}/api/config || exit 1
-            failureThreshold: 20
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 5
+          livenessProbe: {{- toYaml .Values.infrahubServer.infrahubServer.livenessProbe | nindent 12 }}
           name: infrahub-server
           ports:
           {{- range .Values.infrahubServer.ports }}
