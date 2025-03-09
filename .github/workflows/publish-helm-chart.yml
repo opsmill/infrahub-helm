@@ -14,6 +14,11 @@ on:
         description: Wether to publish the Chart to Infrahub Private Registry
         required: false
         default: false
+      branch:
+        type: string
+        description: Branch to checkout
+        required: false
+        default: stable
   workflow_call:
     inputs:
       chart:
@@ -25,6 +30,11 @@ on:
         description: Wether to publish the Chart to Infrahub Private Registry
         required: false
         default: false
+      branch:
+        type: string
+        description: Branch to checkout
+        required: false
+        default: stable
 
 jobs:
   publish-helm-chart:
@@ -33,7 +43,10 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
         with:
+          repository: opsmill/infrahub-helm
+          ref: ${{ inputs.branch }}
           submodules: true
+
       - name: Install Helm
         uses: azure/setup-helm@v4.3.0
 
