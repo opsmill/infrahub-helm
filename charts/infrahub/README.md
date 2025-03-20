@@ -2,6 +2,8 @@
 
 A Helm chart to deploy Infrahub on Kubernetes
 
+**Homepage:** <https://github.com/opsmill/infrahub-helm>
+
 ## Infrahub Configuration
 
 The Infrahub configuration is structured as follows:
@@ -86,15 +88,17 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.persistence.accessMode | string | `"ReadWriteOnce"` |  |
 | infrahubServer.persistence.enabled | bool | `true` | Whether to enable data persistence for the Infrahub API server |
 | infrahubServer.persistence.size | string | `"1Gi"` |  |
+| infrahubServer.podLabels | object | `{"infrahub/service":"server"}` | Service type for the Infrahub API server |
 | infrahubServer.ports[0].name | string | `"interface"` |  |
 | infrahubServer.ports[0].port | int | `8000` | Port on which to expose the API server service |
 | infrahubServer.ports[0].targetPort | int | `8000` | Port on which Infrahub API server listens |
 | infrahubServer.resources | object | `{}` | Resources request and limit to apply for the task worker |
-| infrahubServer.type | string | `"ClusterIP"` | Service type for the Infrahub API server |
+| infrahubServer.type | string | `"ClusterIP"` |  |
 | infrahubTaskWorker.infrahubTaskWorker.args | list | `["prefect","worker","start","--type","infrahubasync","--pool","infrahub-worker","--with-healthcheck"]` | Container arguments for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.env | object | `{"INFRAHUB_API_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_LOG_LEVEL":"DEBUG","INFRAHUB_PRODUCTION":"false","INFRAHUB_TIMEOUT":"60","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_AGENT_QUERY_INTERVAL":3,"PREFECT_API_URL":"http://prefect-server:4200/api","PREFECT_WORKER_QUERY_SECONDS":3}` | Container environment for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy | string | `"Always"` | Image pull policy for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the task worker |
+| infrahubTaskWorker.podLabels.infrahub/service | string | `"task-worker"` |  |
 | infrahubTaskWorker.replicas | int | `2` | Number of replicas of the Infrahub Task Worker |
 | infrahubTaskWorker.resources | object | `{}` | Resources request and limit to apply for the task worker |
 | nats.config.jetstream.enabled | bool | `true` |  |
@@ -106,10 +110,14 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.nameOverride | string | `"database"` |  |
 | neo4j.neo4j.acceptLicenseAgreement | string | `"no"` |  |
 | neo4j.neo4j.edition | string | `"community"` |  |
+| neo4j.neo4j.labels.infrahub/service | string | `"database"` |  |
 | neo4j.neo4j.minimumClusterSize | int | `1` |  |
 | neo4j.neo4j.name | string | `"infrahub"` |  |
 | neo4j.neo4j.password | string | `"admin"` |  |
-| neo4j.neo4j.resources | object | `{}` |  |
+| neo4j.neo4j.resources.limits.cpu | string | `"4"` |  |
+| neo4j.neo4j.resources.limits.memory | string | `"8Gi"` |  |
+| neo4j.neo4j.resources.requests.cpu | string | `"4"` |  |
+| neo4j.neo4j.resources.requests.memory | string | `"8Gi"` |  |
 | neo4j.services.admin.enabled | bool | `false` |  |
 | neo4j.services.neo4j.enabled | bool | `false` |  |
 | neo4j.services.neo4j.ports.bolt.enabled | bool | `true` |  |
@@ -121,9 +129,11 @@ The chart offers the ability to configure persistence for the database and other
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.tag | string | `"14.13.0"` |  |
 | prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |
+| prefect-server.postgresql.primary.podLabels.infrahub/service | string | `"task-manager-db"` |  |
 | prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |
 | prefect-server.server.env[0].value | string | `"/"` |  |
 | prefect-server.server.image.prefectTag | string | `"3.0.11-python3.12-kubernetes"` |  |
+| prefect-server.server.podLabels.infrahub/service | string | `"task-manager"` |  |
 | prefect-server.serviceAccount.create | bool | `false` |  |
 | rabbitmq.auth.password | string | `"infrahub"` |  |
 | rabbitmq.auth.username | string | `"infrahub"` |  |
@@ -131,11 +141,13 @@ The chart offers the ability to configure persistence for the database and other
 | rabbitmq.metrics.enabled | bool | `true` |  |
 | rabbitmq.nameOverride | string | `"message-queue"` |  |
 | rabbitmq.persistence.enabled | bool | `false` |  |
+| rabbitmq.podLabels.infrahub/service | string | `"message-queue"` |  |
 | rabbitmq.startupProbe.enabled | bool | `true` |  |
 | redis.architecture | string | `"standalone"` |  |
 | redis.auth.enabled | bool | `false` |  |
 | redis.enabled | bool | `true` |  |
 | redis.master.persistence.enabled | bool | `false` |  |
+| redis.master.podLabels.infrahub/service | string | `"cache"` |  |
 | redis.master.service.ports.redis | int | `6379` |  |
 | redis.nameOverride | string | `"cache"` |  |
 
