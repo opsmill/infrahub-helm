@@ -2,6 +2,8 @@
 
 A Helm chart to deploy Infrahub Enterprise on Kubernetes
 
+**Homepage:** <https://github.com/opsmill/infrahub-helm>
+
 ## Infrahub Configuration
 
 This chart is based off the community Infrahub chart which is used as a dependency.
@@ -56,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.1.7 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.1.13 |
 
 ## Values
 
