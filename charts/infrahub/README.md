@@ -57,7 +57,7 @@ The chart offers the ability to configure persistence for the database and other
 |------------|------|---------|
 | https://helm.neo4j.com/neo4j/ | neo4j | 5.20.0 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
-| https://prefecthq.github.io/prefect-helm | prefect-server | 2024.10.15184517 |
+| https://prefecthq.github.io/prefect-helm | prefect-server | 2025.2.21193831 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
@@ -134,13 +134,23 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.2.0"` |  |
+| prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
-| prefect-server.postgresql.image.tag | string | `"14.13.0"` |  |
 | prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |
 | prefect-server.postgresql.primary.podLabels.infrahub/service | string | `"task-manager-db"` |  |
+| prefect-server.server.args[0] | string | `"uvicorn"` |  |
+| prefect-server.server.args[1] | string | `"--host"` |  |
+| prefect-server.server.args[2] | string | `"0.0.0.0"` |  |
+| prefect-server.server.args[3] | string | `"--port"` |  |
+| prefect-server.server.args[4] | string | `"4200"` |  |
+| prefect-server.server.args[5] | string | `"--factory"` |  |
+| prefect-server.server.args[6] | string | `"infrahub.prefect_server.app:create_infrahub_prefect"` |  |
+| prefect-server.server.command[0] | string | `"/usr/bin/tini"` |  |
+| prefect-server.server.command[1] | string | `"-g"` |  |
+| prefect-server.server.command[2] | string | `"--"` |  |
 | prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |
 | prefect-server.server.env[0].value | string | `"/"` |  |
-| prefect-server.server.image.prefectTag | string | `"3.0.11-python3.12-kubernetes"` |  |
 | prefect-server.server.podLabels.infrahub/service | string | `"task-manager"` |  |
 | prefect-server.serviceAccount.create | bool | `false` |  |
 | rabbitmq.auth.password | string | `"infrahub"` |  |
