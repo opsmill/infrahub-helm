@@ -43,12 +43,12 @@ neo4j:
     minimumClusterSize: 1
     acceptLicenseAgreement: "no"
     resources:
-      requests:
-        cpu: "4"
-        memory: "8Gi"
       limits:
         cpu: "4"
         memory: "8Gi"
+      requests:
+        cpu: "2"
+        memory: "4Gi"
   volumes:
     data:
       mode: "volume"
