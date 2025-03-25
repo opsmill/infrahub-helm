@@ -99,7 +99,7 @@ infrahubTaskWorker:
       INFRAHUB_GIT_REPOSITORIES_DIRECTORY: "/opt/infrahub/git"
       INFRAHUB_WORKFLOW_ADDRESS: prefect-server
       INFRAHUB_WORKFLOW_PORT: 4200
-      PREFECT_API_URL: "http://prefect-server:4200/api"
+      PREFECT_API_URL: "http://prefect-server:4200/taskmgr/api"
       PREFECT_WORKER_QUERY_SECONDS: 3
       PREFECT_AGENT_QUERY_INTERVAL: 3
     # -- Image pull policy for the task worker
@@ -150,7 +150,7 @@ infrahubServer:
       INFRAHUB_GIT_REPOSITORIES_DIRECTORY: "/opt/infrahub/git"
       INFRAHUB_WORKFLOW_ADDRESS: prefect-server
       INFRAHUB_WORKFLOW_PORT: 4200
-      PREFECT_API_URL: "http://prefect-server:4200/api"
+      PREFECT_API_URL: "http://prefect-server:4200/taskmgr/api"
     # -- Image pull policy for the API server
     imagePullPolicy: Always
     # -- Image registry to use for the API server
@@ -234,10 +234,14 @@ prefect-server:
       - --factory
       - infrahub.prefect_server.app:create_infrahub_prefect
     env:
+      - name: PREFECT_SERVER_API_BASE_PATH
+        value: /taskmgr/api
       - name: PREFECT_UI_SERVE_BASE
-        value: /
+        value: /taskmgr
     podLabels:
       infrahub/service: task-manager
+  service:
+    port: 4200
   serviceAccount:
     create: false
   postgresql:
