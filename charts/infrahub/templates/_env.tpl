@@ -16,7 +16,7 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_DB_ADDRESS }}
 - name: INFRAHUB_DB_ADDRESS
-  value: "{{ include "neo4j.fullname" . }}-database"
+  value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_DB_PORT }}
 - name: INFRAHUB_DB_PORT
@@ -55,7 +55,7 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_ADDRESS }}
 - name: INFRAHUB_DB_ADDRESS
-  value: "{{ include "neo4j.fullname" . }}-database"
+  value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_PORT }}
 - name: INFRAHUB_DB_PORT
@@ -94,7 +94,7 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_ADDRESS }}
 - name: INFRAHUB_DB_ADDRESS
-  value: "{{ include "neo4j.fullname" . }}-database"
+  value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_PORT }}
 - name: INFRAHUB_DB_PORT
