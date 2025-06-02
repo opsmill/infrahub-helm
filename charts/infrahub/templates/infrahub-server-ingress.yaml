@@ -54,8 +54,8 @@ spec:
     - hosts:
       - {{ .Values.infrahubServer.ingress.hostname }}
       {{- range .Values.infrahubServer.ingress.extraHosts }}
-        {{- if .name }}
-      -  {{ .name }}
+        {{- if .hostname }}
+      - {{ .hostname }}
         {{- end }}
       {{- end }}
       secretName: infrahub-server-tls
