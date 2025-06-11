@@ -55,7 +55,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://helm.neo4j.com/neo4j/ | neo4j | 5.20.0 |
+| https://helm.neo4j.com/neo4j/ | neo4j | 2025.03.0 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
 | https://prefecthq.github.io/prefect-helm | prefect-server | 2025.2.21193831 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
@@ -134,7 +134,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.2.11"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.3.0b6"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |

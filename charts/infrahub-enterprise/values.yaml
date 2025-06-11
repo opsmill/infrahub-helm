@@ -63,3 +63,8 @@ infrahub:
     neo4j:
       edition: "enterprise"
       acceptLicenseAgreement: "yes"
+  prefect-server:
+    global:
+      prefect:
+        image:
+          repository: registry.opsmill.io/opsmill/infrahub-enterprise
