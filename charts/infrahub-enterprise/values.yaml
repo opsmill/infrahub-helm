@@ -68,3 +68,17 @@ infrahub:
       prefect:
         image:
           repository: registry.opsmill.io/opsmill/infrahub-enterprise
+    server:
+      env:
+      - name: PREFECT_UI_SERVE_BASE
+        value: /
+      - name: PREFECT__SERVER_WEBSERVER_ONLY
+        value: "true"
+    backgroundServices:
+      runAsSeparateDeployment: true
+      command:
+        - /usr/bin/tini
+        - -g
+        - --
+      podLabels:
+        infrahub/service: task-manager
