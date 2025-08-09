@@ -69,6 +69,14 @@ infrahub:
         image:
           repository: registry.opsmill.io/opsmill/infrahub-enterprise
     server:
+      command:
+        - gunicorn
+      args:
+        - -k
+        - uvicorn.workers.UvicornWorker
+        - -b
+        - 0.0.0.0:4200
+        - 'infrahub.prefect_server.app:create_infrahub_prefect()'
       env:
       - name: PREFECT_UI_SERVE_BASE
         value: /
