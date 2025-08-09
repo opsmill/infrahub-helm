@@ -82,6 +82,12 @@ infrahub:
         value: /
       - name: PREFECT__SERVER_WEBSERVER_ONLY
         value: "true"
+      podSecurityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containerSecurityContext:
+        runAsUser: 1000
+        readOnlyRootFilesystem: false
     backgroundServices:
       runAsSeparateDeployment: true
       command:
