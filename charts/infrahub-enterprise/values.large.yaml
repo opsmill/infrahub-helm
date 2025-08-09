@@ -58,6 +58,10 @@ infrahub:
           value: "1"
     backgroundServices:
       # replicaCount: 2 # not supported yet
+      args:
+        - sh
+        - -c
+        - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; prefect server services start"
       env:
         - name: PREFECT_REDIS_MESSAGING_HOST
           value: "infrahub-cache-master" # Set correct hostname
