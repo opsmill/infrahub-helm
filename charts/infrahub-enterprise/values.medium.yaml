@@ -7,6 +7,14 @@ infrahub:
   infrahubTaskWorker:
     replicas: 4
   neo4j:
+    neo4j:
+      resources:
+        limits:
+          cpu: "8"
+          memory: "32Gi"
+        requests:
+          cpu: "8"
+          memory: "32Gi"
     config:
       server.memory.heap.initial_size: "24G"
       server.memory.heap.max_size: "24G"
