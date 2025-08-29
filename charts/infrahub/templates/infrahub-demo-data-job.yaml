@@ -13,6 +13,9 @@ spec:
   backoffLimit: {{ .Values.infrahubDemoData.backoffLimit }}
   template:
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - command:
           {{- toYaml .Values.infrahubDemoData.command | nindent 12 }}

@@ -57,7 +57,7 @@ The chart offers the ability to configure persistence for the database and other
 |------------|------|---------|
 | https://helm.neo4j.com/neo4j/ | neo4j | 2025.03.0 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
-| https://prefecthq.github.io/prefect-helm | prefect-server | 2025.2.21193831 |
+| https://prefecthq.github.io/prefect-helm | prefect-server | 2025.7.31204438 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
@@ -77,6 +77,7 @@ The chart offers the ability to configure persistence for the database and other
 | global.commonAnnotations | object | `{}` | Annotations to use for all installed Kubernetes resources |
 | global.commonLabels | object | `{}` | Labels to use for all installed Kubernetes resources |
 | global.imagePullPolicy | string | `"IfNotPresent"` | Default image pull policy |
+| global.imagePullSecrets | object | `{}` | Image pull secrets |
 | global.infrahubRepository | string | `"opsmill/infrahub"` | Repository for Infrahub images |
 | global.kubernetesClusterDomain | string | `"cluster.local"` | Kubernetes cluster domain |
 | global.podLabels | object | `{}` | Labels to use for all configured pods |
@@ -135,7 +136,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.3.3"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.4.2"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |

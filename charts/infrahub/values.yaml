@@ -6,6 +6,8 @@ global:
   infrahubRepository: opsmill/infrahub
   # -- Default image pull policy
   imagePullPolicy: IfNotPresent
+  # -- Image pull secrets
+  imagePullSecrets: {}
   # -- Labels to use for all installed Kubernetes resources
   commonLabels: {}
   # -- Annotations to use for all installed Kubernetes resources
