@@ -18,18 +18,14 @@ global:
 # ----------- Cache -----------
 redis:
   enabled: true
-  nameOverride: cache
-  architecture: standalone
-  auth:
+  nameOverride: cache-v2
+  haMode:
     enabled: false
-  master:
-    podLabels:
-      infrahub/service: cache
-    persistence:
-      enabled: false
-    service:
-      ports:
-        redis: 6379
+  podLabels:
+    infrahub/service: cache
+  useDeploymentWhenNonHA: true
+  service:
+    serverPort: 6379
 
 # ----------- Database -----------
 neo4j:
@@ -206,16 +202,20 @@ rabbitmq:
   podLabels:
     infrahub/service: message-queue
   enabled: true
-  nameOverride: message-queue
-  persistence:
-    enabled: false
-  auth:
-    username: infrahub
-    password: infrahub
-  metrics:
+  nameOverride: message-queue-v2
+  authentication:
+    user:
+      value: infrahub
+    password:
+      value: infrahub
+    erlangCookie:
+      value: opsmill-infrahub-opsmill
+  prometheusPlugin:
     enabled: true
-  startupProbe:
-    enabled: true
+  livenessProbe:
+    initialDelaySeconds: 10
+  readinessProbe:
+    initialDelaySeconds: 10
 
 # ----------- NATS Server -----------
 nats:

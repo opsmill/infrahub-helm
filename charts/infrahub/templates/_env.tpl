@@ -24,19 +24,19 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_BROKER_ADDRESS }}
 - name: INFRAHUB_BROKER_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
+  value: "{{ include "rabbitmq.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_BROKER_USERNAME }}
 - name: INFRAHUB_BROKER_USERNAME
-  value: {{ .Values.rabbitmq.auth.username | quote }}
+  value: {{ .Values.rabbitmq.authentication.user.value | quote }}
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_CACHE_ADDRESS }}
 - name: INFRAHUB_CACHE_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
+  value: "{{ include "redis.fullname" .Subcharts.redis }}"
 {{- end }}
 {{- if not .Values.infrahubDemoData.env.INFRAHUB_CACHE_PORT }}
 - name: INFRAHUB_CACHE_PORT
-  value: "{{ .Values.redis.master.service.ports.redis }}"
+  value: "{{ .Values.redis.service.serverPort }}"
 {{- end }}
 {{- end }}
 
@@ -63,19 +63,19 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_ADDRESS }}
 - name: INFRAHUB_BROKER_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
+  value: "{{ include "rabbitmq.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_USERNAME }}
 - name: INFRAHUB_BROKER_USERNAME
-  value: {{ .Values.rabbitmq.auth.username | quote }}
+  value: {{ .Values.rabbitmq.authentication.user.value | quote }}
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_ADDRESS }}
 - name: INFRAHUB_CACHE_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
+  value: "{{ include "redis.fullname" .Subcharts.redis }}"
 {{- end }}
 {{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_PORT }}
 - name: INFRAHUB_CACHE_PORT
-  value: "{{ .Values.redis.master.service.ports.redis }}"
+  value: "{{ .Values.redis.service.serverPort }}"
 {{- end }}
 {{- end }}
 
@@ -102,19 +102,19 @@ Define default env variables if required.
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_ADDRESS }}
 - name: INFRAHUB_BROKER_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
+  value: "{{ include "rabbitmq.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_USERNAME }}
 - name: INFRAHUB_BROKER_USERNAME
-  value: {{ .Values.rabbitmq.auth.username | quote }}
+  value: {{ .Values.rabbitmq.authentication.user.value | quote }}
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_ADDRESS }}
 - name: INFRAHUB_CACHE_ADDRESS
-  value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
+  value: "{{ include "redis.fullname" .Subcharts.redis }}"
 {{- end }}
 {{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_PORT }}
 - name: INFRAHUB_CACHE_PORT
-  value: "{{ .Values.redis.master.service.ports.redis }}"
+  value: "{{ .Values.redis.service.serverPort }}"
 {{- end }}
 {{- end }}
 
