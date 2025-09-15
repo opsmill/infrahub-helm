@@ -19,6 +19,8 @@ global:
 redis:
   enabled: true
   nameOverride: cache
+  image:
+    repository: bitnamilegacy/redis
   architecture: standalone
   auth:
     enabled: false
@@ -207,6 +209,8 @@ rabbitmq:
     infrahub/service: message-queue
   enabled: true
   nameOverride: message-queue
+  image:
+    repository: bitnamilegacy/rabbitmq
   persistence:
     enabled: false
   auth:
@@ -254,6 +258,8 @@ prefect-server:
     create: false
   postgresql:
     enabled: true
+    image:
+      repository: bitnamilegacy/postgresql
     primary:
       podLabels:
         infrahub/service: task-manager-db

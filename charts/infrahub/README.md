@@ -136,9 +136,10 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.4.2"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.4.6"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
+| prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
 | prefect-server.postgresql.primary.persistence.enabled | bool | `false` |  |
 | prefect-server.postgresql.primary.podLabels.infrahub/service | string | `"task-manager-db"` |  |
 | prefect-server.server.args[0] | string | `"uvicorn"` |  |
@@ -158,6 +159,7 @@ The chart offers the ability to configure persistence for the database and other
 | rabbitmq.auth.password | string | `"infrahub"` |  |
 | rabbitmq.auth.username | string | `"infrahub"` |  |
 | rabbitmq.enabled | bool | `true` |  |
+| rabbitmq.image.repository | string | `"bitnamilegacy/rabbitmq"` |  |
 | rabbitmq.metrics.enabled | bool | `true` |  |
 | rabbitmq.nameOverride | string | `"message-queue"` |  |
 | rabbitmq.persistence.enabled | bool | `false` |  |
@@ -166,6 +168,7 @@ The chart offers the ability to configure persistence for the database and other
 | redis.architecture | string | `"standalone"` |  |
 | redis.auth.enabled | bool | `false` |  |
 | redis.enabled | bool | `true` |  |
+| redis.image.repository | string | `"bitnamilegacy/redis"` |  |
 | redis.master.persistence.enabled | bool | `false` |  |
 | redis.master.podLabels.infrahub/service | string | `"cache"` |  |
 | redis.master.service.ports.redis | int | `6379` |  |
