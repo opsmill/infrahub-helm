@@ -23,7 +23,7 @@ version: 4.9.3
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.4.9"
+appVersion: "1.4.10"
 
 dependencies:
   - name: neo4j
