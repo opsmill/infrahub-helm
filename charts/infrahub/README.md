@@ -136,7 +136,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.4.6"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.4.10"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
