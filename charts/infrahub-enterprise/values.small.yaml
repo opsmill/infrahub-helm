@@ -6,6 +6,9 @@ infrahub:
     replicas: 1
   infrahubTaskWorker:
     replicas: 2
+    infrahubTaskWorker:
+      env:
+        INFRAHUB_PAGINATION_SIZE: "50"
   neo4j:
     neo4j:
       resources:
@@ -52,6 +55,10 @@ infrahub:
           value: prefect_redis.messaging
         - name: PREFECT_MESSAGING_CACHE
           value: prefect_redis.messaging
+        - name: PREFECT_SERVER_EVENTS_CAUSAL_ORDERING
+          value: prefect_redis.ordering
+        - name: PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+          value: prefect_redis.lease_storage
         - name: PREFECT_REDIS_MESSAGING_DB
           value: "1"
         - name: WEB_CONCURRENCY
@@ -83,5 +90,9 @@ infrahub:
           value: prefect_redis.messaging
         - name: PREFECT_MESSAGING_CACHE
           value: prefect_redis.messaging
+        - name: PREFECT_SERVER_EVENTS_CAUSAL_ORDERING
+          value: prefect_redis.ordering
+        - name: PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+          value: prefect_redis.lease_storage
         - name: PREFECT_REDIS_MESSAGING_DB
           value: "1"
