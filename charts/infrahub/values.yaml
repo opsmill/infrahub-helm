@@ -28,7 +28,7 @@ redis:
     podLabels:
       infrahub/service: cache
     persistence:
-      enabled: false
+      enabled: true
     service:
       ports:
         redis: 6379
@@ -212,7 +212,7 @@ rabbitmq:
   image:
     repository: bitnamilegacy/rabbitmq
   persistence:
-    enabled: false
+    enabled: true
   auth:
     username: infrahub
     password: infrahub
@@ -264,7 +264,7 @@ prefect-server:
       podLabels:
         infrahub/service: task-manager-db
       persistence:
-        enabled: false
+        enabled: true
 
 # -------------- Emma ---------------
 emma:
