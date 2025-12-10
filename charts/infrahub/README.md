@@ -88,6 +88,8 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubDemoData.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the Kubernetes job |
 | infrahubServer.infrahubServer.args | list | `["gunicorn","--config","/source/backend/infrahub/serve/gunicorn_config.py","-w","2","--logger-class","infrahub.serve.log.GunicornLogger","infrahub.server:app"]` | Container arguments for the API server |
 | infrahubServer.infrahubServer.env | object | `{"INFRAHUB_ALLOW_ANONYMOUS_ACCESS":"true","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_INITIAL_ADMIN_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_LOG_LEVEL":"INFO","INFRAHUB_PRODUCTION":"false","INFRAHUB_SECURITY_SECRET_KEY":"327f747f-efac-42be-9e73-999f08f86b92","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_API_URL":"http://prefect-server:4200/api"}` | Container environment for the API server |
+| infrahubServer.infrahubServer.extraVolumeMounts | list | `[]` | Extra volumeMounts for the server pod |
+| infrahubServer.infrahubServer.extraVolumes | list | `[]` | Extra volumes for the server pod |
 | infrahubServer.infrahubServer.imagePullPolicy | string | `"Always"` | Image pull policy for the API server |
 | infrahubServer.infrahubServer.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the API server |
 | infrahubServer.infrahubServer.livenessProbe | object | `{"failureThreshold":20,"httpGet":{"path":"/api/config","port":8000,"scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":5,"timeoutSeconds":5}` | Liveness probe to use for the API server |
@@ -106,6 +108,8 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.type | string | `"ClusterIP"` |  |
 | infrahubTaskWorker.infrahubTaskWorker.args | list | `["prefect","worker","start","--type","infrahubasync","--pool","infrahub-worker","--with-healthcheck"]` | Container arguments for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.env | object | `{"INFRAHUB_API_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_LOG_LEVEL":"DEBUG","INFRAHUB_PRODUCTION":"false","INFRAHUB_TIMEOUT":"60","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_AGENT_QUERY_INTERVAL":3,"PREFECT_API_URL":"http://prefect-server:4200/api","PREFECT_WORKER_QUERY_SECONDS":3}` | Container environment for the task worker |
+| infrahubTaskWorker.infrahubTaskWorker.extraVolumeMounts | list | `[]` | Extra volumeMounts for the task worker pod |
+| infrahubTaskWorker.infrahubTaskWorker.extraVolumes | list | `[]` | Extra volumes for the task worker pod |
 | infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy | string | `"Always"` | Image pull policy for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the task worker |
 | infrahubTaskWorker.podLabels.infrahub/service | string | `"task-worker"` |  |
@@ -136,7 +140,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.4.10"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.6.0"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |

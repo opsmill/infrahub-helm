@@ -109,6 +109,10 @@ infrahubTaskWorker:
     imagePullPolicy: Always
     # -- Image registry to use for the task worker
     imageRegistry: registry.opsmill.io
+    # -- Extra volumes for the task worker pod
+    extraVolumes: []
+    # -- Extra volumeMounts for the task worker pod
+    extraVolumeMounts: []
 
 # ----------- Infrahub Server -----------
 infrahubServer:
@@ -178,6 +182,10 @@ infrahubServer:
       initialDelaySeconds: 10
       periodSeconds: 5
       timeoutSeconds: 5
+    # -- Extra volumes for the server pod
+    extraVolumes: []
+    # -- Extra volumeMounts for the server pod
+    extraVolumeMounts: []
 
   ports:
     - name: "interface"
