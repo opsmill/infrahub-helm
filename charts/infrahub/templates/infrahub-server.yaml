@@ -79,6 +79,9 @@ spec:
           volumeMounts:
             - mountPath: /opt/infrahub/storage
               name: infrahub-server-storage-data
+          {{- with .Values.infrahubServer.infrahubServer.extraVolumeMounts }}
+          {{- toYaml . | nindent 12 }}
+          {{- end }}
       restartPolicy: Always
       volumes:
         {{- if and .Values.infrahubServer.persistence.enabled }}
@@ -88,6 +91,9 @@ spec:
         {{- else }}
         - name: infrahub-server-storage-data
           emptyDir: {}
+        {{- end }}
+        {{- with .Values.infrahubServer.infrahubServer.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
 
 ---
