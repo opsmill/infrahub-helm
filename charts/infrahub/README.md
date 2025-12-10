@@ -77,7 +77,7 @@ The chart offers the ability to configure persistence for the database and other
 | global.commonAnnotations | object | `{}` | Annotations to use for all installed Kubernetes resources |
 | global.commonLabels | object | `{}` | Labels to use for all installed Kubernetes resources |
 | global.imagePullPolicy | string | `"IfNotPresent"` | Default image pull policy |
-| global.imagePullSecrets | object | `{}` | Image pull secrets |
+| global.imagePullSecrets | list | `[]` | Image pull secrets |
 | global.infrahubRepository | string | `"opsmill/infrahub"` | Repository for Infrahub images |
 | global.kubernetesClusterDomain | string | `"cluster.local"` | Kubernetes cluster domain |
 | global.podLabels | object | `{}` | Labels to use for all configured pods |
