@@ -27,7 +27,7 @@ appVersion: "1.6.1"
 
 dependencies:
   - name: neo4j
-    version: "2025.03.0"
+    version: "2025.10.1-4"
     repository: "https://helm.neo4j.com/neo4j/"
     condition: neo4j.enabled
   - name: common
@@ -47,6 +47,6 @@ dependencies:
     repository: "https://nats-io.github.io/k8s/helm/charts/"
     condition: nats.enabled
   - name: prefect-server
-    version: "2025.7.31204438"
+    version: "2025.12.11201923"
     repository: "https://prefecthq.github.io/prefect-helm"
     condition: prefect-server.enabled
