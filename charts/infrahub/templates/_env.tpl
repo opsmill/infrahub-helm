@@ -14,27 +14,27 @@ Define default env variables if required.
 - name: INFRAHUB_INTERNAL_ADDRESS
   value: "http://{{ include "infrahub-helm.fullname" . }}-infrahub-server:8000"
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_DB_ADDRESS }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_DB_ADDRESS) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_ADDRESS
   value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_DB_PORT }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_DB_PORT) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_PORT
   value: "{{ .Values.neo4j.services.neo4j.ports.bolt.port }}"
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_BROKER_ADDRESS }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_BROKER_ADDRESS) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_BROKER_USERNAME }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_BROKER_USERNAME) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_USERNAME
   value: {{ .Values.rabbitmq.auth.username | quote }}
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_CACHE_ADDRESS }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_CACHE_ADDRESS) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
 {{- end }}
-{{- if not .Values.infrahubDemoData.env.INFRAHUB_CACHE_PORT }}
+{{- if and (not .Values.infrahubDemoData.env.INFRAHUB_CACHE_PORT) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_PORT
   value: "{{ .Values.redis.master.service.ports.redis }}"
 {{- end }}
@@ -53,27 +53,27 @@ Define default env variables if required.
 - name: INFRAHUB_INTERNAL_ADDRESS
   value: "http://{{ include "infrahub-helm.fullname" . }}-infrahub-server:8000"
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_ADDRESS }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_ADDRESS) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_ADDRESS
   value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_PORT }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_DB_PORT) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_PORT
   value: "{{ .Values.neo4j.services.neo4j.ports.bolt.port }}"
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_ADDRESS }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_ADDRESS) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_USERNAME }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_BROKER_USERNAME) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_USERNAME
   value: {{ .Values.rabbitmq.auth.username | quote }}
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_ADDRESS }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_ADDRESS) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
 {{- end }}
-{{- if not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_PORT }}
+{{- if and (not .Values.infrahubServer.infrahubServer.env.INFRAHUB_CACHE_PORT) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_PORT
   value: "{{ .Values.redis.master.service.ports.redis }}"
 {{- end }}
@@ -92,27 +92,27 @@ Define default env variables if required.
 - name: INFRAHUB_INTERNAL_ADDRESS
   value: "http://{{ include "infrahub-helm.fullname" . }}-infrahub-server:8000"
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_ADDRESS }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_ADDRESS) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_ADDRESS
   value: "{{ include "neo4j.fullname" .Subcharts.neo4j }}"
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_PORT }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_DB_PORT) .Values.neo4j.enabled }}
 - name: INFRAHUB_DB_PORT
   value: "{{ .Values.neo4j.services.neo4j.ports.bolt.port }}"
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_ADDRESS }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_ADDRESS) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.rabbitmq }}"
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_USERNAME }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_BROKER_USERNAME) .Values.rabbitmq.enabled }}
 - name: INFRAHUB_BROKER_USERNAME
   value: {{ .Values.rabbitmq.auth.username | quote }}
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_ADDRESS }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_ADDRESS) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_ADDRESS
   value: "{{ include "common.names.fullname" .Subcharts.redis }}-master"
 {{- end }}
-{{- if not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_PORT }}
+{{- if and (not .Values.infrahubTaskWorker.infrahubTaskWorker.env.INFRAHUB_CACHE_PORT) .Values.redis.enabled }}
 - name: INFRAHUB_CACHE_PORT
   value: "{{ .Values.redis.master.service.ports.redis }}"
 {{- end }}
