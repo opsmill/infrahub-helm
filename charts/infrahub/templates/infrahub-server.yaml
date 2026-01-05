@@ -51,10 +51,19 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- with .Values.infrahubServer.infrahubServer.envFromExistingSecret }}
+          {{- if and .Values.infrahubServer.infrahubServer.envFromExistingSecret .Values.infrahubServer.infrahubServer.envFromExistingSecrets }}
+            {{- fail "infrahubServer.infrahubServer.envFromExistingSecret and infrahubServer.infrahubServer.envFromExistingSecrets are mutually exclusive. Please use envFromExistingSecrets (envFromExistingSecret is deprecated)." }}
+          {{- end }}
+          {{- if or .Values.infrahubServer.infrahubServer.envFromExistingSecret .Values.infrahubServer.infrahubServer.envFromExistingSecrets }}
           envFrom:
+            {{- with .Values.infrahubServer.infrahubServer.envFromExistingSecret }}
             - secretRef:
                 name: {{ . }}
+            {{- end }}
+            {{- range .Values.infrahubServer.infrahubServer.envFromExistingSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
           {{- end }}
           image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
