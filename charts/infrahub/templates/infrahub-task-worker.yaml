@@ -52,10 +52,19 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- with .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret }}
+          {{- if and .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets }}
+            {{- fail "infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret and infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets are mutually exclusive. Please use envFromExistingSecrets (envFromExistingSecret is deprecated)." }}
+          {{- end }}
+          {{- if or .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets }}
           envFrom:
+            {{- with .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret }}
             - secretRef:
                 name: {{ . }}
+            {{- end }}
+            {{- range .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
           {{- end }}
           image: {{ default .Values.global.imageRegistry .Values.infrahubTaskWorker.infrahubTaskWorker.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy }}

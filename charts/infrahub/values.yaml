@@ -109,6 +109,11 @@ infrahubTaskWorker:
     imagePullPolicy: Always
     # -- Image registry to use for the task worker
     imageRegistry: registry.opsmill.io
+    # -- (DEPRECATED) Name of an existing secret to use for environment variables. Use envFromExistingSecrets instead.
+    # @deprecated Use envFromExistingSecrets instead
+    envFromExistingSecret: ""
+    # -- List of existing secrets to use for environment variables
+    envFromExistingSecrets: []
     # -- Extra volumes for the task worker pod
     extraVolumes: []
     # -- Extra volumeMounts for the task worker pod
@@ -162,6 +167,11 @@ infrahubServer:
     imagePullPolicy: Always
     # -- Image registry to use for the API server
     imageRegistry: registry.opsmill.io
+    # -- (DEPRECATED) Name of an existing secret to use for environment variables. Use envFromExistingSecrets instead.
+    # @deprecated Use envFromExistingSecrets instead
+    envFromExistingSecret: ""
+    # -- List of existing secrets to use for environment variables
+    envFromExistingSecrets: []
     # -- Liveness probe to use for the API server
     livenessProbe:
       httpGet:
