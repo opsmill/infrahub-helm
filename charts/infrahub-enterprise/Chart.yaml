@@ -23,9 +23,9 @@ version: 3.12.4
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.6.3"
+appVersion: "1.7.0"
 
 dependencies:
   - name: infrahub
-    version: "4.12.5"
+    version: "4.13.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
