@@ -89,7 +89,7 @@ infrahub:
         runAsUser: 1000
         readOnlyRootFilesystem: false
     backgroundServices:
-      runAsSeparateDeployment: true
+      runAsSeparateDeployment: false
       command:
         - /usr/bin/tini
         - -g

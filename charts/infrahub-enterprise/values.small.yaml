@@ -64,7 +64,12 @@ infrahub:
         - name: WEB_CONCURRENCY
           value: "1"
     backgroundServices:
-      # replicaCount: 1 # not supported yet
+      replicaCount: 1
+      runAsSeparateDeployment: true
+      messaging:
+        redis:
+          host: "infrahub-cache-master" # Set correct hostname
+          db: 1
       args:
         - sh
         - -c
