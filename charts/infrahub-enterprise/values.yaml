@@ -70,13 +70,13 @@ infrahub:
           repository: registry.opsmill.io/opsmill/infrahub-enterprise
     server:
       command:
-        - gunicorn
+        - /usr/bin/tini
+        - -g
+        - --
       args:
-        - -k
-        - uvicorn.workers.UvicornWorker
-        - -b
-        - 0.0.0.0:4200
-        - 'infrahub.prefect_server.app:create_infrahub_prefect()'
+        - sh
+        - -c
+        - "env INFRAHUB_CACHE_ADDRESS=$PREFECT_REDIS_MESSAGING_HOST gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"
       env:
       - name: PREFECT_UI_SERVE_BASE
         value: /
@@ -88,6 +88,8 @@ infrahub:
       containerSecurityContext:
         runAsUser: 1000
         readOnlyRootFilesystem: false
+    migrations:
+      enabled: false # Migrations are handled by custom Infrahub Prefect entrypoint
     backgroundServices:
       runAsSeparateDeployment: false
       command:

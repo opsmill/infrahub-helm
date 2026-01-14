@@ -31,8 +31,6 @@ infrahub:
     server:
       replicaCount: 2
       env:
-        - name: INFRAHUB_CACHE_ADDRESS
-          value: "example-infrahub-cache-master" # Set correct hostname
         - name: PREFECT_UI_SERVE_BASE
           value: /
         - name: PREFECT__SERVER_WEBSERVER_ONLY
@@ -63,8 +61,6 @@ infrahub:
         - -c
         - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; prefect server services start"
       env:
-        - name: INFRAHUB_CACHE_ADDRESS
-          value: "example-infrahub-cache-master" # Set correct hostname
         - name: PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED
           value: "true"
         - name: PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED
