@@ -36,6 +36,7 @@ infrahub:
         INFRAHUB_WORKFLOW_PORT: 4200
         INFRAHUB_WORKFLOW_DEFAULT_WORKER_TYPE: "infrahubentasync"
         PREFECT_API_URL: "http://prefect-server:4200/api"
+    replicas: 1
   infrahubTaskWorker:
     podSecurityContext:
       runAsGroup: 1000
@@ -54,6 +55,9 @@ infrahub:
         - --pool
         - infrahub-worker
         - --with-healthcheck
+      env:
+        INFRAHUB_PAGINATION_SIZE: "50"
+    replicas: 2
   infrahubDemoData:
     command:
       - sh
@@ -63,6 +67,17 @@ infrahub:
     neo4j:
       edition: "enterprise"
       acceptLicenseAgreement: "yes"
+      resources:
+        limits:
+          cpu: "4"
+          memory: "16Gi"
+        requests:
+          cpu: "4"
+          memory: "16Gi"
+    config:
+      server.memory.heap.initial_size: "8G"
+      server.memory.heap.max_size: "8G"
+      server.memory.pagecache.size: "1G"
   prefect-server:
     global:
       prefect:
@@ -78,23 +93,67 @@ infrahub:
         - -c
         - "env INFRAHUB_CACHE_ADDRESS=$PREFECT_REDIS_MESSAGING_HOST gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"
       env:
-      - name: PREFECT_UI_SERVE_BASE
-        value: /
-      - name: PREFECT__SERVER_WEBSERVER_ONLY
-        value: "true"
+        - name: PREFECT_UI_SERVE_BASE
+          value: /
+        - name: PREFECT__SERVER_WEBSERVER_ONLY
+          value: "true"
+        - name: PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED
+          value: "false"
+        - name: PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED
+          value: "false"
+        - name: PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED
+          value: "false"
+        - name: PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED
+          value: "false"
+        - name: PREFECT_API_DATABASE_MIGRATE_ON_START
+          value: "false"
+        - name: PREFECT_API_BLOCKS_REGISTER_ON_START
+          value: "false"
+        - name: WEB_CONCURRENCY
+          value: "1"
       podSecurityContext:
         runAsUser: 1000
         fsGroup: 1000
       containerSecurityContext:
         runAsUser: 1000
         readOnlyRootFilesystem: false
+      replicaCount: 1
     migrations:
       enabled: false # Migrations are handled by custom Infrahub Prefect entrypoint
     backgroundServices:
-      runAsSeparateDeployment: false
+      runAsSeparateDeployment: true
       command:
         - /usr/bin/tini
         - -g
         - --
       podLabels:
         infrahub/service: task-manager
+      #replicaCount: 1
+      messaging:
+        redis:
+          host: "example-infrahub-cache-master" # Set correct hostname
+          db: 1
+      args:
+        - sh
+        - -c
+        - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; prefect server services start"
+      env:
+        - name: PREFECT_SERVER_SERVICES_EVENT_LOGGER_ENABLED
+          value: "true"
+        - name: PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED
+          value: "true"
+        - name: PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED
+          value: "true"
+        - name: PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED
+          value: "true"
+        - name: PREFECT_API_DATABASE_MIGRATE_ON_START
+          value: "false"
+        - name: PREFECT_API_BLOCKS_REGISTER_ON_START
+          value: "false"
+    postgresql:
+      primary:
+        extraEnvVars:
+          - name: POSTGRESQL_MAX_CONNECTIONS
+            value: "100"
+# yamllint disable rule:line-length
+configPreset: small
