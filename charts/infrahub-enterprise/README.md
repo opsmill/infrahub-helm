@@ -58,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.12.4 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.14.0 |
 
 ## Values
 
@@ -114,14 +114,15 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub.prefect-server.backgroundServices.command[1] | string | `"-g"` |  |
 | infrahub.prefect-server.backgroundServices.command[2] | string | `"--"` |  |
 | infrahub.prefect-server.backgroundServices.podLabels.infrahub/service | string | `"task-manager"` |  |
-| infrahub.prefect-server.backgroundServices.runAsSeparateDeployment | bool | `true` |  |
+| infrahub.prefect-server.backgroundServices.runAsSeparateDeployment | bool | `false` |  |
 | infrahub.prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub-enterprise"` |  |
-| infrahub.prefect-server.server.args[0] | string | `"-k"` |  |
-| infrahub.prefect-server.server.args[1] | string | `"uvicorn.workers.UvicornWorker"` |  |
-| infrahub.prefect-server.server.args[2] | string | `"-b"` |  |
-| infrahub.prefect-server.server.args[3] | string | `"0.0.0.0:4200"` |  |
-| infrahub.prefect-server.server.args[4] | string | `"infrahub.prefect_server.app:create_infrahub_prefect()"` |  |
-| infrahub.prefect-server.server.command[0] | string | `"gunicorn"` |  |
+| infrahub.prefect-server.migrations.enabled | bool | `false` |  |
+| infrahub.prefect-server.server.args[0] | string | `"sh"` |  |
+| infrahub.prefect-server.server.args[1] | string | `"-c"` |  |
+| infrahub.prefect-server.server.args[2] | string | `"env INFRAHUB_CACHE_ADDRESS=$PREFECT_REDIS_MESSAGING_HOST gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"` |  |
+| infrahub.prefect-server.server.command[0] | string | `"/usr/bin/tini"` |  |
+| infrahub.prefect-server.server.command[1] | string | `"-g"` |  |
+| infrahub.prefect-server.server.command[2] | string | `"--"` |  |
 | infrahub.prefect-server.server.containerSecurityContext.readOnlyRootFilesystem | bool | `false` |  |
 | infrahub.prefect-server.server.containerSecurityContext.runAsUser | int | `1000` |  |
 | infrahub.prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |

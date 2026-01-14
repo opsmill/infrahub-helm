@@ -55,9 +55,9 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://helm.neo4j.com/neo4j/ | neo4j | 2025.03.0 |
+| https://helm.neo4j.com/neo4j/ | neo4j | 2025.10.1-4 |
 | https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
-| https://prefecthq.github.io/prefect-helm | prefect-server | 2025.7.31204438 |
+| https://prefecthq.github.io/prefect-helm | prefect-server | 2025.12.24192415 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
@@ -144,7 +144,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.6.2"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.7.1"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
@@ -168,6 +168,7 @@ The chart offers the ability to configure persistence for the database and other
 | rabbitmq.auth.username | string | `"infrahub"` |  |
 | rabbitmq.enabled | bool | `true` |  |
 | rabbitmq.image.repository | string | `"bitnamilegacy/rabbitmq"` |  |
+| rabbitmq.image.tag | string | `"4.1.3-debian-12-r1"` |  |
 | rabbitmq.metrics.enabled | bool | `true` |  |
 | rabbitmq.nameOverride | string | `"message-queue"` |  |
 | rabbitmq.persistence.enabled | bool | `false` |  |
@@ -177,6 +178,7 @@ The chart offers the ability to configure persistence for the database and other
 | redis.auth.enabled | bool | `false` |  |
 | redis.enabled | bool | `true` |  |
 | redis.image.repository | string | `"bitnamilegacy/redis"` |  |
+| redis.image.tag | string | `"8.2.1-debian-12-r0"` |  |
 | redis.master.persistence.enabled | bool | `false` |  |
 | redis.master.podLabels.infrahub/service | string | `"cache"` |  |
 | redis.master.service.ports.redis | int | `6379` |  |
