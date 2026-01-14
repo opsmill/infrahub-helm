@@ -1,6 +1,6 @@
 # yamllint disable rule:line-length
 ---
-configPreset: large
+configPreset: large-data
 infrahub:
   infrahubServer:
     replicas: 4
