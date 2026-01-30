@@ -1,11 +1,21 @@
 ---
 apiVersion: v2
-name: infrahub
-description: A Helm chart to deploy Infrahub on Kubernetes
+name: infrahub-backup
+description: Backup and restore Helm chart for Infrahub on Kubernetes
 icon: https://github.com/opsmill/infrahub/raw/develop/frontend/app/public/favicons/logo512.png
 home: https://github.com/opsmill/infrahub-helm
 sources:
-  - https://github.com/opsmill/infrahub
+  - https://github.com/opsmill/infrahub-backup
+keywords:
+  - infrahub
+  - backup
+  - restore
+  - neo4j
+  - postgresql
+  - kubernetes
+maintainers:
+  - name: OpsMill
+    url: https://github.com/opsmill
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
@@ -18,39 +28,9 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 4.14.2
+version: 1.0.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.7.3"
-
-dependencies:
-  - name: neo4j
-    version: "2025.10.1-4"
-    repository: "https://helm.neo4j.com/neo4j/"
-    condition: neo4j.enabled
-  - name: common
-    repository: "oci://registry-1.docker.io/bitnamicharts"
-    version: "2.23.0"
-    condition: redis.enabled,rabbitmq.enabled
-  - name: redis
-    version: "19.5.2"
-    repository: "oci://registry-1.docker.io/bitnamicharts"
-    condition: redis.enabled
-  - name: rabbitmq
-    version: "14.4.1"
-    repository: "oci://registry-1.docker.io/bitnamicharts"
-    condition: rabbitmq.enabled
-  - name: nats
-    version: "1.1.12"
-    repository: "https://nats-io.github.io/k8s/helm/charts/"
-    condition: nats.enabled
-  - name: prefect-server
-    version: "2025.12.24192415"
-    repository: "https://prefecthq.github.io/prefect-helm"
-    condition: prefect-server.enabled
-  - name: infrahub-backup
-    version: "1.0.0"
-    repository: "oci://registry.opsmill.io/opsmill/chart"
-    condition: infrahub-backup.enabled
+appVersion: "1.3.0"

@@ -298,3 +298,32 @@ emma:
     - name: "interface"
       port: 8501
       targetPort: 8501
+
+# -------------- Infrahub Backup ---------------
+infrahub-backup:
+  # -- Whether to enable Infrahub Backup
+  enabled: false
+
+  # -- Backup configuration
+  backup:
+    enabled: false
+    mode: "cronjob"  # "job" or "cronjob"
+    schedule: "0 2 * * *"
+    storage:
+      type: "s3"
+      s3:
+        bucket: ""
+        prefix: ""
+        endpoint: ""
+        region: "us-east-1"
+        secretName: ""
+
+  # --Restore configuration
+  restore:
+    enabled: false
+    s3:
+      bucket: ""
+      key: ""
+      endpoint: ""
+      region: "us-east-1"
+      secretName: ""
