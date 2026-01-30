@@ -1,0 +1,165 @@
+# Default values for infrahub-backup
+
+# -- ServiceAccount configuration
+serviceAccount:
+  # -- Create a ServiceAccount for the backup/restore pods
+  create: true
+  # -- Name of the ServiceAccount (auto-generated if empty)
+  name: ""
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+
+# -- RBAC configuration
+rbac:
+  # -- Create Role and RoleBinding for pod exec permissions
+  create: true
+
+# -- Backup configuration
+backup:
+  # -- Enable backup functionality
+  enabled: false
+  # -- Backup mode: "job" for one-shot, "cronjob" for scheduled
+  mode: "job"
+  # -- Schedule for CronJob mode (cron expression)
+  schedule: "0 2 * * *"
+
+  # -- Storage configuration
+  storage:
+    # -- Storage type: "s3" or "local"
+    type: "s3"
+
+    # -- Path within the pod to store backups
+    path: "/infrahub_backups"
+
+    # -- S3 storage settings
+    s3:
+      # -- S3 bucket name
+      bucket: ""
+      # -- S3 key prefix for backup artifacts
+      prefix: ""
+      # -- S3 endpoint URL (for non-AWS S3-compatible storage like MinIO)
+      endpoint: ""
+      # -- S3 region
+      region: "us-east-1"
+      # -- Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+      secretName: ""
+
+    # -- Local storage settings
+    local: {}
+
+  # -- Backup options
+  options:
+    # -- Force backup even if another backup is in progress
+    force: false
+    # -- Exclude task-manager database from backup
+    excludeTaskmanager: false
+    # -- Neo4j metadata to include: "all", "none", or specific types
+    neo4jMetadata: "all"
+    # -- Keep local file after S3 upload (only applies when storage.type is "s3")
+    keepLocal: false
+    # -- Sleep duration after backup when using local storage (allows time to copy files)
+    sleep: "3m" # default should be lower than Helm's default install timeout of 5m
+    # -- Extra arguments to pass to the backup command
+    extraArgs: []
+
+# -- Restore configuration
+restore:
+  # -- Enable restore functionality (mutually exclusive with backup)
+  enabled: false
+
+  # -- Storage configuration
+  storage:
+    # -- Storage type: "s3" or "local"
+    type: "s3"
+
+    # -- Path within the pod to store backups
+    path: "/infrahub_backups"
+
+    # -- S3 artifact location
+    s3:
+      # -- S3 bucket containing the backup
+      bucket: ""
+      # -- S3 key (path) to the backup artifact
+      key: ""
+      # -- S3 endpoint URL (for non-AWS S3-compatible storage)
+      endpoint: ""
+      # -- S3 region
+      region: "us-east-1"
+      # -- Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+      secretName: ""
+
+    # -- Local storage settings
+    local:
+      # -- File name of the backup to restore
+      filename: "infrahub_backup_latest.tar.gz"
+
+  # -- Restore options
+  options:
+    # -- Exclude task-manager database from restore
+    excludeTaskmanager: false
+    # -- Migrate backup format from older versions
+    migrateFormat: false
+    # -- Sleep duration before restore when using local storage (allows time to copy files)
+    sleep: "3m" # default should be lower than Helm's default install timeout of 5m
+    # -- Extra arguments to pass to the restore command
+    extraArgs: []
+
+# -- Container image configuration
+image:
+  repository: registry.opsmill.io/opsmill/infrahub-backup
+  # -- Tag defaults to chart appVersion if not specified
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Resource limits and requests
+resources:
+  requests:
+    cpu: "100m"
+    memory: "256Mi"
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- CronJob specific settings
+cronJob:
+  # -- Concurrency policy: "Forbid", "Replace", or "Allow"
+  concurrencyPolicy: Forbid
+  # -- Number of successful job history to keep
+  successfulJobsHistoryLimit: 3
+  # -- Number of failed job history to keep
+  failedJobsHistoryLimit: 3
+  # -- Job deadline in seconds (optional)
+  startingDeadlineSeconds: null
+  # -- Suspend the CronJob (useful for maintenance)
+  suspend: false
+
+# -- Job specific settings
+job:
+  # -- Number of retries before marking job as failed
+  backoffLimit: 0
+  # -- Time to live after job completion (seconds, null to keep indefinitely)
+  ttlSecondsAfterFinished: null
+  # -- Active deadline in seconds (optional)
+  activeDeadlineSeconds: null

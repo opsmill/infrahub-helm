@@ -1,0 +1,29 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "infrahub-backup.fullname" . }}
+  labels:
+    {{- include "infrahub-backup.labels" . | nindent 4 }}
+rules:
+  # Required for discovering Infrahub pods
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "get"]
+  # Required for executing commands in database containers
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  # Required for reading pod logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Required for scaling deployments during backup/restore
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list"]
+  # Required for scaling deployments via scale subresource
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "patch"]
+{{- end }}
