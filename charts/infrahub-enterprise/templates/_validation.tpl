@@ -1,5 +1,5 @@
 {{- define "infrahub.validateConfigPreset" -}}
-{{- if .Values.configPreset }}
+{{- if and .Values.configPreset (index .Values "infrahub" "prefect-server" "enabled") }}
   {{- $redisHost := default "" (index .Values "infrahub" "prefect-server" "backgroundServices" "messaging" "redis" "host") }}
 
   {{- $errors := list }}
