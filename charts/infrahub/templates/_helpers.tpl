@@ -75,3 +75,25 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Name for the HTTPRoute resource
+*/}}
+{{- define "infrahub-helm.httproute.name" -}}
+{{- if .Values.infrahubServer.gatewayApi.httpRoute.name -}}
+  {{- .Values.infrahubServer.gatewayApi.httpRoute.name -}}
+{{- else -}}
+  {{- printf "%s-httproute" (include "infrahub-helm.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name for the Gateway resource
+*/}}
+{{- define "infrahub-helm.gateway.name" -}}
+{{- if .Values.infrahubServer.gatewayApi.gateway.name -}}
+  {{- .Values.infrahubServer.gatewayApi.gateway.name -}}
+{{- else -}}
+  {{- printf "%s-gateway" (include "infrahub-helm.fullname" .) -}}
+{{- end -}}
+{{- end -}}
