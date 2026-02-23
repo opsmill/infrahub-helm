@@ -1,0 +1,68 @@
+{{- if .Values.infrahubServer.gatewayApi.enabled }}
+{{- if .Values.infrahubServer.ingress.enabled }}
+  {{- fail "infrahubServer.gatewayApi and infrahubServer.ingress are mutually exclusive. Please disable one of them." }}
+{{- end }}
+{{- if and (not .Values.infrahubServer.gatewayApi.httpRoute.parentRefs) (not .Values.infrahubServer.gatewayApi.gateway.enabled) }}
+  {{- fail "When infrahubServer.gatewayApi is enabled, either httpRoute.parentRefs must be configured or gateway.enabled must be true." }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "infrahub-helm.httproute.name" . }}
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+  {{- include "infrahub-helm.labels" . | nindent 4 }}
+  {{- with .Values.infrahubServer.gatewayApi.httpRoute.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+  annotations:
+  {{- include "infrahub-helm.annotations" . | nindent 4 }}
+  {{- with .Values.infrahubServer.gatewayApi.httpRoute.annotations }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+  {{- if .Values.infrahubServer.gatewayApi.httpRoute.parentRefs }}
+  {{- range .Values.infrahubServer.gatewayApi.httpRoute.parentRefs }}
+  - name: {{ .name }}
+    {{- if .namespace }}
+    namespace: {{ .namespace }}
+    {{- end }}
+    {{- if .sectionName }}
+    sectionName: {{ .sectionName }}
+    {{- end }}
+    {{- if .port }}
+    port: {{ .port }}
+    {{- end }}
+  {{- end }}
+  {{- else }}
+  - name: {{ include "infrahub-helm.gateway.name" . }}
+  {{- end }}
+  {{- with .Values.infrahubServer.gatewayApi.httpRoute.hostnames }}
+  hostnames:
+  {{- range . }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.infrahubServer.gatewayApi.httpRoute.path | default "/" }}
+    backendRefs:
+    - name: {{ include "infrahub-helm.fullname" . }}-infrahub-server
+      port: {{ (index .Values.infrahubServer.ports 0).port }}
+  {{- if .Values.emma.enabled }}
+  - matches:
+    - path:
+        type: PathPrefix
+        value: {{ .Values.emma.env.STREAMLIT_SERVER_BASE_URL_PATH }}
+    backendRefs:
+    - name: {{ include "infrahub-helm.fullname" . }}-emma
+      port: {{ (index .Values.emma.ports 0).port }}
+  {{- end }}
+  {{- with .Values.infrahubServer.gatewayApi.httpRoute.extraRules }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

@@ -90,6 +90,21 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubDemoData.enabled | bool | `false` | Whether to enable loading of demo data |
 | infrahubDemoData.env.INFRAHUB_API_TOKEN | string | `"06438eb2-8019-4776-878c-0941b1f1d1ec"` | Infrahub API token that will be used when loading the data |
 | infrahubDemoData.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the Kubernetes job |
+| infrahubServer.gatewayApi | object | `{"enabled":false,"gateway":{"annotations":{},"className":"","enabled":false,"labels":{},"listeners":[],"name":""},"httpRoute":{"annotations":{},"extraRules":[],"hostnames":[],"labels":{},"name":"","parentRefs":[],"path":"/"}}` | Gateway API configuration for the Infrahub API server ref: https://gateway-api.sigs.k8s.io/ Mutually exclusive with infrahubServer.ingress |
+| infrahubServer.gatewayApi.enabled | bool | `false` | Whether to enable Gateway API HTTPRoute for the Infrahub API server |
+| infrahubServer.gatewayApi.gateway.annotations | object | `{}` | Additional annotations for the Gateway resource |
+| infrahubServer.gatewayApi.gateway.className | string | `""` | GatewayClass name (required when gateway.enabled is true) |
+| infrahubServer.gatewayApi.gateway.enabled | bool | `false` | Whether to create a Gateway resource (most users will reference an existing Gateway via httpRoute.parentRefs) |
+| infrahubServer.gatewayApi.gateway.labels | object | `{}` | Additional labels for the Gateway resource |
+| infrahubServer.gatewayApi.gateway.listeners | list | `[]` | Gateway listeners configuration |
+| infrahubServer.gatewayApi.gateway.name | string | `""` | Gateway resource name (defaults to "<fullname>-gateway") |
+| infrahubServer.gatewayApi.httpRoute.annotations | object | `{}` | Additional annotations for the HTTPRoute resource |
+| infrahubServer.gatewayApi.httpRoute.extraRules | list | `[]` | Additional HTTPRoute rules beyond the auto-generated ones |
+| infrahubServer.gatewayApi.httpRoute.hostnames | list | `[]` | Hostnames that this HTTPRoute should match |
+| infrahubServer.gatewayApi.httpRoute.labels | object | `{}` | Additional labels for the HTTPRoute resource |
+| infrahubServer.gatewayApi.httpRoute.name | string | `""` | HTTPRoute resource name (defaults to "<fullname>-httproute") |
+| infrahubServer.gatewayApi.httpRoute.parentRefs | list | `[]` | Parent Gateway references |
+| infrahubServer.gatewayApi.httpRoute.path | string | `"/"` | Path prefix for the default matching rule |
 | infrahubServer.infrahubServer.args | list | `["gunicorn","--config","/source/backend/infrahub/serve/gunicorn_config.py","-w","2","--logger-class","infrahub.serve.log.GunicornLogger","infrahub.server:app"]` | Container arguments for the API server |
 | infrahubServer.infrahubServer.env | object | `{"INFRAHUB_ALLOW_ANONYMOUS_ACCESS":"true","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_INITIAL_ADMIN_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_LOG_LEVEL":"INFO","INFRAHUB_PRODUCTION":"false","INFRAHUB_SECURITY_SECRET_KEY":"327f747f-efac-42be-9e73-999f08f86b92","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_API_URL":"http://prefect-server:4200/api"}` | Container environment for the API server |
 | infrahubServer.infrahubServer.envFromExistingSecret | DEPRECATED | `""` | Name of an existing secret to use for environment variables. Use envFromExistingSecrets instead. @deprecated Use envFromExistingSecrets instead |
@@ -148,7 +163,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.7.3"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.7.4"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |

@@ -133,6 +133,52 @@ infrahubServer:
     hostname: infrahub-cluster.local
     # -- Annotations to configure on the ingress
     annotations:
+  # -- Gateway API configuration for the Infrahub API server
+  # ref: https://gateway-api.sigs.k8s.io/
+  # Mutually exclusive with infrahubServer.ingress
+  gatewayApi:
+    # -- Whether to enable Gateway API HTTPRoute for the Infrahub API server
+    enabled: false
+    httpRoute:
+      # -- HTTPRoute resource name (defaults to "<fullname>-httproute")
+      name: ""
+      # -- Additional labels for the HTTPRoute resource
+      labels: {}
+      # -- Additional annotations for the HTTPRoute resource
+      annotations: {}
+      # -- Hostnames that this HTTPRoute should match
+      hostnames: []
+      # -- Parent Gateway references
+      parentRefs: []
+      # - name: default-gateway
+      #   namespace: net
+      #   sectionName: https-listener
+      # -- Path prefix for the default matching rule
+      path: /
+      # -- Additional HTTPRoute rules beyond the auto-generated ones
+      extraRules: []
+    gateway:
+      # -- Whether to create a Gateway resource (most users will reference an existing Gateway via httpRoute.parentRefs)
+      enabled: false
+      # -- GatewayClass name (required when gateway.enabled is true)
+      className: ""
+      # -- Gateway resource name (defaults to "<fullname>-gateway")
+      name: ""
+      # -- Additional labels for the Gateway resource
+      labels: {}
+      # -- Additional annotations for the Gateway resource
+      annotations: {}
+      # -- Gateway listeners configuration
+      listeners: []
+      # - name: https
+      #   port: 443
+      #   protocol: HTTPS
+      #   hostname: ""
+      #   tls:
+      #     mode: Terminate
+      #     certificateRefs:
+      #       - kind: Secret
+      #         name: my-tls-cert
   persistence:
     # -- Whether to enable data persistence for the Infrahub API server
     enabled: true
