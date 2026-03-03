@@ -28,7 +28,7 @@ spec:
                 port:
                   number: {{ (index .Values.infrahubServer.ports 0).port }}
           {{- if .Values.emma.enabled }}
-          - path: {{ .Values.emma.env.STREAMLIT_SERVER_BASE_URL_PATH }}
+          - path: {{ .Values.emma.streamlitBasePath }}
             pathType: Prefix
             backend:
               service:

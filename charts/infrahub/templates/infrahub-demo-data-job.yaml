@@ -22,10 +22,7 @@ spec:
           env:
           {{- include "infrahub-helm.infrahubDemoData.defaultEnv" . | nindent 12 }}
           {{- with .Values.infrahubDemoData.env }}
-            {{- range $key, $value := . }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.infrahubServer.infrahubServer.envFromExistingSecret }}
           envFrom:

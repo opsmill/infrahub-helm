@@ -57,7 +57,7 @@ spec:
   - matches:
     - path:
         type: PathPrefix
-        value: {{ .Values.emma.env.STREAMLIT_SERVER_BASE_URL_PATH }}
+        value: {{ .Values.emma.streamlitBasePath }}
     backendRefs:
     - name: {{ include "infrahub-helm.fullname" . }}-emma
       port: {{ (index .Values.emma.ports 0).port }}

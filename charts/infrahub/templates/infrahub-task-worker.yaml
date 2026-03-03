@@ -48,9 +48,8 @@ spec:
           args: {{- toYaml .Values.infrahubTaskWorker.infrahubTaskWorker.args | nindent 12 }}
           env:
             {{- include "infrahub-helm.infrahubTaskWorker.defaultEnv" . | nindent 12 }}
-            {{- range $key, $value := .Values.infrahubTaskWorker.infrahubTaskWorker.env }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
+            {{- with .Values.infrahubTaskWorker.infrahubTaskWorker.env }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- if and .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret .Values.infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets }}
             {{- fail "infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret and infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecrets are mutually exclusive. Please use envFromExistingSecrets (envFromExistingSecret is deprecated)." }}

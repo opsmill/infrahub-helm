@@ -92,20 +92,32 @@ infrahubTaskWorker:
       - --pool
       - infrahub-worker
       - --with-healthcheck
-    # -- Container environment for the task worker
+    # -- Container environment for the task worker (list format supports valueFrom/secretKeyRef)
     env:
-      INFRAHUB_CACHE_PORT: 6379
-      INFRAHUB_DB_TYPE: neo4j
-      INFRAHUB_LOG_LEVEL: DEBUG
-      INFRAHUB_PRODUCTION: "false"
-      INFRAHUB_API_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
-      INFRAHUB_TIMEOUT: "60"
-      INFRAHUB_GIT_REPOSITORIES_DIRECTORY: "/opt/infrahub/git"
-      INFRAHUB_WORKFLOW_ADDRESS: prefect-server
-      INFRAHUB_WORKFLOW_PORT: 4200
-      PREFECT_API_URL: "http://prefect-server:4200/api"
-      PREFECT_WORKER_QUERY_SECONDS: 3
-      PREFECT_AGENT_QUERY_INTERVAL: 3
+      - name: INFRAHUB_CACHE_PORT
+        value: "6379"
+      - name: INFRAHUB_DB_TYPE
+        value: "neo4j"
+      - name: INFRAHUB_LOG_LEVEL
+        value: "DEBUG"
+      - name: INFRAHUB_PRODUCTION
+        value: "false"
+      - name: INFRAHUB_API_TOKEN
+        value: "06438eb2-8019-4776-878c-0941b1f1d1ec"
+      - name: INFRAHUB_TIMEOUT
+        value: "60"
+      - name: INFRAHUB_GIT_REPOSITORIES_DIRECTORY
+        value: "/opt/infrahub/git"
+      - name: INFRAHUB_WORKFLOW_ADDRESS
+        value: "prefect-server"
+      - name: INFRAHUB_WORKFLOW_PORT
+        value: "4200"
+      - name: PREFECT_API_URL
+        value: "http://prefect-server:4200/api"
+      - name: PREFECT_WORKER_QUERY_SECONDS
+        value: "3"
+      - name: PREFECT_AGENT_QUERY_INTERVAL
+        value: "3"
     # -- Image pull policy for the task worker
     imagePullPolicy: Always
     # -- Image registry to use for the task worker
@@ -197,19 +209,30 @@ infrahubServer:
       - --logger-class
       - infrahub.serve.log.GunicornLogger
       - infrahub.server:app
-    # -- Container environment for the API server
+    # -- Container environment for the API server (list format supports valueFrom/secretKeyRef)
     env:
-      INFRAHUB_ALLOW_ANONYMOUS_ACCESS: "true"
-      INFRAHUB_CACHE_PORT: 6379
-      INFRAHUB_DB_TYPE: neo4j
-      INFRAHUB_LOG_LEVEL: INFO
-      INFRAHUB_PRODUCTION: "false"
-      INFRAHUB_INITIAL_ADMIN_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
-      INFRAHUB_SECURITY_SECRET_KEY: 327f747f-efac-42be-9e73-999f08f86b92
-      INFRAHUB_GIT_REPOSITORIES_DIRECTORY: "/opt/infrahub/git"
-      INFRAHUB_WORKFLOW_ADDRESS: prefect-server
-      INFRAHUB_WORKFLOW_PORT: 4200
-      PREFECT_API_URL: "http://prefect-server:4200/api"
+      - name: INFRAHUB_ALLOW_ANONYMOUS_ACCESS
+        value: "true"
+      - name: INFRAHUB_CACHE_PORT
+        value: "6379"
+      - name: INFRAHUB_DB_TYPE
+        value: "neo4j"
+      - name: INFRAHUB_LOG_LEVEL
+        value: "INFO"
+      - name: INFRAHUB_PRODUCTION
+        value: "false"
+      - name: INFRAHUB_INITIAL_ADMIN_TOKEN
+        value: "06438eb2-8019-4776-878c-0941b1f1d1ec"
+      - name: INFRAHUB_SECURITY_SECRET_KEY
+        value: "327f747f-efac-42be-9e73-999f08f86b92"
+      - name: INFRAHUB_GIT_REPOSITORIES_DIRECTORY
+        value: "/opt/infrahub/git"
+      - name: INFRAHUB_WORKFLOW_ADDRESS
+        value: "prefect-server"
+      - name: INFRAHUB_WORKFLOW_PORT
+        value: "4200"
+      - name: PREFECT_API_URL
+        value: "http://prefect-server:4200/api"
     # -- Image pull policy for the API server
     imagePullPolicy: Always
     # -- Image registry to use for the API server
@@ -258,9 +281,10 @@ infrahubDemoData:
   backoffLimit: 4
   # -- Image registry to use for the Kubernetes job
   imageRegistry: registry.opsmill.io
+  # -- Container environment for demo data loading (list format supports valueFrom/secretKeyRef)
   env:
-    # -- Infrahub API token that will be used when loading the data
-    INFRAHUB_API_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
+    - name: INFRAHUB_API_TOKEN
+      value: "06438eb2-8019-4776-878c-0941b1f1d1ec"
   # -- Container entrypoint for the demo data loading job
   command:
     - sh
@@ -338,8 +362,12 @@ emma:
   imageName: opsmill/emma
   version: latest
   type: ClusterIP
+  # -- Base URL path for the Streamlit server (used in probes, ingress, and httproute)
+  streamlitBasePath: /emma
+  # -- Container environment for Emma (list format supports valueFrom/secretKeyRef)
   env:
-    STREAMLIT_SERVER_BASE_URL_PATH: /emma
+    - name: STREAMLIT_SERVER_BASE_URL_PATH
+      value: "/emma"
   ports:
     - name: "interface"
       port: 8501
