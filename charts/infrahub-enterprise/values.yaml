@@ -97,4 +97,4 @@ infrahub:
         - -g
         - --
       podLabels:
-        infrahub/service: task-manager
+        infrahub/service: task-manager-background-svc
