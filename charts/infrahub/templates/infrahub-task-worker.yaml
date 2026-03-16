@@ -11,6 +11,9 @@ metadata:
   {{- include "infrahub-helm.annotations" . | nindent 4 }}
 spec:
   replicas: {{ .Values.infrahubTaskWorker.replicas | default 2 }}
+  {{- with .Values.infrahubTaskWorker.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       service: infrahub-task-worker
@@ -42,6 +45,15 @@ spec:
       {{- end }}
       {{- with .Values.infrahubTaskWorker.podSecurityContext }}
       securityContext: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubTaskWorker.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.infrahubTaskWorker.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubTaskWorker.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: infrahub-task-worker

@@ -67,12 +67,22 @@ The chart offers the ability to configure persistence for the database and other
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| emma.affinity | object | `{}` | Affinity for the emma pods |
+| emma.enabled | bool | `false` | Whether to enable Emma |
 | emma.env.STREAMLIT_SERVER_BASE_URL_PATH | string | `"/emma"` |  |
 | emma.imageName | string | `"opsmill/emma"` |  |
 | emma.imageRegistry | string | `"registry.opsmill.io"` |  |
+| emma.nodeSelector | object | `{}` | Node selector for the emma pods |
+| emma.podSecurityContext | object | `{}` | Pod security context for the emma pods |
 | emma.ports[0].name | string | `"interface"` |  |
 | emma.ports[0].port | int | `8501` |  |
 | emma.ports[0].targetPort | int | `8501` |  |
+| emma.priorityClassName | string | `""` | Priority class name for the emma pods |
+| emma.resources | object | `{}` | Resources request and limit to apply for emma |
+| emma.revisionHistoryLimit | int | `10` | Revision history limit for the emma Deployment |
+| emma.securityContext | object | `{}` | Container security context for the emma container |
+| emma.tolerations | list | `[]` | Tolerations for the emma pods |
+| emma.topologySpreadConstraints | list | `[]` | Topology spread constraints for the emma pods |
 | emma.type | string | `"ClusterIP"` |  |
 | emma.version | string | `"latest"` |  |
 | global.commonAnnotations | object | `{}` | Annotations to use for all installed Kubernetes resources |
@@ -85,11 +95,19 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub-backup.backup | object | `{"enabled":false,"mode":"cronjob","schedule":"0 2 * * *","storage":{"s3":{"bucket":"","endpoint":"","prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Backup configuration |
 | infrahub-backup.enabled | bool | `false` | Whether to enable Infrahub Backup |
 | infrahub-backup.restore | object | `{"enabled":false,"s3":{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""}}` | Restore configuration |
+| infrahubDemoData.affinity | object | `{}` | Affinity for the demo data job pod |
 | infrahubDemoData.backoffLimit | int | `4` | Backoff limit for the Kubernetes job that will load the data |
 | infrahubDemoData.command | list | `["sh","-c","infrahubctl schema load models/base --wait 30 && infrahubctl run models/infrastructure_edge.py && infrahubctl menu load models/base_menu.yml && infrahubctl repository add demo-edge https://github.com/opsmill/infrahub-demo-edge --read-only"]` | Container entrypoint for the demo data loading job |
 | infrahubDemoData.enabled | bool | `false` | Whether to enable loading of demo data |
 | infrahubDemoData.env.INFRAHUB_API_TOKEN | string | `"06438eb2-8019-4776-878c-0941b1f1d1ec"` | Infrahub API token that will be used when loading the data |
 | infrahubDemoData.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the Kubernetes job |
+| infrahubDemoData.nodeSelector | object | `{}` | Node selector for the demo data job pod |
+| infrahubDemoData.podSecurityContext | object | `{}` | Pod security context for the demo data job pod |
+| infrahubDemoData.priorityClassName | string | `""` | Priority class name for the demo data job pod |
+| infrahubDemoData.resources | object | `{}` | Resources request and limit to apply for the demo data job |
+| infrahubDemoData.securityContext | object | `{}` | Container security context for the demo data job container |
+| infrahubDemoData.tolerations | list | `[]` | Tolerations for the demo data job pod |
+| infrahubServer.affinity | object | `{}` | Affinity for the server pods |
 | infrahubServer.gatewayApi | object | `{"enabled":false,"gateway":{"annotations":{},"className":"","enabled":false,"labels":{},"listeners":[],"name":""},"httpRoute":{"annotations":{},"extraRules":[],"hostnames":[],"labels":{},"name":"","parentRefs":[],"path":"/"}}` | Gateway API configuration for the Infrahub API server ref: https://gateway-api.sigs.k8s.io/ Mutually exclusive with infrahubServer.ingress |
 | infrahubServer.gatewayApi.enabled | bool | `false` | Whether to enable Gateway API HTTPRoute for the Infrahub API server |
 | infrahubServer.gatewayApi.gateway.annotations | object | `{}` | Additional annotations for the Gateway resource |
@@ -118,15 +136,25 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.ingress.annotations | string | `nil` | Annotations to configure on the ingress |
 | infrahubServer.ingress.enabled | bool | `true` | Whether to enable Ingress for the Infrahub API server |
 | infrahubServer.ingress.hostname | string | `"infrahub-cluster.local"` | Hostname to configure for the ingress |
+| infrahubServer.nodeSelector | object | `{}` | Node selector for the server pods |
 | infrahubServer.persistence.accessMode | string | `"ReadWriteOnce"` |  |
 | infrahubServer.persistence.enabled | bool | `true` | Whether to enable data persistence for the Infrahub API server |
 | infrahubServer.persistence.size | string | `"1Gi"` |  |
-| infrahubServer.podLabels | object | `{"infrahub/service":"server"}` | Service type for the Infrahub API server |
-| infrahubServer.ports[0].name | string | `"interface"` |  |
-| infrahubServer.ports[0].port | int | `8000` | Port on which to expose the API server service |
-| infrahubServer.ports[0].targetPort | int | `8000` | Port on which Infrahub API server listens |
-| infrahubServer.resources | object | `{}` | Resources request and limit to apply for the task worker |
-| infrahubServer.type | string | `"ClusterIP"` |  |
+| infrahubServer.podLabels | object | `{"infrahub/service":"server"}` | Pod labels for the server pods |
+| infrahubServer.podSecurityContext | object | `{}` | Pod security context for the server pods |
+| infrahubServer.ports | list | `[]` | @deprecated Use `infrahubServer.service.ports` instead. This field will be removed in a future release. |
+| infrahubServer.priorityClassName | string | `""` | Priority class name for the server pods |
+| infrahubServer.replicas | int | `1` | Number of replicas of the Infrahub API server |
+| infrahubServer.resources | object | `{}` | Resources request and limit to apply for the Infrahub API server |
+| infrahubServer.revisionHistoryLimit | int | `10` | Revision history limit for the server Deployment |
+| infrahubServer.service.ports[0].name | string | `"interface"` |  |
+| infrahubServer.service.ports[0].port | int | `8000` | Port on which to expose the API server service |
+| infrahubServer.service.ports[0].targetPort | int | `8000` | Port on which Infrahub API server listens |
+| infrahubServer.service.type | string | `"ClusterIP"` | Service type for the Infrahub API server |
+| infrahubServer.tolerations | list | `[]` | Tolerations for the server pods |
+| infrahubServer.topologySpreadConstraints | list | `[]` | Topology spread constraints for the server pods |
+| infrahubServer.type | string | `""` | @deprecated Use `infrahubServer.service.type` instead. This field will be removed in a future release. |
+| infrahubTaskWorker.affinity | object | `{}` | Affinity for the task worker pods |
 | infrahubTaskWorker.infrahubTaskWorker.args | list | `["prefect","worker","start","--type","infrahubasync","--pool","infrahub-worker","--with-healthcheck"]` | Container arguments for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.env | object | `{"INFRAHUB_API_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_LOG_LEVEL":"DEBUG","INFRAHUB_PRODUCTION":"false","INFRAHUB_TIMEOUT":"60","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_AGENT_QUERY_INTERVAL":3,"PREFECT_API_URL":"http://prefect-server:4200/api","PREFECT_WORKER_QUERY_SECONDS":3}` | Container environment for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.envFromExistingSecret | DEPRECATED | `""` | Name of an existing secret to use for environment variables. Use envFromExistingSecrets instead. @deprecated Use envFromExistingSecrets instead |
@@ -135,9 +163,15 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubTaskWorker.infrahubTaskWorker.extraVolumes | list | `[]` | Extra volumes for the task worker pod |
 | infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy | string | `"Always"` | Image pull policy for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the task worker |
-| infrahubTaskWorker.podLabels.infrahub/service | string | `"task-worker"` |  |
+| infrahubTaskWorker.nodeSelector | object | `{}` | Node selector for the task worker pods |
+| infrahubTaskWorker.podLabels | object | `{"infrahub/service":"task-worker"}` | Pod labels for the task worker pods |
+| infrahubTaskWorker.podSecurityContext | object | `{}` | Pod security context for the task worker pods |
+| infrahubTaskWorker.priorityClassName | string | `""` | Priority class name for the task worker pods |
 | infrahubTaskWorker.replicas | int | `2` | Number of replicas of the Infrahub Task Worker |
 | infrahubTaskWorker.resources | object | `{}` | Resources request and limit to apply for the task worker |
+| infrahubTaskWorker.revisionHistoryLimit | int | `10` | Revision history limit for the task worker Deployment |
+| infrahubTaskWorker.tolerations | list | `[]` | Tolerations for the task worker pods |
+| infrahubTaskWorker.topologySpreadConstraints | list | `[]` | Topology spread constraints for the task worker pods |
 | nats.config.jetstream.enabled | bool | `true` |  |
 | nats.enabled | bool | `false` |  |
 | neo4j.config."dbms.security.auth_minimum_password_length" | string | `"4"` |  |

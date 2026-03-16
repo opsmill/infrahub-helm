@@ -77,8 +77,23 @@ neo4j:
 infrahubTaskWorker:
   # -- Number of replicas of the Infrahub Task Worker
   replicas: 2
+  # -- Revision history limit for the task worker Deployment
+  revisionHistoryLimit: 10
   # -- Resources request and limit to apply for the task worker
   resources: {}
+  # -- Priority class name for the task worker pods
+  priorityClassName: ""
+  # -- Node selector for the task worker pods
+  nodeSelector: {}
+  # -- Affinity for the task worker pods
+  affinity: {}
+  # -- Tolerations for the task worker pods
+  tolerations: []
+  # -- Topology spread constraints for the task worker pods
+  topologySpreadConstraints: []
+  # -- Pod security context for the task worker pods
+  podSecurityContext: {}
+  # -- Pod labels for the task worker pods
   podLabels:
     infrahub/service: task-worker
   infrahubTaskWorker:
@@ -122,10 +137,40 @@ infrahubTaskWorker:
 
 # ----------- Infrahub Server -----------
 infrahubServer:
-  # -- Service type for the Infrahub API server
+  # -- Number of replicas of the Infrahub API server
+  replicas: 1
+  # -- Revision history limit for the server Deployment
+  revisionHistoryLimit: 10
+  # -- Resources request and limit to apply for the Infrahub API server
+  resources: {}
+  # -- Priority class name for the server pods
+  priorityClassName: ""
+  # -- Node selector for the server pods
+  nodeSelector: {}
+  # -- Affinity for the server pods
+  affinity: {}
+  # -- Tolerations for the server pods
+  tolerations: []
+  # -- Topology spread constraints for the server pods
+  topologySpreadConstraints: []
+  # -- Pod security context for the server pods
+  podSecurityContext: {}
+  # -- Pod labels for the server pods
   podLabels:
     infrahub/service: server
-  type: ClusterIP
+  # -- @deprecated Use `infrahubServer.service.ports` instead. This field will be removed in a future release.
+  ports: []
+  # -- @deprecated Use `infrahubServer.service.type` instead. This field will be removed in a future release.
+  type: ""
+  service:
+    # -- Service type for the Infrahub API server
+    type: ClusterIP
+    ports:
+      - name: "interface"
+        # -- Port on which to expose the API server service
+        port: 8000
+        # -- Port on which Infrahub API server listens
+        targetPort: 8000
   ingress:
     # -- Whether to enable Ingress for the Infrahub API server
     enabled: true
@@ -184,8 +229,6 @@ infrahubServer:
     enabled: true
     size: 1Gi
     accessMode: ReadWriteOnce
-  # -- Resources request and limit to apply for the task worker
-  resources: {}
   infrahubServer:
     # -- Container arguments for the API server
     args:
@@ -244,12 +287,6 @@ infrahubServer:
     # -- Extra volumeMounts for the server pod
     extraVolumeMounts: []
 
-  ports:
-    - name: "interface"
-      # -- Port on which to expose the API server service
-      port: 8000
-      # -- Port on which Infrahub API server listens
-      targetPort: 8000
 
 # ----------- Infrahub Upgrade -----------
 upgrade:
@@ -263,6 +300,20 @@ infrahubDemoData:
   backoffLimit: 4
   # -- Image registry to use for the Kubernetes job
   imageRegistry: registry.opsmill.io
+  # -- Resources request and limit to apply for the demo data job
+  resources: {}
+  # -- Priority class name for the demo data job pod
+  priorityClassName: ""
+  # -- Node selector for the demo data job pod
+  nodeSelector: {}
+  # -- Affinity for the demo data job pod
+  affinity: {}
+  # -- Tolerations for the demo data job pod
+  tolerations: []
+  # -- Pod security context for the demo data job pod
+  podSecurityContext: {}
+  # -- Container security context for the demo data job container
+  securityContext: {}
   env:
     # -- Infrahub API token that will be used when loading the data
     INFRAHUB_API_TOKEN: 06438eb2-8019-4776-878c-0941b1f1d1ec
@@ -339,10 +390,30 @@ prefect-server:
 
 # -------------- Emma ---------------
 emma:
+  # -- Whether to enable Emma
+  enabled: false
   imageRegistry: registry.opsmill.io
   imageName: opsmill/emma
   version: latest
   type: ClusterIP
+  # -- Revision history limit for the emma Deployment
+  revisionHistoryLimit: 10
+  # -- Resources request and limit to apply for emma
+  resources: {}
+  # -- Priority class name for the emma pods
+  priorityClassName: ""
+  # -- Node selector for the emma pods
+  nodeSelector: {}
+  # -- Affinity for the emma pods
+  affinity: {}
+  # -- Tolerations for the emma pods
+  tolerations: []
+  # -- Topology spread constraints for the emma pods
+  topologySpreadConstraints: []
+  # -- Pod security context for the emma pods
+  podSecurityContext: {}
+  # -- Container security context for the emma container
+  securityContext: {}
   env:
     STREAMLIT_SERVER_BASE_URL_PATH: /emma
   ports:

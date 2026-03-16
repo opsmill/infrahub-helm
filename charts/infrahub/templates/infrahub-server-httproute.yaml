@@ -52,7 +52,7 @@ spec:
         value: {{ .Values.infrahubServer.gatewayApi.httpRoute.path | default "/" }}
     backendRefs:
     - name: {{ include "infrahub-helm.fullname" . }}-infrahub-server
-      port: {{ (index .Values.infrahubServer.ports 0).port }}
+      port: {{ (index (coalesce .Values.infrahubServer.ports .Values.infrahubServer.service.ports) 0).port }}
   {{- if .Values.emma.enabled }}
   - matches:
     - path:
