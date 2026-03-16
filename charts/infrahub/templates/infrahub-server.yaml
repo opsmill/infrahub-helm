@@ -11,6 +11,9 @@ metadata:
   {{- include "infrahub-helm.annotations" . | nindent 4 }}
 spec:
   replicas: {{ .Values.infrahubServer.replicas | default 1 }}
+  {{- with .Values.infrahubServer.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       service: infrahub-server
@@ -43,6 +46,15 @@ spec:
       {{- with .Values.infrahubServer.podSecurityContext }}
       securityContext: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.infrahubServer.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.infrahubServer.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubServer.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - args: {{- toYaml .Values.infrahubServer.infrahubServer.args | nindent 12 }}
           env:
@@ -72,14 +84,6 @@ spec:
           livenessProbe: {{- toYaml .Values.infrahubServer.infrahubServer.livenessProbe | nindent 12 }}
           readinessProbe: {{- toYaml .Values.infrahubServer.infrahubServer.readinessProbe | nindent 12 }}
           name: infrahub-server
-          ports:
-          {{- range .Values.infrahubServer.ports }}
-          {{- if eq .name "infrahub-gui" }}
-            - containerPort: {{ .targetPort }}
-              protocol: TCP
-              name: {{ quote .name }}
-          {{- end }}
-          {{- end }}
           {{- with .Values.infrahubServer.resources }}
           resources: {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -119,12 +123,12 @@ metadata:
   annotations:
   {{- include "infrahub-helm.annotations" . | nindent 4 }}
 spec:
-  type: {{ .Values.infrahubServer.type }}
+  type: {{ (coalesce .Values.infrahubServer.type .Values.infrahubServer.service.type) }}
   selector:
     service: infrahub-server
   {{- include "infrahub-helm.selectorLabels" . | nindent 4 }}
   ports:
-    {{- .Values.infrahubServer.ports | toYaml | nindent 4 }}
+    {{- (coalesce .Values.infrahubServer.ports .Values.infrahubServer.service.ports) | toYaml | nindent 4 }}
 
 {{- if and .Values.infrahubServer.persistence.enabled (not .Values.infrahubServer.persistence.existingClaim) }}
 ---

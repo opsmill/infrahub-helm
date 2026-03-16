@@ -9,6 +9,9 @@ metadata:
   {{- include "infrahub-helm.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.emma.replicas | default 1 }}
+  {{- with .Values.emma.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       service: emma
@@ -30,6 +33,18 @@ spec:
       {{- end }}
       {{- with .Values.emma.runtimeClassName }}
       runtimeClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.emma.podSecurityContext }}
+      securityContext: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.emma.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.emma.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.emma.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - args: {{- toYaml .Values.emma.args | nindent 12 }}
@@ -61,7 +76,12 @@ spec:
               port: {{ (index .Values.emma.ports 0).port }}
               scheme: HTTP
             timeoutSeconds: 1
-          resources: {}
+          {{- with .Values.emma.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.emma.securityContext }}
+          securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
           tty: true
       restartPolicy: Always
 ---
