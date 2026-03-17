@@ -1,0 +1,57 @@
+{{- if .Values.upgrade.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "infrahub-helm.fullname" . }}-infrahub-upgrade
+  namespace: "{{ .Release.Namespace }}"
+  labels:
+    service: infrahub-upgrade
+  {{- include "infrahub-helm.labels" . | nindent 4 }}
+  annotations:
+  {{- include "infrahub-helm.annotations" . | nindent 4 }}
+    "helm.sh/hook": post-install,pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    "helm.sh/hook-weight": "-1"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        service: infrahub-upgrade
+      {{- include "infrahub-helm.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubServer.podSecurityContext }}
+      securityContext: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: infrahub-upgrade
+          image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
+          command: ["infrahub", "upgrade"]
+          env:
+            {{- include "infrahub-helm.infrahubServer.defaultEnv" . | nindent 12 }}
+            {{- range $key, $value := .Values.infrahubServer.infrahubServer.env }}
+            {{- if or $value (not (or (eq $key "INFRAHUB_INITIAL_ADMIN_TOKEN") (eq $key "INFRAHUB_SECURITY_SECRET_KEY") (eq $key "INFRAHUB_API_TOKEN"))) }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+          {{- if or .Values.infrahubServer.infrahubServer.envFromExistingSecret .Values.infrahubServer.infrahubServer.envFromExistingSecrets }}
+          envFrom:
+            {{- with .Values.infrahubServer.infrahubServer.envFromExistingSecret }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+            {{- range .Values.infrahubServer.infrahubServer.envFromExistingSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.infrahubServer.infrahubServer.securityContext }}
+          securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

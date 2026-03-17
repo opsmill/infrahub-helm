@@ -251,6 +251,11 @@ infrahubServer:
       # -- Port on which Infrahub API server listens
       targetPort: 8000
 
+# ----------- Infrahub Upgrade -----------
+upgrade:
+  # -- Whether to run infrahub upgrade as a post-install/pre-upgrade hook job
+  enabled: false
+
 infrahubDemoData:
   # -- Whether to enable loading of demo data
   enabled: false
