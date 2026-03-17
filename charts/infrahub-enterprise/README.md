@@ -58,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.16.3 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.18.0 |
 
 ## Values
 
@@ -113,7 +113,7 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub.prefect-server.backgroundServices.command[0] | string | `"/usr/bin/tini"` |  |
 | infrahub.prefect-server.backgroundServices.command[1] | string | `"-g"` |  |
 | infrahub.prefect-server.backgroundServices.command[2] | string | `"--"` |  |
-| infrahub.prefect-server.backgroundServices.podLabels.infrahub/service | string | `"task-manager"` |  |
+| infrahub.prefect-server.backgroundServices.podLabels.infrahub/service | string | `"task-manager-background-svc"` |  |
 | infrahub.prefect-server.backgroundServices.runAsSeparateDeployment | bool | `false` |  |
 | infrahub.prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub-enterprise"` |  |
 | infrahub.prefect-server.migrations.enabled | bool | `false` |  |
