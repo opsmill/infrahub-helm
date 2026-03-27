@@ -26,6 +26,24 @@ spec:
       {{- with .Values.infrahubServer.podSecurityContext }}
       securityContext: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.infrahubServer.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubServer.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubServer.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.infrahubServer.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.infrahubServer.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.infrahubServer.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
+      {{- end }}
       restartPolicy: Never
       containers:
         - name: infrahub-upgrade
@@ -53,5 +71,8 @@ spec:
           {{- end }}
           {{- with .Values.infrahubServer.infrahubServer.securityContext }}
           securityContext: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.infrahubServer.resources }}
+          resources: {{- toYaml . | nindent 12 }}
           {{- end }}
 {{- end }}
