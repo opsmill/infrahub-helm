@@ -357,7 +357,7 @@ prefect-server:
     prefect:
       image:
         repository: registry.opsmill.io/opsmill/infrahub
-        prefectTag: 1.8.2
+        prefectTag: 1.8.3
   server:
     command:
       - /usr/bin/tini
