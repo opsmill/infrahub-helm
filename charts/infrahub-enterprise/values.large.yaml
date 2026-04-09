@@ -22,6 +22,9 @@ infrahub:
       server.memory.heap.initial_size: "31G"
       server.memory.heap.max_size: "31G"
       server.memory.pagecache.size: "16G"
+  redis:
+    master:
+      resourcesPreset: "large"
   prefect-server:
     postgresql:
       primary:
