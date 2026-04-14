@@ -58,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.20.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.20.2 |
 
 ## Values
 
@@ -127,8 +127,6 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub.prefect-server.server.containerSecurityContext.runAsUser | int | `1000` |  |
 | infrahub.prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |
 | infrahub.prefect-server.server.env[0].value | string | `"/"` |  |
-| infrahub.prefect-server.server.env[1].name | string | `"PREFECT__SERVER_WEBSERVER_ONLY"` |  |
-| infrahub.prefect-server.server.env[1].value | string | `"true"` |  |
 | infrahub.prefect-server.server.podSecurityContext.fsGroup | int | `1000` |  |
 | infrahub.prefect-server.server.podSecurityContext.runAsUser | int | `1000` |  |
 
