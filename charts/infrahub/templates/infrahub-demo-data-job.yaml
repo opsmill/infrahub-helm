@@ -38,7 +38,7 @@ spec:
           {{- include "infrahub-helm.infrahubDemoData.defaultEnv" . | nindent 12 }}
           {{- with .Values.infrahubDemoData.env }}
             {{- range $key, $value := . }}
-            {{- if or $value (not (or (eq $key "INFRAHUB_INITIAL_ADMIN_TOKEN") (eq $key "INFRAHUB_SECURITY_SECRET_KEY") (eq $key "INFRAHUB_API_TOKEN"))) }}
+            {{- if or $value (not (or (eq $key "INFRAHUB_INITIAL_ADMIN_TOKEN") (eq $key "INFRAHUB_INITIAL_AGENT_TOKEN") (eq $key "INFRAHUB_SECURITY_SECRET_KEY") (eq $key "INFRAHUB_API_TOKEN"))) }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
