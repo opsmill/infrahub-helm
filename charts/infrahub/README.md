@@ -154,6 +154,14 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.tolerations | list | `[]` | Tolerations for the server pods |
 | infrahubServer.topologySpreadConstraints | list | `[]` | Topology spread constraints for the server pods |
 | infrahubServer.type | string | `""` | @deprecated Use `infrahubServer.service.type` instead. This field will be removed in a future release. |
+| infrahubServer.waitForPrefect.enabled | bool | `true` | Whether to render the init container that blocks server pod startup until Prefect is ready |
+| infrahubServer.waitForPrefect.image.pullPolicy | string | `""` | Image pull policy; leave empty to inherit from global.imagePullPolicy |
+| infrahubServer.waitForPrefect.image.repository | string | `"busybox"` | Repository of the init container image (must contain wget) |
+| infrahubServer.waitForPrefect.image.tag | string | `"1.37"` | Tag of the init container image |
+| infrahubServer.waitForPrefect.pollSeconds | int | `5` | Delay between probe attempts, in seconds |
+| infrahubServer.waitForPrefect.resources | object | `{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"10m","memory":"16Mi"}}` | Resource requests and limits for the init container |
+| infrahubServer.waitForPrefect.timeoutSeconds | int | `300` | Overall timeout for the init container, in seconds; on expiry the pod enters Init:Error |
+| infrahubServer.waitForPrefect.url | string | `"http://prefect-server:4200/api/health"` | Full URL of the Prefect health endpoint to poll |
 | infrahubTaskWorker.affinity | object | `{}` | Affinity for the task worker pods |
 | infrahubTaskWorker.infrahubTaskWorker.args | list | `["prefect","worker","start","--type","infrahubasync","--pool","infrahub-worker","--with-healthcheck"]` | Container arguments for the task worker |
 | infrahubTaskWorker.infrahubTaskWorker.env | object | `{"INFRAHUB_API_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_LOG_LEVEL":"DEBUG","INFRAHUB_PRODUCTION":"false","INFRAHUB_TIMEOUT":"60","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_AGENT_QUERY_INTERVAL":3,"PREFECT_API_URL":"http://prefect-server:4200/api","PREFECT_WORKER_QUERY_SECONDS":3}` | Container environment for the task worker |
@@ -172,6 +180,14 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubTaskWorker.revisionHistoryLimit | int | `10` | Revision history limit for the task worker Deployment |
 | infrahubTaskWorker.tolerations | list | `[]` | Tolerations for the task worker pods |
 | infrahubTaskWorker.topologySpreadConstraints | list | `[]` | Topology spread constraints for the task worker pods |
+| infrahubTaskWorker.waitForPrefect.enabled | bool | `true` | Whether to render the init container that blocks task worker pod startup until Prefect is ready |
+| infrahubTaskWorker.waitForPrefect.image.pullPolicy | string | `""` | Image pull policy; leave empty to inherit from global.imagePullPolicy |
+| infrahubTaskWorker.waitForPrefect.image.repository | string | `"busybox"` | Repository of the init container image (must contain wget) |
+| infrahubTaskWorker.waitForPrefect.image.tag | string | `"1.37"` | Tag of the init container image |
+| infrahubTaskWorker.waitForPrefect.pollSeconds | int | `5` | Delay between probe attempts, in seconds |
+| infrahubTaskWorker.waitForPrefect.resources | object | `{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"10m","memory":"16Mi"}}` | Resource requests and limits for the init container |
+| infrahubTaskWorker.waitForPrefect.timeoutSeconds | int | `300` | Overall timeout for the init container, in seconds; on expiry the pod enters Init:Error |
+| infrahubTaskWorker.waitForPrefect.url | string | `"http://prefect-server:4200/api/health"` | Full URL of the Prefect health endpoint to poll |
 | nats.config.jetstream.enabled | bool | `true` |  |
 | nats.enabled | bool | `false` |  |
 | neo4j.config."dbms.security.auth_minimum_password_length" | string | `"4"` |  |

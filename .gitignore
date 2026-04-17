@@ -125,3 +125,9 @@ Chart.lock
 
 # for private values.yaml files
 *.private.y*ml
+
+# AI
+.claude/
+.specify/
+specs/
+CLAUDE.md
