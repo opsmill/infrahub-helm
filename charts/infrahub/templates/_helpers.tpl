@@ -97,3 +97,37 @@ Name for the Gateway resource
   {{- printf "%s-gateway" (include "infrahub-helm.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Render a single init container that blocks pod startup until the Prefect API is
+reachable. Invoked from the infrahub-task-worker and infrahub-server Deployments.
+Expects a dict: { "config": <waitForPrefect values block>, "global": <.Values.global> }.
+The caller is responsible for only invoking this when .config.enabled is truthy.
+*/}}
+{{- define "infrahub-helm.waitForPrefect.initContainer" -}}
+{{- $cfg := .config -}}
+{{- $global := .global -}}
+- name: wait-for-prefect
+  image: "{{ $cfg.image.repository }}:{{ $cfg.image.tag }}"
+  {{- $pullPolicy := default $global.imagePullPolicy $cfg.image.pullPolicy }}
+  {{- if $pullPolicy }}
+  imagePullPolicy: {{ $pullPolicy }}
+  {{- end }}
+  command:
+    - sh
+    - -c
+    - |
+      set -eu
+      end=$(( $(date +%s) + {{ $cfg.timeoutSeconds | int }} ))
+      while [ "$(date +%s)" -lt "$end" ]; do
+        if wget --spider -q -T {{ $cfg.pollSeconds | int }} "{{ $cfg.url }}"; then
+          echo "prefect ready at {{ $cfg.url }}"
+          exit 0
+        fi
+        echo "prefect not ready, sleeping {{ $cfg.pollSeconds | int }}s"
+        sleep {{ $cfg.pollSeconds | int }}
+      done
+      echo "timeout after {{ $cfg.timeoutSeconds | int }}s waiting for prefect at {{ $cfg.url }}" >&2
+      exit 1
+  resources: {{- toYaml $cfg.resources | nindent 4 }}
+{{- end -}}

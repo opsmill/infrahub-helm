@@ -55,6 +55,10 @@ spec:
       {{- with .Values.infrahubServer.topologySpreadConstraints }}
       topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.infrahubServer.waitForPrefect.enabled }}
+      initContainers:
+        {{- include "infrahub-helm.waitForPrefect.initContainer" (dict "config" .Values.infrahubServer.waitForPrefect "global" .Values.global) | nindent 8 }}
+      {{- end }}
       containers:
         - args: {{- toYaml .Values.infrahubServer.infrahubServer.args | nindent 12 }}
           env:

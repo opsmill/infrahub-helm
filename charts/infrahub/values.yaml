@@ -137,6 +137,33 @@ infrahubTaskWorker:
     extraVolumes: []
     # -- Extra volumeMounts for the task worker pod
     extraVolumeMounts: []
+  # -- Init container that blocks pod startup until Prefect is ready. Fixes task worker
+  # CrashLoopBackOff on fresh installs when the Prefect server has not finished booting.
+  # Set enabled=false when running against an externally managed Prefect or when skipping Prefect.
+  waitForPrefect:
+    # -- Whether to render the init container
+    enabled: true
+    image:
+      # -- Repository of the init container image (must contain wget)
+      repository: busybox
+      # -- Tag of the init container image
+      tag: "1.37"
+      # -- Image pull policy; leave empty to inherit from global.imagePullPolicy
+      pullPolicy: ""
+    # -- Full URL of the Prefect health endpoint to poll
+    url: "http://prefect-server:4200/api/health"
+    # -- Delay between probe attempts, in seconds
+    pollSeconds: 5
+    # -- Overall timeout for the init container, in seconds; on expiry the pod enters Init:Error
+    timeoutSeconds: 300
+    # -- Resource requests and limits for the init container
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
 
 # ----------- Infrahub Server -----------
 infrahubServer:
@@ -289,6 +316,33 @@ infrahubServer:
     extraVolumes: []
     # -- Extra volumeMounts for the server pod
     extraVolumeMounts: []
+  # -- Init container that blocks pod startup until Prefect is ready. Fixes occasional server
+  # CrashLoopBackOff on fresh installs when the Prefect server has not finished booting.
+  # Set enabled=false when running against an externally managed Prefect or when skipping Prefect.
+  waitForPrefect:
+    # -- Whether to render the init container
+    enabled: true
+    image:
+      # -- Repository of the init container image (must contain wget)
+      repository: busybox
+      # -- Tag of the init container image
+      tag: "1.37"
+      # -- Image pull policy; leave empty to inherit from global.imagePullPolicy
+      pullPolicy: ""
+    # -- Full URL of the Prefect health endpoint to poll
+    url: "http://prefect-server:4200/api/health"
+    # -- Delay between probe attempts, in seconds
+    pollSeconds: 5
+    # -- Overall timeout for the init container, in seconds; on expiry the pod enters Init:Error
+    timeoutSeconds: 300
+    # -- Resource requests and limits for the init container
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
 
 
 # ----------- Infrahub Upgrade -----------

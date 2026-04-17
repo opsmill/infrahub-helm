@@ -55,6 +55,10 @@ spec:
       {{- with .Values.infrahubTaskWorker.topologySpreadConstraints }}
       topologySpreadConstraints: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.infrahubTaskWorker.waitForPrefect.enabled }}
+      initContainers:
+        {{- include "infrahub-helm.waitForPrefect.initContainer" (dict "config" .Values.infrahubTaskWorker.waitForPrefect "global" .Values.global) | nindent 8 }}
+      {{- end }}
       containers:
         - name: infrahub-task-worker
           args: {{- toYaml .Values.infrahubTaskWorker.infrahubTaskWorker.args | nindent 12 }}
