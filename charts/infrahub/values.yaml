@@ -490,3 +490,19 @@ infrahub-backup:
 infrahub-observability:
   # -- Deploy the infrahub-observability subchart and force tracing on.
   enabled: false
+
+# -------------- Infrahub MCP Server ---------------
+infrahub-mcp:
+  # -- Whether to enable Infrahub MCP Server
+  enabled: false
+
+  # -- Infrahub connection (auto-configured from parent chart)
+  infrahub:
+    address: ""
+    apiToken: ""
+
+  # -- MCP server settings
+  mcp:
+    authMode: "none"
+    readOnly: false
+    logLevel: "info"
