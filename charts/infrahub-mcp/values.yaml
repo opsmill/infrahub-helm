@@ -1,0 +1,162 @@
+# Default values for infrahub-mcp
+
+# -- Number of replicas
+replicaCount: 1
+
+# -- Container image configuration
+image:
+  repository: registry.opsmill.io/opsmill/infrahub-mcp
+  # -- Tag defaults to chart appVersion if not specified
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full name
+fullnameOverride: ""
+
+# -- ServiceAccount configuration
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Name of the ServiceAccount (auto-generated if empty)
+  name: ""
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+
+# -- Infrahub connection settings
+infrahub:
+  # -- Infrahub server address (auto-configured when used as sub-chart)
+  address: ""
+  # -- API token for authenticating with Infrahub
+  apiToken: ""
+  # -- Name of an existing Secret containing INFRAHUB_API_TOKEN
+  existingSecret: ""
+  # -- Key within the existing Secret that holds the API token
+  existingSecretKey: "INFRAHUB_API_TOKEN"
+
+# -- MCP server configuration
+mcp:
+  # -- Authentication mode: "none", "token-passthrough", "basic-passthrough", "oidc"
+  authMode: "none"
+  # -- Enable read-only mode (blocks all write operations)
+  readOnly: false
+  # -- Log level: "debug", "info", "warning", "error"
+  logLevel: "info"
+
+  # -- Branching configuration
+  branching:
+    # -- Branch name pattern for auto-created branches
+    pattern: "mcp/session-{date}-{hex}"
+    # -- Max retries for branch creation on name collision
+    maxRetries: 5
+
+  # -- Caching configuration
+  cache:
+    # -- Enable response caching
+    enabled: false
+    # -- TTL in seconds for list operations
+    listTtl: 300
+    # -- TTL in seconds for read operations
+    readTtl: 3600
+
+  # -- Rate limiting configuration
+  rateLimit:
+    # -- Requests per second (0 = disabled)
+    rps: 0
+    # -- Burst allowance (0 = disabled)
+    burst: 0
+
+  # -- Retry configuration
+  retry:
+    # -- Max retry attempts (0 = disabled)
+    maxAttempts: 0
+    # -- Base delay between retries in seconds
+    baseDelay: 1
+
+  # -- Observability configuration
+  observability:
+    # -- Enable Prometheus metrics endpoint
+    prometheusEnabled: false
+    # -- Enable OpenTelemetry tracing
+    otelEnabled: false
+    # -- Ping keepalive interval in milliseconds (0 = disabled)
+    pingIntervalMs: 0
+
+  # -- Enable JSON $ref dereferencing in schemas
+  dereferenceSchemas: false
+
+# -- Additional environment variables (key: value pairs)
+extraEnv: {}
+
+# -- Name of existing Secret(s) to load as environment variables
+envFromExistingSecrets: []
+
+# -- Service configuration
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 8001
+  # -- Container target port
+  targetPort: 8001
+
+# -- Resource limits and requests
+resources: {}
+#  requests:
+#    cpu: "100m"
+#    memory: "128Mi"
+#  limits:
+#    cpu: "500m"
+#    memory: "256Mi"
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# -- Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -- Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Pod labels
+podLabels: {}
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
