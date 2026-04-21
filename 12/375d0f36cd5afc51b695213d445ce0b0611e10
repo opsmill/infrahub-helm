@@ -1,0 +1,23 @@
+charts/infrahub-mcp/Chart.yaml
+  29c4ace7453ed0ac 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "12375d0f36cd5afc51b695213d445ce0b0611e10",
+  "prompts": {
+    "29c4ace7453ed0ac": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ed0b2d98-f747-4ef8-a93b-fb0ed8c2a52b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Benoit Kohler",
+      "messages": [],
+      "total_additions": 732,
+      "total_deletions": 0,
+      "accepted_lines": 732,
+      "overriden_lines": 0
+    }
+  }
+}
