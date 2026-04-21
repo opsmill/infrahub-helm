@@ -1,0 +1,20 @@
+---
+apiVersion: v2
+name: infrahub-mcp
+description: Helm chart for Infrahub MCP Server on Kubernetes
+icon: https://github.com/opsmill/infrahub/raw/develop/frontend/app/public/favicons/logo512.png
+home: https://github.com/opsmill/infrahub-helm
+sources:
+  - https://github.com/opsmill/infrahub-mcp
+keywords:
+  - infrahub
+  - mcp
+  - model-context-protocol
+  - ai
+  - agent
+maintainers:
+  - name: OpsMill
+    url: https://github.com/opsmill
+type: application
+version: 0.1.0
+appVersion: "0.6.0"
