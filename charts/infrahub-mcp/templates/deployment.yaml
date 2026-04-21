@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "infrahub-mcp.fullname" . }}
+  labels:
+    {{- include "infrahub-mcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "infrahub-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-mcp.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "infrahub-mcp.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: infrahub-mcp
+          image: {{ include "infrahub-mcp.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            {{- if .Values.infrahub.address }}
+            - name: INFRAHUB_ADDRESS
+              value: {{ .Values.infrahub.address | quote }}
+            {{- end }}
+            {{- if .Values.infrahub.existingSecret }}
+            - name: INFRAHUB_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.infrahub.existingSecret }}
+                  key: {{ .Values.infrahub.existingSecretKey }}
+            {{- else if .Values.infrahub.apiToken }}
+            - name: INFRAHUB_API_TOKEN
+              value: {{ .Values.infrahub.apiToken | quote }}
+            {{- end }}
+            - name: INFRAHUB_MCP_AUTH_MODE
+              value: {{ .Values.mcp.authMode | quote }}
+            - name: INFRAHUB_MCP_READ_ONLY
+              value: {{ .Values.mcp.readOnly | quote }}
+            - name: INFRAHUB_MCP_LOG_LEVEL
+              value: {{ .Values.mcp.logLevel | quote }}
+            - name: INFRAHUB_MCP_BRANCH_PATTERN
+              value: {{ .Values.mcp.branching.pattern | quote }}
+            - name: INFRAHUB_MCP_MAX_BRANCH_RETRIES
+              value: {{ .Values.mcp.branching.maxRetries | quote }}
+            - name: INFRAHUB_MCP_CACHE_ENABLED
+              value: {{ .Values.mcp.cache.enabled | quote }}
+            - name: INFRAHUB_MCP_CACHE_LIST_TTL
+              value: {{ .Values.mcp.cache.listTtl | quote }}
+            - name: INFRAHUB_MCP_CACHE_READ_TTL
+              value: {{ .Values.mcp.cache.readTtl | quote }}
+            - name: INFRAHUB_MCP_RATE_LIMIT_RPS
+              value: {{ .Values.mcp.rateLimit.rps | quote }}
+            - name: INFRAHUB_MCP_RATE_LIMIT_BURST
+              value: {{ .Values.mcp.rateLimit.burst | quote }}
+            - name: INFRAHUB_MCP_RETRY_MAX_ATTEMPTS
+              value: {{ .Values.mcp.retry.maxAttempts | quote }}
+            - name: INFRAHUB_MCP_RETRY_BASE_DELAY
+              value: {{ .Values.mcp.retry.baseDelay | quote }}
+            - name: INFRAHUB_MCP_PROMETHEUS_ENABLED
+              value: {{ .Values.mcp.observability.prometheusEnabled | quote }}
+            - name: INFRAHUB_MCP_OTEL_ENABLED
+              value: {{ .Values.mcp.observability.otelEnabled | quote }}
+            - name: INFRAHUB_MCP_PING_INTERVAL_MS
+              value: {{ .Values.mcp.observability.pingIntervalMs | quote }}
+            - name: INFRAHUB_MCP_DEREFERENCE_SCHEMAS
+              value: {{ .Values.mcp.dereferenceSchemas | quote }}
+            {{- range $key, $value := .Values.extraEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          {{- if .Values.envFromExistingSecrets }}
+          envFrom:
+            {{- range .Values.envFromExistingSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
