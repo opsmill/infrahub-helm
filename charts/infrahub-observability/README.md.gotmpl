@@ -1,0 +1,70 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+This chart deploys the same observability stack that Infrahub ships for local
+Docker Compose development — Grafana Alloy (logs + metrics), Loki (logs),
+Prometheus (metrics + remote-write receiver), Tempo (traces), Grafana
+(visualization), and the Prefect prometheus exporter — onto Kubernetes. It is
+designed to be installed alongside the [infrahub](../infrahub) or
+[infrahub-enterprise](../infrahub-enterprise) chart in the same namespace.
+
+## Prerequisites
+
+- Kubernetes 1.24+
+- Helm 3.0+
+- PV provisioner support in the underlying infrastructure (Loki, Prometheus,
+  Tempo and Grafana enable persistence by default)
+- The infrahub chart is installed in the same namespace, or its release
+  name is supplied via `global.infrahubReleaseName`
+
+## Installing the Chart
+
+```sh
+helm dependency update charts/infrahub-observability
+helm install obs charts/infrahub-observability -n infrahub
+```
+
+## Wiring infrahub to send traces to Tempo
+
+The infrahub chart exposes a `global.tracing` block that emits the OTEL env
+vars on the server and task-worker deployments. Point it at the Tempo
+service this chart creates:
+
+```yaml
+# infrahub values
+global:
+  tracing:
+    enabled: true
+    endpoint: "http://obs-tempo:4317"  # <release-name>-tempo
+```
+
+## Dashboards
+
+Seven Grafana dashboards are vendored from the [opsmill/infrahub
+repository](https://github.com/opsmill/infrahub) at the version recorded in
+`.dashboards-source`. The chart's `appVersion` tracks this version. The
+dashboards are kept in sync with upstream automatically as part of the
+infrahub release flow; for local development:
+
+```sh
+make sync-dashboards REF=v1.9.3
+```
+
+## Uninstalling the Chart
+
+```sh
+helm delete obs -n infrahub
+```
+
+Persistent volumes for Loki, Prometheus, Tempo and Grafana are retained by
+default. Delete the PVCs explicitly if you want a clean slate.
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
