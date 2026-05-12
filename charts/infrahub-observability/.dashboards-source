@@ -1,0 +1,14 @@
+# Tracks the upstream source for vendored Grafana dashboards.
+# Updated by scripts/sync-dashboards.sh and reviewed in PRs.
+# The chart's appVersion should match the infrahub release recorded here.
+repo: opsmill/infrahub
+ref: infrahub-v1.9.3
+path: development/grafana/provisioning/dashboards
+files:
+  - infrahub_monitoring.json
+  - neo4j_monitoring.json
+  - rabbitmq_instance_monitoring.json
+  - container_resources.json
+  - loki_monitoring.json
+  - prefect_platform_overview.json
+  - prefect_flow_run_overview.json

@@ -1,0 +1,228 @@
+---
+# -- Default values for infrahub-observability.
+# This is a YAML-formatted file.
+
+# -- Global values shared across all sub-charts and templates in this chart.
+global:
+  # -- Cluster DNS domain. Used for fully-qualified service names if needed.
+  kubernetesClusterDomain: cluster.local
+  # -- Default imagePullPolicy for in-chart workloads (currently only the Prefect exporter).
+  imagePullPolicy: IfNotPresent
+  # -- Image pull secrets propagated to in-chart workloads.
+  imagePullSecrets: []
+  # -- Labels added to every resource managed by this chart.
+  commonLabels: {}
+  # -- Annotations added to every resource managed by this chart.
+  commonAnnotations: {}
+  # -- Pod-level labels merged into the standard selector labels.
+  podLabels: {}
+  # -- Release name of the sibling infrahub chart. Used by the Prefect exporter
+  # to derive the default PREFECT_API_URL and by Alloy when scoping discovery.
+  infrahubReleaseName: infrahub
+  # -- Namespace where the sibling infrahub release lives. Empty string means
+  # the same namespace as this release.
+  infrahubNamespace: ""
+
+# ----------------------------------------------------------------------------
+# Alloy — unified collector (logs + metrics)
+#
+# We disable the upstream chart's auto-generated config and supply our own
+# ConfigMap in templates/alloy-config.yaml. The DaemonSet controller is required
+# so each node's Alloy can read pod logs from the local kubelet.
+# ----------------------------------------------------------------------------
+alloy:
+  enabled: true
+  controller:
+    type: daemonset
+  alloy:
+    configMap:
+      create: false
+      # -- Name of the ConfigMap that holds Alloy's config.alloy file.
+      # Resolved at render time via the helper.
+      name: ""
+      key: config.alloy
+    mounts:
+      varlog: true
+      dockercontainers: false
+    clustering:
+      enabled: false
+
+# ----------------------------------------------------------------------------
+# Loki — log storage (single-binary mode for parity with docker-compose)
+# ----------------------------------------------------------------------------
+loki:
+  enabled: true
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    server:
+      log_level: warn
+    commonConfig:
+      replication_factor: 1
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-04-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    limits_config:
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+      allow_structured_metadata: true
+      max_global_streams_per_user: 15000
+      ingestion_rate_mb: 32
+      ingestion_burst_size_mb: 64
+      max_entries_limit_per_query: 10000
+      cardinality_limit: 100000
+      per_stream_rate_limit: 3MB
+      per_stream_rate_limit_burst: 5MB
+      max_streams_per_user: 20000
+      max_query_lookback: 24h
+      retention_period: 24h
+    compactor:
+      working_directory: /var/loki/compactor
+      compaction_interval: 10m
+      retention_enabled: true
+      retention_delete_delay: 2h
+      retention_delete_worker_count: 100
+      delete_request_store: filesystem
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+  test:
+    enabled: false
+  lokiCanary:
+    enabled: false
+  gateway:
+    enabled: false
+
+# ----------------------------------------------------------------------------
+# Tempo — distributed tracing (single-binary, OTLP receivers, metrics generator)
+# ----------------------------------------------------------------------------
+tempo:
+  enabled: true
+  tempo:
+    receivers:
+      otlp:
+        protocols:
+          http: {}
+          grpc:
+            endpoint: 0.0.0.0:4317
+    metricsGenerator:
+      enabled: true
+      remoteWriteUrl: ""  # populated by overrides applied in NOTES / docs; defaults are OK
+    retention: 96h
+  persistence:
+    enabled: true
+    size: 10Gi
+
+# ----------------------------------------------------------------------------
+# Prometheus — TSDB with remote-write receiver (Alloy is the source of truth
+# for scrapes; Prometheus does no scraping itself).
+# ----------------------------------------------------------------------------
+prometheus:
+  enabled: true
+  alertmanager:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  prometheus-node-exporter:
+    enabled: false  # we use the standalone subchart at the top level
+  kube-state-metrics:
+    enabled: false
+  server:
+    extraArgs:
+      web.enable-remote-write-receiver: ""
+      web.enable-lifecycle: ""
+      log.level: warn
+      storage.tsdb.retention.time: 96h
+    persistentVolume:
+      enabled: true
+      size: 20Gi
+  serverFiles:
+    prometheus.yml:
+      scrape_configs: []  # Alloy pushes via remote_write; no Prometheus-side scrape
+
+# ----------------------------------------------------------------------------
+# Node exporter — host-level metrics
+# ----------------------------------------------------------------------------
+prometheus-node-exporter:
+  enabled: true
+
+# ----------------------------------------------------------------------------
+# Grafana — visualization. Datasources and dashboards are provisioned via
+# sidecar-watched ConfigMaps that this chart creates (see templates/).
+# ----------------------------------------------------------------------------
+grafana:
+  enabled: true
+  adminUser: admin
+  # -- Default password matches docker-compose dev parity. Override via
+  # `grafana.admin.existingSecret` in production.
+  adminPassword: admin
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 5Gi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+  env:
+    GF_USERS_ALLOW_SIGN_UP: "false"
+    GF_LOG_LEVEL: warn
+
+# ----------------------------------------------------------------------------
+# Prefect prometheus exporter — no upstream chart available, shipped as a
+# small Deployment+Service in this chart.
+# ----------------------------------------------------------------------------
+prefectExporter:
+  # -- Enable the Prefect prometheus exporter sidecar Deployment.
+  enabled: true
+  image:
+    repository: prefecthq/prometheus-prefect-exporter
+    tag: "3.3.0"
+    pullPolicy: ""  # falls back to global.imagePullPolicy
+  # -- PREFECT_API_URL. Empty string defaults to the task-manager service of
+  # the sibling infrahub release (see _helpers.tpl).
+  prefectApiUrl: ""
+  # -- Log level passed to the exporter.
+  logLevel: WARNING
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8000
+  podAnnotations: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000

@@ -1,0 +1,50 @@
+---
+apiVersion: v2
+name: infrahub-observability
+description: Observability stack (Alloy, Loki, Prometheus, Tempo, Grafana) for Infrahub on Kubernetes
+icon: https://github.com/opsmill/infrahub/raw/develop/frontend/app/public/favicons/logo512.png
+home: https://github.com/opsmill/infrahub-helm
+sources:
+  - https://github.com/opsmill/infrahub
+  - https://github.com/opsmill/infrahub-helm
+keywords:
+  - infrahub
+  - observability
+  - grafana
+  - loki
+  - prometheus
+  - tempo
+  - alloy
+  - kubernetes
+maintainers:
+  - name: OpsMill
+    url: https://github.com/opsmill
+type: application
+version: 0.1.0
+appVersion: "1.9.3"
+
+dependencies:
+  - name: alloy
+    version: "1.0.3"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: alloy.enabled
+  - name: loki
+    version: "6.16.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: loki.enabled
+  - name: tempo
+    version: "1.10.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: tempo.enabled
+  - name: grafana
+    version: "8.5.0"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
+  - name: prometheus
+    version: "25.27.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: prometheus-node-exporter
+    version: "4.36.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus-node-exporter.enabled
