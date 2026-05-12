@@ -1,0 +1,80 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "infrahub-observability.fullname" . }}-grafana-datasources
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    grafana_datasource: "1"
+    service: grafana
+    {{- include "infrahub-observability.labels" . | nindent 4 }}
+  {{- with (include "infrahub-observability.annotations" .) }}
+  annotations:
+    {{- . | nindent 4 }}
+  {{- end }}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: localprometheus
+        access: proxy
+        orgId: 1
+        url: {{ include "infrahub-observability.prometheusUrl" . }}
+        isDefault: true
+        basicAuth: false
+        editable: true
+        jsonData:
+          httpMethod: POST
+          timeInterval: 15s
+
+      - name: Loki
+        type: loki
+        uid: localloki
+        access: proxy
+        url: {{ include "infrahub-observability.lokiUrl" . }}
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - name: TraceID
+              matcherRegex: 'TraceID=0x(\w+)'
+              url: '$${__value.raw}'
+              urlDisplayLabel: "View Trace via TraceID (in Tempo)"
+              datasourceUid: 'localtempo'
+            - name: RequestID
+              matcherRegex: 'RequestID=(\w+)'
+              url: '{name=~".*$${__value.raw}.*"}'
+              urlDisplayLabel: "View Trace via RequestID (in Tempo)"
+              datasourceUid: 'localtempo'
+
+      - name: Tempo
+        type: tempo
+        uid: localtempo
+        access: proxy
+        url: {{ include "infrahub-observability.tempoUrl" . }}
+        basicAuth: false
+        editable: true
+        jsonData:
+          serviceMap:
+            datasourceUid: 'localprometheus'
+          tracesToLogsV2:
+            datasourceUid: 'localloki'
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '-1h'
+            filterByTraceID: false
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: 'localprometheus'
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '-1h'
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: 'localloki'
+          traceQuery:
+            timeShiftEnabled: true
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '-1h'
+{{- end }}

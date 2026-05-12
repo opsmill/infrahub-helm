@@ -94,7 +94,7 @@ http://{{ .Release.Name }}-loki:3100
 {{- end }}
 
 {{- define "infrahub-observability.tempoUrl" -}}
-http://{{ .Release.Name }}-tempo:3200
+http://{{ .Release.Name }}-tempo:3100
 {{- end }}
 
 {{- define "infrahub-observability.tempoOtlpGrpcEndpoint" -}}
