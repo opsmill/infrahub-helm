@@ -101,8 +101,18 @@ http://{{ .Release.Name }}-tempo:3200
 {{ .Release.Name }}-tempo:4317
 {{- end }}
 
+{{/*
+ConfigMap that holds Alloy's config.alloy. Must match what the Alloy subchart
+resolves to when `alloy.alloy.configMap.name` is empty (see Alloy chart
+templates/_config.tpl → `alloy.fullname`). Mirroring its logic here lets us
+leave `configMap.name` unset in values.yaml.
+*/}}
 {{- define "infrahub-observability.alloyConfigMapName" -}}
-{{ include "infrahub-observability.fullname" . }}-alloy
+{{- if contains "alloy" .Release.Name -}}
+{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else -}}
+{{ printf "%s-alloy" .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- end -}}
 {{- end }}
 
 {{- define "infrahub-observability.prefectExporterFullname" -}}
