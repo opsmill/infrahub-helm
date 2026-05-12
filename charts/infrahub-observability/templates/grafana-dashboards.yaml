@@ -1,0 +1,29 @@
+{{- /*
+One ConfigMap per dashboard JSON. Bundling all dashboards into a single
+ConfigMap would exceed etcd's 1 MiB-per-object limit — the vendored set
+already totals ~900 KiB and loki_monitoring.json alone is ~390 KiB.
+*/ -}}
+{{- if .Values.grafana.enabled }}
+{{- $root := . }}
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+{{- $file := base $path }}
+{{- $name := $file | trimSuffix ".json" | replace "_" "-" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "infrahub-observability.fullname" $root }}-dashboard-{{ $name }}
+  namespace: {{ $root.Release.Namespace | quote }}
+  labels:
+    grafana_dashboard: "1"
+    service: grafana
+    {{- include "infrahub-observability.labels" $root | nindent 4 }}
+  {{- with (include "infrahub-observability.annotations" $root) }}
+  annotations:
+    {{- . | nindent 4 }}
+  {{- end }}
+data:
+  {{ $file }}: |-
+    {{- $root.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}
