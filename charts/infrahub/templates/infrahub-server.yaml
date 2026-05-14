@@ -62,6 +62,7 @@ spec:
         - args: {{- toYaml .Values.infrahubServer.infrahubServer.args | nindent 12 }}
           env:
             {{- include "infrahub-helm.infrahubServer.defaultEnv" . | nindent 12 }}
+            {{- include "infrahub-helm.tracingEnv" . | nindent 12 }}
             {{- range $key, $value := .Values.infrahubServer.infrahubServer.env }}
             {{- if or $value (not (or (eq $key "INFRAHUB_INITIAL_ADMIN_TOKEN") (eq $key "INFRAHUB_INITIAL_AGENT_TOKEN") (eq $key "INFRAHUB_SECURITY_SECRET_KEY") (eq $key "INFRAHUB_API_TOKEN"))) }}
             - name: {{ $key }}

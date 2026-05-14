@@ -28,16 +28,18 @@ helm install obs charts/infrahub-observability -n infrahub
 
 ## Wiring infrahub to send traces to Tempo
 
-The infrahub chart exposes a `global.tracing` block that emits the OTEL env
-vars on the server and task-worker deployments. Point it at the Tempo
-service this chart creates:
+The infrahub chart exposes a `global.tracing` block that emits the
+`INFRAHUB_TRACE_*` env vars on the server and task-worker deployments. Point
+it at the Tempo service this chart creates:
 
 ```yaml
 # infrahub values
 global:
   tracing:
     enabled: true
-    endpoint: "http://obs-tempo:4317"  # <release-name>-tempo
+    endpoint: "obs-tempo:4317"   # <obs-release-name>-tempo:4317 (host:port for grpc)
+    protocol: grpc
+    insecure: true
 ```
 
 ## Dashboards
