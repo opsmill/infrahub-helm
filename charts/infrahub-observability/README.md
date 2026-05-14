@@ -85,8 +85,9 @@ default. Delete the PVCs explicitly if you want a clean slate.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| alloy | object | `{"alloy":{"clustering":{"enabled":false},"configMap":{"create":false,"key":"config.alloy","name":""},"mounts":{"dockercontainers":false,"varlog":true}},"controller":{"type":"daemonset"},"enabled":true}` | -------------------------------------------------------------------------- |
+| alloy | object | `{"alloy":{"clustering":{"enabled":false},"configMap":{"create":false,"key":"config.alloy","name":""},"mounts":{"dockercontainers":false,"varlog":true}},"cadvisor":{"enabled":true},"controller":{"type":"daemonset"},"enabled":true}` | -------------------------------------------------------------------------- |
 | alloy.alloy.configMap.name | string | `""` | Name of the ConfigMap that holds Alloy's config.alloy file. Resolved at render time via the helper. |
+| alloy.cadvisor | object | `{"enabled":true}` | Scrape kubelet cAdvisor for per-container CPU/memory/network/fs metrics. Requires the Alloy ServiceAccount to have `get nodes/proxy`, which the subchart's default RBAC already grants. Disable if your cluster's policy forbids that permission; the Container Resources and Neo4j Monitoring dashboards will then show no data. |
 | global | object | `{"commonAnnotations":{},"commonLabels":{},"imagePullPolicy":"IfNotPresent","imagePullSecrets":[],"infrahubNamespace":"","infrahubReleaseName":"infrahub","kubernetesClusterDomain":"cluster.local","podLabels":{}}` | Global values shared across all sub-charts and templates in this chart. |
 | global.commonAnnotations | object | `{}` | Annotations added to every resource managed by this chart. |
 | global.commonLabels | object | `{}` | Labels added to every resource managed by this chart. |
