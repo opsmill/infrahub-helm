@@ -92,6 +92,11 @@ The chart offers the ability to configure persistence for the database and other
 | global.infrahubRepository | string | `"opsmill/infrahub"` | Repository for Infrahub images |
 | global.kubernetesClusterDomain | string | `"cluster.local"` | Kubernetes cluster domain |
 | global.podLabels | object | `{}` | Labels to use for all configured pods |
+| global.tracing | object | `{"enabled":false,"endpoint":"","insecure":true,"protocol":"grpc"}` | Send traces to an OTLP collector. When enabled, INFRAHUB_TRACE_* env vars are injected into the server and task-worker Deployments. Pair with the infrahub-observability chart (Tempo endpoint: <obs-release>-tempo:4317) or any other OTLP-compatible collector. |
+| global.tracing.enabled | bool | `false` | Enable tracing instrumentation on server and task-worker pods. |
+| global.tracing.endpoint | string | `""` | OTLP endpoint. For grpc protocol, use host:port (no scheme). For http/protobuf, use a full URL. Example: "obs-tempo:4317". |
+| global.tracing.insecure | bool | `true` | Skip TLS verification when talking to the collector. |
+| global.tracing.protocol | string | `"grpc"` | OTLP protocol. One of: grpc, http/protobuf. |
 | infrahub-backup.backup | object | `{"enabled":false,"mode":"cronjob","schedule":"0 2 * * *","storage":{"s3":{"bucket":"","endpoint":"","prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Backup configuration |
 | infrahub-backup.enabled | bool | `false` | Whether to enable Infrahub Backup |
 | infrahub-backup.restore | object | `{"enabled":false,"s3":{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""}}` | Restore configuration |
