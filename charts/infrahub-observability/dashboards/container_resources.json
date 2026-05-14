@@ -148,7 +148,7 @@
             "uid": "localprometheus"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_network_receive_bytes_total{id!=\"\"}[1m])) by (id)",
+          "expr": "sum(rate(container_network_receive_bytes_total{container!=\"\", image!=\"\"}[1m])) by (id)",
           "legendFormat": "Network Traffic",
           "range": true,
           "refId": "A"
@@ -215,7 +215,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(container_last_seen{container_label_com_docker_compose_project=\"infrahub\"} > time() - 60)",
+          "expr": "count(container_last_seen{namespace=\"infrahub\"} > time() - 60)",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -710,8 +710,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service!=\"\"}[5m])) by (container_label_com_docker_compose_service) * 100",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (container) * 100",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -811,8 +811,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service!=\"\"}",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "container_memory_usage_bytes{container!=\"\"}",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -925,8 +925,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "rate(container_network_receive_bytes_total{container_label_com_docker_compose_service!=\"\"}[5m])",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "rate(container_network_receive_bytes_total{container!=\"\"}[5m])",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -1026,8 +1026,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "rate(container_network_transmit_bytes_total{container_label_com_docker_compose_service!=\"\"}[5m])",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "rate(container_network_transmit_bytes_total{container!=\"\"}[5m])",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -1140,8 +1140,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum (container_fs_usage_bytes{container_label_com_docker_compose_service!=\"\"}) by (container_label_com_docker_compose_service)",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "sum (container_fs_usage_bytes{container!=\"\"}) by (container)",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -1241,8 +1241,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum (\n    rate(container_fs_reads_total{container_label_com_docker_compose_service!=\"\"}[5m])\n    + rate(container_fs_writes_total{container_label_com_docker_compose_service!=\"\"}[5m])\n) by (container_label_com_docker_compose_service) ",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "sum (\n    rate(container_fs_reads_total{container!=\"\"}[5m])\n    + rate(container_fs_writes_total{container!=\"\"}[5m])\n) by (container) ",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
@@ -1352,8 +1352,8 @@
             "uid": "${datasource_prometheus}"
           },
           "editorMode": "code",
-          "expr": "time() - container_start_time_seconds{container_label_com_docker_compose_service!=\"\"}",
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "expr": "time() - container_start_time_seconds{container!=\"\"}",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }

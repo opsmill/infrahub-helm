@@ -552,9 +552,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "container_memory_usage_bytes{container_label_com_docker_compose_service=~\"database|infrahub-server\"}",
+          "expr": "container_memory_usage_bytes{container=~\"neo4j|infrahub-server\"}",
           "instant": false,
-          "legendFormat": "{{container_label_com_docker_compose_service}}",
+          "legendFormat": "{{container}}",
           "range": true,
           "refId": "A"
         }
