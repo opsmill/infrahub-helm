@@ -53,10 +53,17 @@ Wait for the rollout to settle:
 kubectl --namespace infrahub get pods -w
 ```
 
-You should see (eventually) `infrahub-infrahub-server`,
-`infrahub-infrahub-task-worker`, `infrahub-database-0` (Neo4j),
-`infrahub-cache-master-0` (Redis), `infrahub-rabbitmq-0`, and
-`infrahub-task-manager-*` pods all `Running` and `1/1` ready.
+You should see (eventually) all of these pods `Running` and `1/1` ready:
+
+- `infrahub-infrahub-server-*`
+- `infrahub-infrahub-task-worker-*` (× 2 replicas)
+- `infrahub-database-0` (Neo4j, headless StatefulSet)
+- `infrahub-cache-master-0` (Redis)
+- `infrahub-message-queue-0` (RabbitMQ)
+- `infrahub-postgresql-0` (used by Prefect)
+- `prefect-server-*` (note: no `infrahub-` prefix — the Prefect subchart
+  uses a fixed Service name `prefect-server`, which the observability chart
+  scrapes by that exact name)
 
 ## 3. Install the infrahub-observability chart
 
@@ -180,13 +187,23 @@ the pods generating output. Alloy (running as a DaemonSet) is scraping
 
 ### Verify metrics are flowing into Prometheus
 
+Note: Prometheus does no scraping itself in this stack — Alloy is the source
+of truth for scrapes and pushes via remote-write — so `kubectl port-forward
+svc/obs-prometheus-server 9090:80` then visiting `/targets` will show an
+empty page. Verify via the metrics themselves.
+
 In **Explore**, pick the **Prometheus** datasource, and run:
 
 ```promql
-up{}
+group by (job) ({__name__!=""})
 ```
 
-You should see at least the Prometheus self-scrape and Alloy targets.
+You should see 8 jobs: `infrahub-server`, `infrahub-worker`, `logs`,
+`message-queue`, `node-exporter`, `prometheus`, `task-manager`,
+`task-manager-exporter`. The `database` job is not present by default
+because the Neo4j chart doesn't expose prometheus metrics (see "Service
+discovery and toggles" below).
+
 For Prefect-specific metrics:
 
 ```promql
@@ -202,14 +219,35 @@ Exercise infrahub a bit so it emits spans:
 
 ```sh
 kubectl --namespace infrahub port-forward svc/infrahub-infrahub-server 8000:8000
-# in a separate terminal, hit the GraphQL endpoint a few times
-curl -s http://localhost:8000/api/schema/summary > /dev/null
-curl -s http://localhost:8000/api/storage/object/about > /dev/null
+# in a separate terminal, hit a few endpoints
+for i in $(seq 1 10); do
+    curl -s http://localhost:8000/api/schema/summary > /dev/null
+    curl -s -X POST -H "Content-Type: application/json" \
+        -d '{"query":"{ Branch { edges { node { name } } } }"}' \
+        http://localhost:8000/graphql > /dev/null
+done
 ```
 
-In Grafana, **Explore** → **Tempo** → **Search**, set Service Name to
-`infrahub-server`, and click **Run query**. You should see traces appear
-within a minute.
+Wait ~10 seconds (Tempo batches), then in Grafana, **Explore** → **Tempo**
+→ **Search**, set Service Name to `infrahub-server`, and click **Run
+query**. You should see traces appear.
+
+You can also check from the CLI:
+
+```sh
+kubectl --namespace infrahub port-forward svc/obs-tempo 3100:3100
+# separate terminal:
+curl -s 'http://localhost:3100/api/search?tags=service.name%3Dinfrahub-server' | jq '.traces | length'
+```
+
+A non-zero count confirms traces are landing in Tempo.
+
+**Gotcha:** If you see `WRONG_VERSION_NUMBER` SSL handshake errors in the
+infrahub-server logs (`kubectl logs -l service=infrahub-server`), make sure
+you're running an infrahub chart that includes the `OTEL_EXPORTER_OTLP_INSECURE`
+env-var fallback. Upstream infrahub's tracing wrapper doesn't honour
+`INFRAHUB_TRACE_INSECURE` for the gRPC exporter — the OTel SDK env var is
+what actually disables TLS.
 
 ## 6. (Optional) Teardown
 
@@ -223,6 +261,140 @@ kubectl --namespace infrahub delete pvc --all
 
 kubectl delete namespace infrahub
 ```
+
+## Service discovery and toggles
+
+It's useful to know what the chart actually does for discovery — what it
+scrapes by default, how it finds targets, and what the knobs are.
+
+### Logs — namespace-scoped pod discovery
+
+Alloy runs as a DaemonSet and uses `discovery.kubernetes` with
+`role = "pod"`, scoped to a single namespace (the same namespace as the
+sibling infrahub release, override via `global.infrahubNamespace`). **Every
+pod in that namespace gets its logs shipped to Loki** — there is no label
+filter on log ingestion. Pod log streams arrive in Loki with three
+auto-promoted labels (`namespace`, `pod`, `container`) plus one chart-
+specific label `component`, which is sourced from the `service:` pod label
+that infrahub workloads carry (e.g. `service: infrahub-server`,
+`service: database`). The `component` label is what the parsing pipeline
+stages in the Alloy config key off of for per-workload log shape parsing.
+
+Toggles:
+
+| Setting | Effect |
+| --- | --- |
+| `global.infrahubNamespace` | Which namespace Alloy collects pod logs from. Empty = release namespace. |
+| `alloy.enabled` | Disable the entire Alloy DaemonSet (no logs, no metric scraping). |
+| `loki.enabled` | Disable Loki itself. Alloy will keep collecting but the write will fail; usually only disable both together. |
+
+### Metrics — mostly hardcoded static targets
+
+For Prometheus metrics, the shipped Alloy config uses **static
+`prometheus.scrape` blocks pointing at known Service:port endpoints**, not
+annotation- or label-based auto-discovery. The default scrape list is:
+
+| Job | Target | Source chart |
+| --- | --- | --- |
+| `prometheus` | `<obs-release>-prometheus-server:80` | self |
+| `infrahub-server` | `<infrahub-release>-infrahub-server:8000` | infrahub |
+| `infrahub-worker` | pods labelled `service=infrahub-task-worker`, port `8000` | infrahub |
+| `message-queue` | `<infrahub-release>-message-queue:15692` | infrahub (RabbitMQ exporter) |
+| `database` | `<infrahub-release>-database:2004` | infrahub (Neo4j metrics) |
+| `task-manager-exporter` | `<obs-release>-infrahub-observability-prefect-exporter:8000` | this chart (Prefect exporter) |
+| `task-manager` | `<infrahub-release>-task-manager-server:4200/api/metrics` | infrahub (Prefect server) |
+| `logs` | `<obs-release>-loki:3100` and `<obs-release>-alloy:12345` | self |
+| `node-exporter` | `<obs-release>-prometheus-node-exporter:9100` | self |
+
+The only dynamic discovery on the metrics side is for **`infrahub-task-worker`**:
+the task-worker has no Service in the infrahub chart, so Alloy uses
+`discovery.kubernetes` with `role = "pod"` and a `keep` relabel filtering on
+the pod's `service=infrahub-task-worker` label, then rewrites the port to
+`8000`.
+
+#### Annotation-based scrape — not currently consumed
+
+The Prefect exporter Service the chart creates carries the conventional
+`prometheus.io/scrape: "true"`, `prometheus.io/port`, `prometheus.io/path`
+annotations. **The shipped Alloy config does not consume those annotations**
+— the exporter is scraped via a static target block instead. The annotations
+are decorative for now (useful if someone runs their own Prometheus alongside
+that does honour them, but Alloy ignores them). If you want to enable
+annotation-driven scrape across the whole namespace, you need to override the
+Alloy config; see below.
+
+Toggles:
+
+| Setting | Effect |
+| --- | --- |
+| `prefectExporter.enabled` | Toggle the Prefect prometheus exporter Deployment + Service. Disable if you don't run Prefect / task-manager. |
+| `prometheus-node-exporter.enabled` | Toggle the host-level metrics DaemonSet. |
+| `prometheus.enabled` | Disable the in-cluster Prometheus TSDB entirely. Alloy will then have nowhere to remote-write metrics. |
+| `global.infrahubReleaseName` | Used to resolve the `<infrahub-release>-*` Service names. Set this if your infrahub release isn't named `infrahub`. |
+
+#### Adding or removing scrape targets
+
+The Alloy config is shipped as a ConfigMap rendered from
+[templates/alloy-config.yaml](../charts/infrahub-observability/templates/alloy-config.yaml).
+The scrape list is part of that template — it isn't exposed as a Helm value.
+If you need to add custom targets or switch to annotation-based discovery:
+
+1. **Quick override** — disable the chart's ConfigMap and provide your own:
+
+   ```yaml
+   alloy:
+     alloy:
+       configMap:
+         create: true   # let the Alloy subchart create + own the ConfigMap
+         content: |-
+           // ...your custom config.alloy...
+   ```
+
+2. **Fork the chart's ConfigMap** — copy the rendered `obs-alloy` ConfigMap,
+   add your scrape blocks, and set
+   `alloy.alloy.configMap.name=<your-name>` to point Alloy at it instead.
+
+### Traces — opt-in, no discovery involved
+
+Traces are not collected via discovery. Workloads have to actively push to
+Tempo's OTLP endpoint. For infrahub this is wired via the new
+`global.tracing.*` block on the infrahub chart (see Step 4 above). For
+custom workloads, point your OTLP client at
+`<obs-release>-tempo:4317` (gRPC) or `<obs-release>-tempo:4318` (HTTP).
+
+Toggles:
+
+| Setting | Effect |
+| --- | --- |
+| `tempo.enabled` | Disable Tempo. |
+| `global.tracing.enabled` (on the **infrahub** chart) | Inject `INFRAHUB_TRACE_*` env vars on infrahub server + task-worker. Off by default. |
+| `global.tracing.endpoint` / `.protocol` / `.insecure` (infrahub chart) | OTLP destination, transport, TLS skip. |
+
+### Per-component on/off summary
+
+If you only want a subset of the stack, the top-level subchart toggles let
+you trim it down:
+
+```yaml
+alloy:
+  enabled: false   # collector
+loki:
+  enabled: false   # log storage
+tempo:
+  enabled: false   # trace storage
+prometheus:
+  enabled: false   # metric storage
+grafana:
+  enabled: false   # UI
+prometheus-node-exporter:
+  enabled: false   # host metrics
+prefectExporter:
+  enabled: false   # Prefect metrics exporter
+```
+
+Most users keep all of these on. Disabling Grafana while keeping the rest is
+the common pattern when you have an existing org-wide Grafana you want to
+point at this stack's Loki/Prometheus/Tempo.
 
 ## Troubleshooting
 
