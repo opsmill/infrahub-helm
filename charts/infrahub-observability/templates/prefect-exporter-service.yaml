@@ -1,0 +1,26 @@
+{{- if .Values.prefectExporter.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "infrahub-observability.prefectExporterFullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    service: prefect-exporter
+    {{- include "infrahub-observability.labels" . | nindent 4 }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.prefectExporter.service.port | quote }}
+    prometheus.io/path: "/metrics"
+    {{- include "infrahub-observability.annotations" . | nindent 4 }}
+spec:
+  type: {{ .Values.prefectExporter.service.type }}
+  ports:
+    - name: metrics
+      port: {{ .Values.prefectExporter.service.port }}
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    service: prefect-exporter
+    {{- include "infrahub-observability.selectorLabels" . | nindent 4 }}
+{{- end }}
