@@ -288,6 +288,25 @@ Toggles:
 | `alloy.enabled` | Disable the entire Alloy DaemonSet (no logs, no metric scraping). |
 | `loki.enabled` | Disable Loki itself. Alloy will keep collecting but the write will fail; usually only disable both together. |
 
+### cAdvisor — per-container resource metrics
+
+Alloy scrapes the kubelet's `/metrics/cadvisor` endpoint (via the API server
+proxy) once per node to collect `container_cpu_usage_seconds_total`,
+`container_memory_usage_bytes`, `container_network_*`, and `container_fs_*`
+series. These feed the **Container Resources** and **Neo4j Monitoring**
+dashboards.
+
+The scrape needs `get` on `nodes/proxy` at cluster scope. The Alloy subchart
+grants this by default — no extra RBAC. Disable via
+`alloy.cadvisor.enabled: false` if your cluster policy forbids that
+permission.
+
+**OrbStack gotcha:** OrbStack's kubelet exposes `/metrics/cadvisor` but
+only emits `machine_*` metrics through it (no `container_*`). The container
+data is reachable via `/stats/summary` but cAdvisor on that path is broken.
+Other distributions (kind, minikube, EKS, GKE, AKS, k3d) work normally.
+The dashboards expecting container metrics will be empty on OrbStack only.
+
 ### Metrics — mostly hardcoded static targets
 
 For Prometheus metrics, the shipped Alloy config uses **static
