@@ -14,6 +14,20 @@ global:
   commonAnnotations: {}
   # -- Labels to use for all configured pods
   podLabels: {}
+  # -- Send traces to an OTLP collector. When enabled, INFRAHUB_TRACE_* env
+  # vars are injected into the server and task-worker Deployments. Pair with
+  # the infrahub-observability chart (Tempo endpoint: <obs-release>-tempo:4317)
+  # or any other OTLP-compatible collector.
+  tracing:
+    # -- Enable tracing instrumentation on server and task-worker pods.
+    enabled: false
+    # -- OTLP endpoint. For grpc protocol, use host:port (no scheme).
+    # For http/protobuf, use a full URL. Example: "obs-tempo:4317".
+    endpoint: ""
+    # -- OTLP protocol. One of: grpc, http/protobuf.
+    protocol: grpc
+    # -- Skip TLS verification when talking to the collector.
+    insecure: true
 
 # -- ServiceAccount configuration for the Infrahub pods
 serviceAccount:

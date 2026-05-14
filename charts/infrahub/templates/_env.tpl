@@ -124,3 +124,23 @@ Define default env variables if required.
   value: http://{{ include "infrahub-helm.fullname" . }}-infrahub-server:8000
 {{- end }}
 {{- end }}
+
+{{/*
+Tracing env vars emitted onto server and task-worker pods when
+.Values.global.tracing.enabled is true. Variable names match upstream
+infrahub TraceSettings (env_prefix INFRAHUB_TRACE_) in backend/infrahub/config.py.
+*/}}
+{{- define "infrahub-helm.tracingEnv" -}}
+{{- if .Values.global.tracing.enabled }}
+- name: INFRAHUB_TRACE_ENABLE
+  value: "true"
+- name: INFRAHUB_TRACE_INSECURE
+  value: {{ .Values.global.tracing.insecure | quote }}
+- name: INFRAHUB_TRACE_EXPORTER_TYPE
+  value: "otlp"
+- name: INFRAHUB_TRACE_EXPORTER_PROTOCOL
+  value: {{ .Values.global.tracing.protocol | quote }}
+- name: INFRAHUB_TRACE_EXPORTER_ENDPOINT
+  value: {{ .Values.global.tracing.endpoint | quote }}
+{{- end }}
+{{- end }}
