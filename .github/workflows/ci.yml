@@ -30,3 +30,7 @@ jobs:
         run: "helm lint charts/infrahub"
       - name: "Linting: helm lint infrahub enterprise"
         run: "helm lint charts/infrahub-enterprise"
+      - name: "Updating dependencies: infrahub-observability"
+        run: "helm dependency update charts/infrahub-observability"
+      - name: "Linting: helm lint infrahub-observability"
+        run: "helm lint charts/infrahub-observability"
