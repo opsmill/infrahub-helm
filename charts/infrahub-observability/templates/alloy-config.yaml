@@ -316,6 +316,52 @@ data:
       scrape_interval = "15s"
     }
 
+    {{- if .Values.alloy.cadvisor.enabled }}
+    // --- cAdvisor (kubelet) ---
+    // Per-container CPU/memory/network/filesystem metrics. Scraped via the
+    // API server's node-proxy endpoint so we don't need direct kubelet
+    // access. The Alloy subchart's ClusterRole already grants get on
+    // nodes/proxy — see `kubectl get clusterrole <release>-alloy`.
+    discovery.kubernetes "nodes" {
+      role = "node"
+    }
+
+    discovery.relabel "kubelet_cadvisor" {
+      targets = discovery.kubernetes.nodes.targets
+
+      rule {
+        action       = "replace"
+        target_label = "__address__"
+        replacement  = "kubernetes.default.svc:443"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        regex         = "(.+)"
+        replacement   = "/api/v1/nodes/${1}/proxy/metrics/cadvisor"
+        target_label  = "__metrics_path__"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_node_name"]
+        target_label  = "node"
+      }
+    }
+
+    prometheus.scrape "cadvisor" {
+      targets    = discovery.relabel.kubelet_cadvisor.output
+      forward_to = [prometheus.remote_write.prometheus.receiver]
+      scheme     = "https"
+      job_name   = "cadvisor"
+      scrape_interval = "30s"
+
+      tls_config {
+        ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        insecure_skip_verify = false
+        server_name          = "kubernetes.default.svc"
+      }
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    }
+    {{- end }}
+
     // --- Task manager (Prefect server) ---
     // The infrahub chart embeds prefect-server as a subchart whose Service
     // is fixed-named "prefect-server" (no release prefix); the infrahub chart

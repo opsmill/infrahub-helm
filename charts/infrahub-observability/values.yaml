@@ -46,6 +46,13 @@ alloy:
       dockercontainers: false
     clustering:
       enabled: false
+  # -- Scrape kubelet cAdvisor for per-container CPU/memory/network/fs
+  # metrics. Requires the Alloy ServiceAccount to have `get nodes/proxy`,
+  # which the subchart's default RBAC already grants. Disable if your
+  # cluster's policy forbids that permission; the Container Resources
+  # and Neo4j Monitoring dashboards will then show no data.
+  cadvisor:
+    enabled: true
 
 # ----------------------------------------------------------------------------
 # Loki — log storage (single-binary mode for parity with docker-compose)
