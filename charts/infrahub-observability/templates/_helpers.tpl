@@ -120,13 +120,15 @@ leave `configMap.name` unset in values.yaml.
 {{- end }}
 
 {{/*
-Default Prefect API URL. Resolves to the task-manager service that the sibling
-infrahub chart creates. Users can override via .Values.prefectExporter.prefectApiUrl.
+Default Prefect API URL. The infrahub chart embeds prefect-server as a
+subchart whose Service is fixed-named "prefect-server" (not release-prefixed)
+and the infrahub chart hard-codes PREFECT_API_URL accordingly. Users can
+override via .Values.prefectExporter.prefectApiUrl.
 */}}
 {{- define "infrahub-observability.prefectApiUrl" -}}
 {{- if .Values.prefectExporter.prefectApiUrl -}}
 {{ .Values.prefectExporter.prefectApiUrl }}
 {{- else -}}
-http://{{ .Values.global.infrahubReleaseName }}-task-manager-server:4200/api
+http://prefect-server:4200/api
 {{- end -}}
 {{- end }}

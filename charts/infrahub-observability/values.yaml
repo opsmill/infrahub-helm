@@ -125,9 +125,13 @@ tempo:
           http: {}
           grpc:
             endpoint: 0.0.0.0:4317
+    # metricsGenerator can extract RED metrics from spans and remote-write them
+    # into Prometheus. Disabled by default because enabling it requires a
+    # remoteWriteUrl that we cannot template from values.yaml. To enable, set:
+    #   tempo.tempo.metricsGenerator.enabled: true
+    #   tempo.tempo.metricsGenerator.remoteWriteUrl: "http://<obs-release>-prometheus-server/api/v1/write"
     metricsGenerator:
-      enabled: true
-      remoteWriteUrl: ""  # populated by overrides applied in NOTES / docs; defaults are OK
+      enabled: false
     retention: 96h
   persistence:
     enabled: true
@@ -148,11 +152,14 @@ prometheus:
   kube-state-metrics:
     enabled: false
   server:
+    # web.enable-lifecycle and storage.tsdb.retention.time are set by the
+    # subchart defaults; passing them via extraArgs would cause duplicate-flag
+    # errors. Use `server.retention` for retention and `extraArgs` only for
+    # flags the subchart doesn't already provide.
+    retention: 96h
     extraArgs:
       web.enable-remote-write-receiver: ""
-      web.enable-lifecycle: ""
       log.level: warn
-      storage.tsdb.retention.time: 96h
     persistentVolume:
       enabled: true
       size: 20Gi
