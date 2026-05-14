@@ -127,8 +127,17 @@ Define default env variables if required.
 
 {{/*
 Tracing env vars emitted onto server and task-worker pods when
-.Values.global.tracing.enabled is true. Variable names match upstream
-infrahub TraceSettings (env_prefix INFRAHUB_TRACE_) in backend/infrahub/config.py.
+.Values.global.tracing.enabled is true.
+
+The INFRAHUB_TRACE_* names match upstream TraceSettings (env_prefix
+INFRAHUB_TRACE_) in backend/infrahub/config.py.
+
+The OTEL_EXPORTER_OTLP_* names are the OpenTelemetry SDK's standard env
+vars. They're emitted because upstream infrahub's create_tracer_provider()
+constructs the OTLP gRPC exporter without forwarding the `insecure` setting
+from INFRAHUB_TRACE_INSECURE — meaning the gRPC client defaults to TLS and
+fails the handshake against a plaintext OTLP collector. Setting
+OTEL_EXPORTER_OTLP_INSECURE makes the OTel SDK itself honour the setting.
 */}}
 {{- define "infrahub-helm.tracingEnv" -}}
 {{- if .Values.global.tracing.enabled }}
@@ -142,5 +151,9 @@ infrahub TraceSettings (env_prefix INFRAHUB_TRACE_) in backend/infrahub/config.p
   value: {{ .Values.global.tracing.protocol | quote }}
 - name: INFRAHUB_TRACE_EXPORTER_ENDPOINT
   value: {{ .Values.global.tracing.endpoint | quote }}
+- name: OTEL_EXPORTER_OTLP_INSECURE
+  value: {{ .Values.global.tracing.insecure | quote }}
+- name: OTEL_EXPORTER_OTLP_TRACES_INSECURE
+  value: {{ .Values.global.tracing.insecure | quote }}
 {{- end }}
 {{- end }}
