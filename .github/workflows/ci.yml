@@ -14,23 +14,77 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  helm-lint:
+  changes:
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 2
+    outputs:
+      infrahub: ${{ steps.filter.outputs.infrahub }}
+      enterprise: ${{ steps.filter.outputs.enterprise }}
+      observability: ${{ steps.filter.outputs.observability }}
+    steps:
+      - uses: "actions/checkout@v4"
+      - id: filter
+        uses: "dorny/paths-filter@v3"
+        with:
+          filters: |
+            infrahub:
+              - 'charts/infrahub/**'
+            enterprise:
+              - 'charts/infrahub-enterprise/**'
+              - 'charts/infrahub/**'
+            observability:
+              - 'charts/infrahub-observability/**'
+              - 'scripts/sync-dashboards.sh'
+              - 'scripts/transform_dashboard.py'
+              - 'scripts/validate_dashboards.py'
+              - 'scripts/known-metrics.yaml'
+
+  helm-lint-infrahub:
+    needs: changes
+    if: ${{ needs.changes.outputs.infrahub == 'true' }}
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
-      - name: "Check out repository code"
-        uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v4"
         with:
           submodules: true
-      - name: "Install Helm"
-        uses: azure/setup-helm@v4.3.0
+      - uses: "azure/setup-helm@v4.3.0"
       - name: "Updating dependencies"
         run: "helm dependency update charts/infrahub"
       - name: "Linting: helm lint infrahub"
         run: "helm lint charts/infrahub"
-      - name: "Linting: helm lint infrahub enterprise"
+
+  helm-lint-enterprise:
+    needs: changes
+    if: ${{ needs.changes.outputs.enterprise == 'true' }}
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "azure/setup-helm@v4.3.0"
+      - name: "Linting: helm lint infrahub-enterprise"
         run: "helm lint charts/infrahub-enterprise"
+
+  helm-lint-observability:
+    needs: changes
+    if: ${{ needs.changes.outputs.observability == 'true' }}
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "azure/setup-helm@v4.3.0"
+      - uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.12"
+      - name: "Install Python deps"
+        run: "pip install pyyaml"
       - name: "Updating dependencies: infrahub-observability"
         run: "helm dependency update charts/infrahub-observability"
       - name: "Linting: helm lint infrahub-observability"
         run: "helm lint charts/infrahub-observability"
+      - name: "Static-validate dashboard queries against known-metrics allowlist"
+        run: "python3 scripts/validate_dashboards.py"
