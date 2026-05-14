@@ -32,6 +32,7 @@ require() {
 require curl
 require yq
 require jq
+require python3
 
 REPO=$(yq -r '.repo' "$SOURCE_FILE")
 PATH_IN_REPO=$(yq -r '.path' "$SOURCE_FILE")
@@ -65,6 +66,14 @@ for f in "${FILES[@]}"; do
     fi
     if ! jq empty "$TMP_FILE" >/dev/null 2>&1; then
         echo "error: ${f} is not valid JSON" >&2
+        exit 1
+    fi
+    # Apply K8s adaptations (rewrite docker-compose labels to K8s
+    # equivalents). The transform is idempotent — running it on an
+    # already-transformed file is a no-op.
+    python3 "$(dirname "$0")/transform_dashboard.py" --in-place "$TMP_FILE"
+    if ! jq empty "$TMP_FILE" >/dev/null 2>&1; then
+        echo "error: ${f} became invalid JSON after transform" >&2
         exit 1
     fi
     mv "$TMP_FILE" "${DASHBOARDS_DIR}/${f}"
