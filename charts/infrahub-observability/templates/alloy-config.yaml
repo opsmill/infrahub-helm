@@ -56,12 +56,23 @@ data:
         source_labels = ["__meta_kubernetes_pod_container_name"]
         target_label  = "container"
       }
-      // Infrahub chart pods carry a top-level `service: <component>` label
-      // (see charts/infrahub/templates/infrahub-server.yaml). Promote it to
-      // `component` so the log-pipeline selectors below mirror upstream's
-      // container-name-based matching.
+      // Infrahub chart pods identify their role through one of two labels:
+      //  - Top-level workloads (infrahub-server, infrahub-task-worker) carry
+      //    `service: <name>` matching their fullname (e.g. infrahub-server).
+      //  - Subchart workloads (cache, database, message-queue, task-manager-db)
+      //    carry only `infrahub/service: <short-name>` (e.g. database).
+      // Prefer `service:` when present so the parsing stages below keep
+      // matching the existing component values; fall back to `infrahub/service:`
+      // for subchart pods so their logs still get a `component` label.
       rule {
         source_labels = ["__meta_kubernetes_pod_label_service"]
+        target_label  = "component"
+      }
+      rule {
+        source_labels = ["component", "__meta_kubernetes_pod_label_infrahub_service"]
+        separator     = ";"
+        regex         = ";(.+)"
+        replacement   = "$1"
         target_label  = "component"
       }
     }
@@ -246,10 +257,13 @@ data:
       scrape_interval = "15s"
     }
 
-    // --- Message queue (RabbitMQ prometheus exporter on 15692) ---
+    // --- Message queue (RabbitMQ prometheus exporter) ---
+    // The Bitnami rabbitmq chart exposes prometheus metrics on port 9419,
+    // not 15692 (the upstream rabbit prom plugin default). Adjust here if
+    // you override rabbit's metrics port.
     prometheus.scrape "message_queue" {
       targets = [
-        {"__address__" = "{{ .Values.global.infrahubReleaseName }}-message-queue:15692"},
+        {"__address__" = "{{ .Values.global.infrahubReleaseName }}-message-queue:9419"},
       ]
       forward_to      = [prometheus.remote_write.prometheus.receiver]
       job_name        = "message-queue"
@@ -257,14 +271,18 @@ data:
     }
 
     // --- Database (Neo4j) ---
-    prometheus.scrape "database" {
-      targets = [
-        {"__address__" = "{{ .Values.global.infrahubReleaseName }}-database:2004"},
-      ]
-      forward_to      = [prometheus.remote_write.prometheus.receiver]
-      job_name        = "database"
-      scrape_interval = "15s"
-    }
+    // The Neo4j chart does not expose prometheus metrics by default. To
+    // enable, set `neo4j.config.metrics.prometheus.enabled: "true"` on the
+    // infrahub chart, expose port 2004, and uncomment this block.
+    //
+    // prometheus.scrape "database" {
+    //   targets = [
+    //     {"__address__" = "{{ .Values.global.infrahubReleaseName }}-database:2004"},
+    //   ]
+    //   forward_to      = [prometheus.remote_write.prometheus.receiver]
+    //   job_name        = "database"
+    //   scrape_interval = "15s"
+    // }
 
     // --- Task manager exporter (Prefect API poller, shipped in this chart) ---
     prometheus.scrape "task_manager_exporter" {
@@ -299,9 +317,12 @@ data:
     }
 
     // --- Task manager (Prefect server) ---
+    // The infrahub chart embeds prefect-server as a subchart whose Service
+    // is fixed-named "prefect-server" (no release prefix); the infrahub chart
+    // hard-codes PREFECT_API_URL accordingly.
     prometheus.scrape "prefect" {
       targets = [
-        {"__address__" = "{{ .Values.global.infrahubReleaseName }}-task-manager-server:4200"},
+        {"__address__" = "prefect-server:4200"},
       ]
       forward_to      = [prometheus.remote_write.prometheus.receiver]
       job_name        = "task-manager"
