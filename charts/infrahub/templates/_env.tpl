@@ -127,10 +127,10 @@ Define default env variables if required.
 
 {{/*
 Tracing env vars emitted onto server and task-worker pods when either
-.Values.global.tracing.enabled or .Values.global.observability.enabled is
-true. The latter implies tracing on because the bundled stack ships a Tempo
-collector — when observability is on and tracing.endpoint is unset, the
-endpoint defaults to "<release>-tempo:4317".
+.Values.global.tracing.enabled or the infrahub-observability subchart is
+enabled. The latter implies tracing on because the bundled stack ships a
+Tempo collector — when observability is on and tracing.endpoint is unset,
+the endpoint defaults to "<release>-tempo:4317".
 
 The INFRAHUB_TRACE_* names match upstream TraceSettings (env_prefix
 INFRAHUB_TRACE_) in backend/infrahub/config.py.
@@ -143,9 +143,10 @@ fails the handshake against a plaintext OTLP collector. Setting
 OTEL_EXPORTER_OTLP_INSECURE makes the OTel SDK itself honour the setting.
 */}}
 {{- define "infrahub-helm.tracingEnv" -}}
-{{- if or .Values.global.tracing.enabled .Values.global.observability.enabled }}
+{{- $obsEnabled := index .Values "infrahub-observability" "enabled" -}}
+{{- if or .Values.global.tracing.enabled $obsEnabled }}
 {{- $endpoint := .Values.global.tracing.endpoint -}}
-{{- if and (not $endpoint) .Values.global.observability.enabled -}}
+{{- if and (not $endpoint) $obsEnabled -}}
 {{- $endpoint = printf "%s-tempo:4317" .Release.Name -}}
 {{- end }}
 - name: INFRAHUB_TRACE_ENABLE

@@ -14,25 +14,18 @@ global:
   commonAnnotations: {}
   # -- Labels to use for all configured pods
   podLabels: {}
-  # -- Deploy the bundled infrahub-observability subchart
-  # (Alloy / Loki / Tempo / Prometheus / Grafana). When enabled, tracing env
-  # vars are also injected on server and task-worker pods and default to the
-  # bundled Tempo service unless `tracing.endpoint` is set explicitly.
-  observability:
-    # -- Enable the infrahub-observability subchart and force tracing on.
-    enabled: false
   # -- Send traces to an OTLP collector. When enabled, INFRAHUB_TRACE_* env
   # vars are injected into the server and task-worker Deployments. Implied
-  # true when `global.observability.enabled` is true. Pair with the
+  # true when `infrahub-observability.enabled` is true. Pair with the
   # infrahub-observability chart (Tempo endpoint: <release>-tempo:4317) or
   # any other OTLP-compatible collector.
   tracing:
     # -- Enable tracing instrumentation on server and task-worker pods.
-    # Implied true when `global.observability.enabled` is true.
+    # Implied true when `infrahub-observability.enabled` is true.
     enabled: false
     # -- OTLP endpoint. For grpc protocol, use host:port (no scheme).
     # For http/protobuf, use a full URL. Example: "obs-tempo:4317".
-    # When empty and `global.observability.enabled` is true, defaults to
+    # When empty and `infrahub-observability.enabled` is true, defaults to
     # "<release>-tempo:4317".
     endpoint: ""
     # -- OTLP protocol. One of: grpc, http/protobuf.
@@ -488,3 +481,12 @@ infrahub-backup:
       endpoint: ""
       region: "us-east-1"
       secretName: ""
+
+# -------------- Infrahub Observability ---------------
+# Bundled observability stack (Alloy / Loki / Tempo / Prometheus / Grafana).
+# When enabled, tracing env vars are also injected on server and task-worker
+# pods and default to the bundled Tempo service unless `global.tracing.endpoint`
+# is set explicitly. Subchart values can be overridden under this block.
+infrahub-observability:
+  # -- Deploy the infrahub-observability subchart and force tracing on.
+  enabled: false

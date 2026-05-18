@@ -57,4 +57,4 @@ dependencies:
   - name: infrahub-observability
     version: "0.1.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
-    condition: global.observability.enabled
+    condition: infrahub-observability.enabled
