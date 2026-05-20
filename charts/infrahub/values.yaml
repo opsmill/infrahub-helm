@@ -360,7 +360,7 @@ prefect-server:
     prefect:
       image:
         repository: registry.opsmill.io/opsmill/infrahub
-        prefectTag: 1.9.5
+        prefectTag: 1.9.6
   server:
     command:
       - /usr/bin/tini
