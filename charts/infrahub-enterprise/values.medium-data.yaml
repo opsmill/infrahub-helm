@@ -84,3 +84,5 @@ infrahub:
           value: "10"
         - name: PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE
           value: "10"
+        - name: PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE
+          value: "10"
