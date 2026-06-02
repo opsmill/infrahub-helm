@@ -197,7 +197,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.8.4"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.9.6"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
@@ -237,6 +237,10 @@ The chart offers the ability to configure persistence for the database and other
 | redis.master.resourcesPreset | string | `"medium"` |  |
 | redis.master.service.ports.redis | int | `6379` |  |
 | redis.nameOverride | string | `"cache"` |  |
+| serviceAccount | object | `{"annotations":{},"create":false,"name":""}` | ServiceAccount configuration for the Infrahub pods |
+| serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
+| serviceAccount.create | bool | `false` | Create a ServiceAccount for the Infrahub pods |
+| serviceAccount.name | string | `""` | Name of the ServiceAccount to use (auto-generated if empty and create is true; if empty and create is false, the field is omitted from pod specs) |
 | upgrade.enabled | bool | `false` | Whether to run infrahub upgrade as a post-install/pre-upgrade hook job |
 
 ----------------------------------------------

@@ -13,6 +13,9 @@ spec:
   backoffLimit: {{ .Values.infrahubDemoData.backoffLimit }}
   template:
     spec:
+      {{- with include "infrahub-helm.serviceAccountName" . }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}

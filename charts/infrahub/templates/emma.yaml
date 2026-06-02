@@ -22,6 +22,9 @@ spec:
         service: emma
       {{- include "infrahub-helm.selectorLabels" . | nindent 8 }}
     spec:
+      {{- with include "infrahub-helm.serviceAccountName" . }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}

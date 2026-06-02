@@ -58,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.20.2 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.22.0 |
 
 ## Values
 
@@ -83,6 +83,7 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_DB_TYPE | string | `"neo4j"` |  |
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_GIT_REPOSITORIES_DIRECTORY | string | `"/opt/infrahub/git"` |  |
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_INITIAL_ADMIN_TOKEN | string | `"06438eb2-8019-4776-878c-0941b1f1d1ec"` |  |
+| infrahub.infrahubServer.infrahubServer.env.INFRAHUB_INITIAL_AGENT_TOKEN | string | `"44af444d-3b26-410d-9546-b758657e026c"` |  |
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_LOG_LEVEL | string | `"INFO"` |  |
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_PRODUCTION | string | `"false"` |  |
 | infrahub.infrahubServer.infrahubServer.env.INFRAHUB_SECURITY_SECRET_KEY | string | `"327f747f-efac-42be-9e73-999f08f86b92"` |  |

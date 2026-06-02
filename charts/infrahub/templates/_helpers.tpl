@@ -66,13 +66,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Create the name of the service account to use.
+Returns an empty string when no ServiceAccount is created nor named, so that
+the serviceAccountName field can be omitted from pod specs.
 */}}
 {{- define "infrahub-helm.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
 {{- default (include "infrahub-helm.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
-{{- default "default" .Values.serviceAccount.name }}
+{{- .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
 

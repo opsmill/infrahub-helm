@@ -15,6 +15,15 @@ global:
   # -- Labels to use for all configured pods
   podLabels: {}
 
+# -- ServiceAccount configuration for the Infrahub pods
+serviceAccount:
+  # -- Create a ServiceAccount for the Infrahub pods
+  create: false
+  # -- Name of the ServiceAccount to use (auto-generated if empty and create is true; if empty and create is false, the field is omitted from pod specs)
+  name: ""
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+
 # ----------- Cache -----------
 # Resource presets: nano, micro, small, medium, large, xlarge, 2xlarge
 # https://github.com/bitnami/charts/blob/main/bitnami/common/templates/_resources.tpl
