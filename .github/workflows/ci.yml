@@ -34,10 +34,6 @@ jobs:
               - 'charts/infrahub/**'
             observability:
               - 'charts/infrahub-observability/**'
-              - 'scripts/sync-dashboards.sh'
-              - 'scripts/transform_dashboard.py'
-              - 'scripts/validate_dashboards.py'
-              - 'scripts/known-metrics.yaml'
 
   helm-lint-infrahub:
     needs: changes
@@ -77,14 +73,7 @@ jobs:
         with:
           submodules: true
       - uses: "azure/setup-helm@v4.3.0"
-      - uses: "actions/setup-python@v5"
-        with:
-          python-version: "3.12"
-      - name: "Install Python deps"
-        run: "pip install pyyaml"
       - name: "Updating dependencies: infrahub-observability"
         run: "helm dependency update charts/infrahub-observability"
       - name: "Linting: helm lint infrahub-observability"
         run: "helm lint charts/infrahub-observability"
-      - name: "Static-validate dashboard queries against known-metrics allowlist"
-        run: "python3 scripts/validate_dashboards.py"

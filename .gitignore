@@ -125,3 +125,7 @@ Chart.lock
 
 # for private values.yaml files
 *.private.y*ml
+
+# Grafana dashboards are fetched from upstream and adapted at packaging/release
+# time by scripts/sync-dashboards.sh — they are never committed to the repo.
+charts/infrahub-observability/dashboards/
