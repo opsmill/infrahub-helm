@@ -1,0 +1,63 @@
+# In-cluster MinIO used as the S3 backend for the infrahub-backup e2e test.
+# Credentials are the well-known minio defaults; this is a throwaway instance
+# that only lives for the duration of the test vcluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+          # Pre-create the backup bucket as a directory under the data dir
+          # (single-drive MinIO treats top-level dirs as buckets), so the test
+          # doesn't have to create it over a port-forward.
+          command: ["sh", "-c"]
+          args:
+            - "mkdir -p /data/infrahub-backups && exec minio server /data --console-address :9001"
+          env:
+            - name: MINIO_ROOT_USER
+              value: minioadmin
+            - name: MINIO_ROOT_PASSWORD
+              value: minioadmin
+          ports:
+            - containerPort: 9000
+              name: api
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 60
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  labels:
+    app: minio
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
