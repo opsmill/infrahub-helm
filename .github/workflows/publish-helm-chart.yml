@@ -53,11 +53,12 @@ jobs:
       - name: Install yq
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
 
-      # Grafana dashboards are not committed to the repo. Fetch and adapt them
-      # from upstream at package time so they get bundled into the chart .tgz.
-      - name: Sync observability dashboards
+      # Grafana provisioning (dashboards + datasources) is not committed to the
+      # repo. Fetch and adapt it from upstream at package time so it gets
+      # bundled into the chart .tgz.
+      - name: Sync observability provisioning
         if: ${{ inputs.chart == 'infrahub-observability' }}
-        run: ./scripts/sync-dashboards.sh
+        run: ./scripts/sync-upstream.sh
 
       - name: Login to Helm Registry
         run: >

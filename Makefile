@@ -1,15 +1,15 @@
-.PHONY: help sync-dashboards lint lint-observability template-observability deps-observability
+.PHONY: help sync-upstream lint lint-observability template-observability deps-observability
 
 help:
 	@echo "Available targets:"
-	@echo "  sync-dashboards          - sync vendored dashboards from upstream infrahub (REF=<ref> to override)"
+	@echo "  sync-upstream            - sync dashboards + datasources from upstream infrahub (REF=<ref> to override)"
 	@echo "  deps-observability       - run 'helm dependency update' for the observability chart"
 	@echo "  lint-observability       - run 'helm lint' for the observability chart"
 	@echo "  template-observability   - render the observability chart with default values"
 	@echo "  lint                     - lint every chart in charts/"
 
-sync-dashboards:
-	./scripts/sync-dashboards.sh $(REF)
+sync-upstream:
+	./scripts/sync-upstream.sh $(REF)
 
 deps-observability:
 	helm dependency update charts/infrahub-observability

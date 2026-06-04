@@ -42,19 +42,21 @@ global:
     insecure: true
 ```
 
-## Dashboards
+## Dashboards & datasources
 
-Seven Grafana dashboards are sourced from the [opsmill/infrahub
+The Grafana provisioning bundled into this chart — seven dashboards and the
+datasource definitions — is sourced from the [opsmill/infrahub
 repository](https://github.com/opsmill/infrahub) at the version recorded in
-`.dashboards-source` and adapted for Kubernetes by
-`scripts/sync-dashboards.sh`. The chart's `appVersion` tracks this version.
+`.upstream-source` and adapted for Kubernetes by `scripts/sync-upstream.sh`
+(docker-compose labels/hostnames rewritten to their Kubernetes equivalents).
+The chart's `appVersion` tracks this version.
 
-The dashboards are **not** committed to this repository — they are fetched and
+These files are **not** committed to this repository — they are fetched and
 bundled into the chart only when it is packaged for release. To populate them
 locally (for `helm template`/`helm lint` or a local install):
 
 ```sh
-make sync-dashboards REF=v1.9.3
+make sync-upstream REF=v1.9.3
 ```
 
 ## Uninstalling the Chart

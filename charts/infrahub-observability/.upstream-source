@@ -1,0 +1,21 @@
+# Tracks the upstream source for the Grafana provisioning bundled into this
+# chart (dashboards + datasources). None of these files are committed:
+# scripts/sync-upstream.sh fetches and adapts them from the ref below at
+# packaging/release time. Bump `ref` here to pin a new upstream version; the
+# chart's appVersion should match it.
+repo: opsmill/infrahub
+ref: infrahub-v1.9.3
+dashboards:
+  path: development/grafana/provisioning/dashboards
+  files:
+    - infrahub_monitoring.json
+    - neo4j_monitoring.json
+    - rabbitmq_instance_monitoring.json
+    - container_resources.json
+    - loki_monitoring.json
+    - prefect_platform_overview.json
+    - prefect_flow_run_overview.json
+datasources:
+  path: development/grafana/provisioning/datasources
+  files:
+    - datasource.yml
