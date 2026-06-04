@@ -38,6 +38,7 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
+.pytest_cache/
 .coverage
 .coverage.*
 .cache
@@ -131,3 +132,6 @@ Chart.lock
 # are never committed to the repo.
 charts/infrahub-observability/dashboards/
 charts/infrahub-observability/files/
+
+# Claude Code session state
+.claude/

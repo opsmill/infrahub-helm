@@ -1,0 +1,32 @@
+[project]
+name = "infrahub-helm-e2e"
+version = "0.1.0"
+description = "End-to-end tests for the infrahub-helm charts (deployed into a vcluster)."
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=9",
+    "pytest-asyncio>=0.25",
+    "kubernetes-asyncio>=33.0",
+    "kr8s>=0.20",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "infrahub-sdk[all]>=1.0",
+    "boto3>=1.35",
+]
+
+[tool.uv]
+# This project only orchestrates tests; it is not an installable package.
+package = false
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "e2e: end-to-end tests",
+    "k8s: tests requiring a Kubernetes (vcluster) deployment",
+    "infrahub: tests for the infrahub chart",
+    "enterprise: tests for the infrahub-enterprise chart",
+    "backup: tests for the infrahub-backup chart",
+    "observability: tests for the infrahub-observability chart",
+]

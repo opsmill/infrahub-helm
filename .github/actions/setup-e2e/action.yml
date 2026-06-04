@@ -1,0 +1,38 @@
+---
+name: "Set up e2e tooling"
+description: >
+  Install the toolchain the chart e2e tests need (vcluster, helm, kubectl,
+  Python + uv) and resolve the Python dependencies. Assumes the repository has
+  already been checked out.
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up vCluster"
+      uses: "loft-sh/setup-vcluster@68e17a8c3618e3c47d635842b803d4f560f694e8"
+
+    - name: "Set up Helm"
+      uses: "azure/setup-helm@v4.3.0"
+
+    - name: "Set up kubectl"
+      uses: "azure/setup-kubectl@v4"
+
+    - name: "Set up Python"
+      uses: "actions/setup-python@v6"
+      with:
+        python-version: "3.12"
+
+    - name: "Set up uv"
+      uses: "astral-sh/setup-uv@v7"
+
+    - name: "Install Python dependencies"
+      shell: "bash"
+      run: "uv sync"
+
+    - name: "Set vcluster config dir (self-hosted runners)"
+      shell: "bash"
+      run: |
+        RUNNER_NAME=$(echo "${{ runner.name }}" | grep -o 'ghrunner[0-9]\+' | sed 's/ghrunner\([0-9]\+\)/ghrunner_\1/' || true)
+        if [ -n "$RUNNER_NAME" ]; then
+          echo "VCLUSTER_DIR=/var/lib/github/${RUNNER_NAME}/_temp/.vcluster/config.json" >> "$GITHUB_ENV"
+        fi

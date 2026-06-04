@@ -1,0 +1,87 @@
+# Minimal, fast Infrahub values for e2e testing inside a vcluster.
+# Single replicas, aggressive probes, no demo data, optional subcharts off.
+global:
+  imagePullPolicy: IfNotPresent
+
+# Optional subcharts of the infrahub chart — kept off for the base deployment.
+infrahub-backup:
+  enabled: false
+infrahub-observability:
+  enabled: false
+
+upgrade:
+  enabled: false
+
+infrahubDemoData:
+  enabled: false
+
+infrahubServer:
+  replicas: 1
+  infrahubServer:
+    imagePullPolicy: IfNotPresent
+    livenessProbe:
+      httpGet:
+        path: /api/config
+        port: 8000
+      failureThreshold: 120
+      initialDelaySeconds: 5
+      periodSeconds: 2
+      timeoutSeconds: 2
+    readinessProbe:
+      httpGet:
+        path: /api/config
+        port: 8000
+      failureThreshold: 120
+      initialDelaySeconds: 5
+      periodSeconds: 2
+      timeoutSeconds: 2
+
+infrahubTaskWorker:
+  replicas: 1
+  infrahubTaskWorker:
+    imagePullPolicy: IfNotPresent
+
+prefect-server:
+  postgresql:
+    primary:
+      startupProbe:
+        enabled: true
+        initialDelaySeconds: 1
+        periodSeconds: 2
+        timeoutSeconds: 2
+        failureThreshold: 120
+      readinessProbe:
+        initialDelaySeconds: 1
+        periodSeconds: 2
+        timeoutSeconds: 2
+        failureThreshold: 120
+      resourcesPreset: none
+
+rabbitmq:
+  startupProbe:
+    enabled: true
+    initialDelaySeconds: 1
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 120
+  readinessProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 2
+    timeoutSeconds: 2
+    failureThreshold: 120
+  resourcesPreset: none
+
+redis:
+  master:
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 1
+      periodSeconds: 2
+      timeoutSeconds: 2
+      failureThreshold: 120
+    readinessProbe:
+      initialDelaySeconds: 1
+      periodSeconds: 2
+      timeoutSeconds: 2
+      failureThreshold: 120
+    resourcesPreset: none
