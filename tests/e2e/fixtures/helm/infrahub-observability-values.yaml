@@ -1,0 +1,33 @@
+# Minimal, fast infrahub-observability values for e2e testing inside a vcluster.
+# Persistence is disabled (ephemeral) and the Prefect exporter is turned off
+# because no sibling Infrahub release is deployed in this standalone test.
+global:
+  imagePullPolicy: IfNotPresent
+
+# Loki's single-binary container runs with a read-only root filesystem, so it
+# needs a writable volume at /var/loki — keep persistence on (a small PVC bound
+# by the cluster's default storage class), unlike the other components below.
+loki:
+  singleBinary:
+    persistence:
+      enabled: true
+      size: 2Gi
+
+tempo:
+  persistence:
+    enabled: false
+
+prometheus:
+  server:
+    persistentVolume:
+      enabled: false
+
+grafana:
+  persistence:
+    enabled: false
+  # admin/admin matches the chart default; tests authenticate with it.
+
+# No sibling Infrahub release in this standalone chart test, so the Prefect
+# exporter would never reach a Prefect API and stall `helm --wait`.
+prefectExporter:
+  enabled: false

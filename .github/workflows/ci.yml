@@ -20,7 +20,9 @@ jobs:
     outputs:
       infrahub: ${{ steps.filter.outputs.infrahub }}
       enterprise: ${{ steps.filter.outputs.enterprise }}
+      backup: ${{ steps.filter.outputs.backup }}
       observability: ${{ steps.filter.outputs.observability }}
+      e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: "actions/checkout@v4"
       - id: filter
@@ -32,8 +34,13 @@ jobs:
             enterprise:
               - 'charts/infrahub-enterprise/**'
               - 'charts/infrahub/**'
+            backup:
+              - 'charts/infrahub-backup/**'
             observability:
               - 'charts/infrahub-observability/**'
+            e2e:
+              - 'tests/**'
+              - 'pyproject.toml'
 
   helm-lint-infrahub:
     needs: changes
@@ -77,3 +84,77 @@ jobs:
         run: "helm dependency update charts/infrahub-observability"
       - name: "Linting: helm lint infrahub-observability"
         run: "helm lint charts/infrahub-observability"
+
+  # ---------------------------------------------------------------------------
+  # End-to-end tests. Each chart has its own job, deployed into a throwaway
+  # vcluster and exercised with pytest. Jobs are skipped unless the chart (or
+  # the shared e2e harness) changed. All images/charts are pulled anonymously
+  # from registry.opsmill.io, so no registry credentials are required.
+  # ---------------------------------------------------------------------------
+  e2e-infrahub:
+    needs: changes
+    if: ${{ needs.changes.outputs.infrahub == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      - name: "Run e2e tests: infrahub"
+        run: "uv run pytest -v -m infrahub tests/e2e"
+
+  e2e-infrahub-enterprise:
+    needs: changes
+    if: ${{ needs.changes.outputs.enterprise == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      - name: "Run e2e tests: infrahub-enterprise"
+        run: "uv run pytest -v -m enterprise tests/e2e"
+
+  e2e-infrahub-backup:
+    needs: changes
+    if: ${{ needs.changes.outputs.backup == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      - name: "Run e2e tests: infrahub-backup"
+        run: "uv run pytest -v -m backup tests/e2e"
+
+  e2e-infrahub-observability:
+    needs: changes
+    if: ${{ needs.changes.outputs.observability == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      # sync-upstream.sh needs yq + jq; install the binaries onto PATH (the
+      # mikefarah/yq action only runs yq in a container, and self-hosted
+      # runners don't ship yq/jq).
+      - name: "Install yq and jq"
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://github.com/mikefarah/yq/releases/download/v4.50.1/yq_linux_amd64 -o "$HOME/.local/bin/yq"
+          curl -fsSL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 -o "$HOME/.local/bin/jq"
+          chmod +x "$HOME/.local/bin/yq" "$HOME/.local/bin/jq"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: "Sync observability provisioning (dashboards + datasources)"
+        run: "./scripts/sync-upstream.sh"
+      - name: "Run e2e tests: infrahub-observability"
+        run: "uv run pytest -v -m observability tests/e2e"
