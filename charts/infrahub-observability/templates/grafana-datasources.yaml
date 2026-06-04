@@ -1,3 +1,10 @@
+{{- /*
+Datasource definitions are synced from upstream infrahub and adapted for K8s by
+scripts/sync-upstream.sh (Docker hostnames rewritten to the chart's Service-URL
+helpers). They are NOT committed — `helm template`/`helm lint` without a prior
+sync renders an empty data key. The synced file carries `{{ include ... }}`
+helper expressions, so it is rendered through `tpl`.
+*/ -}}
 {{- if .Values.grafana.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -14,67 +21,5 @@ metadata:
   {{- end }}
 data:
   datasources.yaml: |
-    apiVersion: 1
-    datasources:
-      - name: Prometheus
-        type: prometheus
-        uid: localprometheus
-        access: proxy
-        orgId: 1
-        url: {{ include "infrahub-observability.prometheusUrl" . }}
-        isDefault: true
-        basicAuth: false
-        editable: true
-        jsonData:
-          httpMethod: POST
-          timeInterval: 15s
-
-      - name: Loki
-        type: loki
-        uid: localloki
-        access: proxy
-        url: {{ include "infrahub-observability.lokiUrl" . }}
-        editable: true
-        jsonData:
-          maxLines: 1000
-          derivedFields:
-            - name: TraceID
-              matcherRegex: 'TraceID=0x(\w+)'
-              url: '$${__value.raw}'
-              urlDisplayLabel: "View Trace via TraceID (in Tempo)"
-              datasourceUid: 'localtempo'
-            - name: RequestID
-              matcherRegex: 'RequestID=(\w+)'
-              url: '{name=~".*$${__value.raw}.*"}'
-              urlDisplayLabel: "View Trace via RequestID (in Tempo)"
-              datasourceUid: 'localtempo'
-
-      - name: Tempo
-        type: tempo
-        uid: localtempo
-        access: proxy
-        url: {{ include "infrahub-observability.tempoUrl" . }}
-        basicAuth: false
-        editable: true
-        jsonData:
-          serviceMap:
-            datasourceUid: 'localprometheus'
-          tracesToLogsV2:
-            datasourceUid: 'localloki'
-            spanStartTimeShift: '1h'
-            spanEndTimeShift: '-1h'
-            filterByTraceID: false
-            filterBySpanID: false
-          tracesToMetrics:
-            datasourceUid: 'localprometheus'
-            spanStartTimeShift: '1h'
-            spanEndTimeShift: '-1h'
-          nodeGraph:
-            enabled: true
-          lokiSearch:
-            datasourceUid: 'localloki'
-          traceQuery:
-            timeShiftEnabled: true
-            spanStartTimeShift: '1h'
-            spanEndTimeShift: '-1h'
+    {{- regexReplaceAll "(?m) +$" (tpl (.Files.Get "files/datasources.yaml") . | trimPrefix "---\n" | nindent 4) "" }}
 {{- end }}
