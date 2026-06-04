@@ -1,6 +1,7 @@
-# Tracks the upstream source for vendored Grafana dashboards.
-# Updated by scripts/sync-dashboards.sh and reviewed in PRs.
-# The chart's appVersion should match the infrahub release recorded here.
+# Tracks the upstream source for the Grafana dashboards bundled into this chart.
+# The dashboards themselves are NOT committed: scripts/sync-dashboards.sh fetches
+# and adapts them from the ref below at packaging/release time. Bump `ref` here
+# to pin a new upstream version; the chart's appVersion should match it.
 repo: opsmill/infrahub
 ref: infrahub-v1.9.3
 path: development/grafana/provisioning/dashboards

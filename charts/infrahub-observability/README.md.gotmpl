@@ -44,11 +44,14 @@ global:
 
 ## Dashboards
 
-Seven Grafana dashboards are vendored from the [opsmill/infrahub
+Seven Grafana dashboards are sourced from the [opsmill/infrahub
 repository](https://github.com/opsmill/infrahub) at the version recorded in
-`.dashboards-source`. The chart's `appVersion` tracks this version. The
-dashboards are kept in sync with upstream automatically as part of the
-infrahub release flow; for local development:
+`.dashboards-source` and adapted for Kubernetes by
+`scripts/sync-dashboards.sh`. The chart's `appVersion` tracks this version.
+
+The dashboards are **not** committed to this repository — they are fetched and
+bundled into the chart only when it is packaged for release. To populate them
+locally (for `helm template`/`helm lint` or a local install):
 
 ```sh
 make sync-dashboards REF=v1.9.3
