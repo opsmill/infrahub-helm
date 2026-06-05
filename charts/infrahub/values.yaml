@@ -492,14 +492,21 @@ infrahub-observability:
   enabled: false
 
 # -------------- Infrahub MCP Server ---------------
+# Optional MCP server for Infrahub, disabled by default. The Infrahub
+# connection is not wired automatically: set `infrahub.address` to the
+# in-cluster server URL and provide an API token. See
+# charts/infrahub-mcp/values.yaml for the full set of options.
 infrahub-mcp:
   # -- Whether to enable Infrahub MCP Server
   enabled: false
 
-  # -- Infrahub connection (auto-configured from parent chart)
+  # -- Infrahub connection for the MCP server. Set `address` to the in-cluster
+  # Infrahub URL (e.g. "http://<release>-infrahub-server:8000") and provide an
+  # API token via `apiToken.value` or `apiToken.existingSecret`.
   infrahub:
     address: ""
-    apiToken: ""
+    apiToken:
+      value: ""
 
   # -- MCP server settings
   mcp:

@@ -47,15 +47,15 @@ spec:
             - name: INFRAHUB_ADDRESS
               value: {{ .Values.infrahub.address | quote }}
             {{- end }}
-            {{- if .Values.infrahub.existingSecret }}
+            {{- if .Values.infrahub.apiToken.existingSecret }}
             - name: INFRAHUB_API_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.infrahub.existingSecret }}
-                  key: {{ .Values.infrahub.existingSecretKey }}
-            {{- else if .Values.infrahub.apiToken }}
+                  name: {{ .Values.infrahub.apiToken.existingSecret }}
+                  key: {{ .Values.infrahub.apiToken.existingSecretKey }}
+            {{- else if .Values.infrahub.apiToken.value }}
             - name: INFRAHUB_API_TOKEN
-              value: {{ .Values.infrahub.apiToken | quote }}
+              value: {{ .Values.infrahub.apiToken.value | quote }}
             {{- end }}
             - name: INFRAHUB_MCP_AUTH_MODE
               value: {{ .Values.mcp.authMode | quote }}
