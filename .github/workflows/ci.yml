@@ -22,6 +22,7 @@ jobs:
       enterprise: ${{ steps.filter.outputs.enterprise }}
       backup: ${{ steps.filter.outputs.backup }}
       observability: ${{ steps.filter.outputs.observability }}
+      mcp: ${{ steps.filter.outputs.mcp }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: "actions/checkout@v4"
@@ -38,6 +39,9 @@ jobs:
               - 'charts/infrahub-backup/**'
             observability:
               - 'charts/infrahub-observability/**'
+            mcp:
+              - 'charts/infrahub-mcp/**'
+              - 'charts/infrahub/**'
             e2e:
               - 'tests/**'
               - 'pyproject.toml'
@@ -84,6 +88,19 @@ jobs:
         run: "helm dependency update charts/infrahub-observability"
       - name: "Linting: helm lint infrahub-observability"
         run: "helm lint charts/infrahub-observability"
+
+  helm-lint-mcp:
+    needs: changes
+    if: ${{ needs.changes.outputs.mcp == 'true' }}
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "azure/setup-helm@v4.3.0"
+      - name: "Linting: helm lint infrahub-mcp"
+        run: "helm lint charts/infrahub-mcp"
 
   # ---------------------------------------------------------------------------
   # End-to-end tests. Each chart has its own job, deployed into a throwaway
@@ -158,3 +175,17 @@ jobs:
         run: "./scripts/sync-upstream.sh"
       - name: "Run e2e tests: infrahub-observability"
         run: "uv run pytest -v -m observability tests/e2e"
+
+  e2e-infrahub-mcp:
+    needs: changes
+    if: ${{ needs.changes.outputs.mcp == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    steps:
+      - uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      - name: "Run e2e tests: infrahub-mcp"
+        run: "uv run pytest -v -m mcp tests/e2e"
