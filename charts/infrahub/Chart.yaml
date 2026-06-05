@@ -51,7 +51,7 @@ dependencies:
     repository: "https://prefecthq.github.io/prefect-helm"
     condition: prefect-server.enabled
   - name: infrahub-backup
-    version: "1.1.0"
+    version: "1.2.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
     condition: infrahub-backup.enabled
   - name: infrahub-observability
