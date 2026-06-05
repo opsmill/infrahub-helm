@@ -6,8 +6,10 @@ from the local `charts/` directory (not from the OCI registry) so the test
 reflects the working-tree changes.
 """
 
+import asyncio
 import shutil
 import subprocess
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
@@ -32,6 +34,7 @@ LOCAL_CHART_NAMES = {
     "infrahub-enterprise",
     "infrahub-backup",
     "infrahub-observability",
+    "infrahub-mcp",
 }
 
 
@@ -72,6 +75,37 @@ def helm_install(
     for key, value in (sets or {}).items():
         cmd.extend(["--set", f"{key}={value}"])
     subprocess.run(cmd, check=True)
+
+
+def install_traefik(
+    *,
+    namespace: str,
+    kubeconfig: str,
+    release: str = "traefik",
+    version: str = "40.2.0",
+) -> None:
+    """Install Traefik as the ingress controller and wait for it.
+
+    Traefik watches Ingress resources inside the vcluster and routes by Host
+    header. Its Service is type LoadBalancer: vcluster ships an embedded load
+    balancer that assigns it a node address reachable from the test runner, so
+    tests hit the ``web`` entrypoint (port 80) directly with the Infrahub
+    hostname — no port-forward needed. The chart registers a default
+    IngressClass named after the release ("traefik").
+    """
+    subprocess.run(
+        [
+            "helm", "upgrade", "--install", release, "traefik",
+            "--repo", "https://traefik.github.io/charts",
+            "--version", version,
+            "--create-namespace", "-n", namespace,
+            "--kubeconfig", kubeconfig,
+            "--set", "service.type=LoadBalancer",
+            "--set", "deployment.replicas=1",
+            "--wait", "--timeout", "5m",
+        ],
+        check=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +212,38 @@ async def portforward_service(
         yield url
 
 
+async def loadbalancer_url(
+    kubeconfig: str,
+    namespace: str,
+    name: str,
+    *,
+    port: int = 80,
+    timeout: float = 180.0,
+) -> str:
+    """Return the base URL of a LoadBalancer Service once it has an address.
+
+    vcluster's embedded load balancer assigns the Service a node address that
+    is reachable from the test runner, so the caller can hit it directly (with
+    a Host header for name-based routing) instead of port-forwarding.
+    """
+    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
+    service = await AsyncService.get(name, namespace=namespace, api=api)
+    start = time.time()
+    while time.time() - start < timeout:
+        await service.refresh()
+        ingress = (
+            service.raw.get("status", {}).get("loadBalancer", {}) or {}
+        ).get("ingress") or []
+        for entry in ingress:
+            address = entry.get("ip") or entry.get("hostname")
+            if address:
+                return f"http://{address}:{port}"
+        await asyncio.sleep(3)
+    raise AssertionError(
+        f"Service '{name}' in '{namespace}' got no LoadBalancer address after {timeout}s"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixture: infrahub_k8s (community chart)
 # ---------------------------------------------------------------------------
@@ -209,6 +275,62 @@ async def infrahub_k8s(
         "kubeconfig_path": kubeconfig,
         "token": INFRAHUB_ADMIN_TOKEN,
         "server_label": "service=infrahub-server",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture: infrahub_mcp_k8s (infrahub + the infrahub-mcp sub-chart)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+async def infrahub_mcp_k8s(
+    vcluster: dict, staged_charts, request
+) -> AsyncGenerator[dict, None]:
+    """Deploy Infrahub with the infrahub-mcp sub-chart enabled, behind a shared
+    ingress.
+
+    Traefik is installed into the namespace as the ingress controller, then
+    Infrahub is deployed with the MCP sub-chart on. Both the Infrahub server
+    (path "/") and the MCP
+    server (path "/mcp") publish Ingress objects for the same host, so the
+    controller serves them as a single virtual host — the MCP server is reached
+    under "/mcp" on the very host that serves Infrahub. The MCP server is wired
+    to the in-cluster Infrahub API with the admin token.
+    """
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = "infrahub-mcp"
+    hostname = "infrahub-cluster.local"
+    _register_namespace(request, namespace)
+
+    install_traefik(namespace=namespace, kubeconfig=kubeconfig)
+
+    helm_install(
+        release="infrahub",
+        chart_path=staged_charts["infrahub"],
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        values_files=[FIXTURES_DIR / "infrahub-values.yaml"],
+        sets={
+            "infrahubServer.ingress.enabled": "true",
+            "infrahubServer.ingress.hostname": hostname,
+            "infrahubServer.ingress.ingressClassName": "traefik",
+            "infrahub-mcp.enabled": "true",
+            "infrahub-mcp.image.pullPolicy": "IfNotPresent",
+            "infrahub-mcp.infrahub.address": "http://infrahub-infrahub-server:8000",
+            "infrahub-mcp.infrahub.apiToken.value": INFRAHUB_ADMIN_TOKEN,
+            "infrahub-mcp.ingress.enabled": "true",
+            "infrahub-mcp.ingress.hostname": hostname,
+            "infrahub-mcp.ingress.ingressClassName": "traefik",
+            "infrahub-mcp.ingress.path": "/mcp",
+        },
+    )
+
+    # helm --wait already gated on the server and MCP deployments being ready;
+    # the test reaches both through the Traefik ingress (no port-forward).
+    yield {
+        "namespace": namespace,
+        "kubeconfig_path": kubeconfig,
+        "ingress_hostname": hostname,
+        "ingress_service": "traefik",
     }
 
 

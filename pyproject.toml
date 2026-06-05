@@ -12,6 +12,7 @@ dependencies = [
     "pyyaml>=6.0",
     "infrahub-sdk[all]>=1.0",
     "boto3>=1.35",
+    "mcp>=1.9",
 ]
 
 [tool.uv]
@@ -29,4 +30,5 @@ markers = [
     "enterprise: tests for the infrahub-enterprise chart",
     "backup: tests for the infrahub-backup chart",
     "observability: tests for the infrahub-observability chart",
+    "mcp: tests for the infrahub-mcp chart",
 ]

@@ -6,6 +6,7 @@ import asyncio
 import json
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -24,13 +25,18 @@ async def wait_for_http(
     interval: float = 2.0,
     expected_status: int = 200,
     auth: tuple[str, str] | None = None,
+    headers: dict | None = None,
 ) -> None:
-    """Poll an HTTP endpoint until it returns the expected status code."""
+    """Poll an HTTP endpoint until it returns the expected status code.
+
+    ``headers`` lets callers send e.g. a ``Host`` header so a request through a
+    port-forwarded ingress controller is routed to the right virtual host.
+    """
     start = time.time()
     async with httpx.AsyncClient() as client:
         while time.time() - start < timeout:
             try:
-                resp = await client.get(url, timeout=5, auth=auth)
+                resp = await client.get(url, timeout=5, auth=auth, headers=headers)
                 if resp.status_code == expected_status:
                     return
             except httpx.HTTPError:
@@ -111,6 +117,50 @@ async def modify_infrahub_data(url: str, token: str, data: dict) -> None:
     assert all(t.name.value != data["tag_name"] for t in tags), (
         f"Tag '{data['tag_name']}' still exists after deletion"
     )
+
+
+# ---------------------------------------------------------------------------
+# MCP client helpers (streamable-HTTP transport)
+# ---------------------------------------------------------------------------
+@asynccontextmanager
+async def mcp_session(
+    mcp_url: str, headers: dict | None = None, timeout: float = 120.0
+):
+    """Open an initialized MCP session over the streamable-HTTP transport.
+
+    ``headers`` may carry a ``Host`` header so the session is established
+    through a name-based ingress. Yields an initialized ``ClientSession`` so a
+    test can issue several tool calls on one session — e.g. a write tool then a
+    read tool that share the auto-created session branch.
+    """
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+
+    async with streamablehttp_client(mcp_url, headers=headers, timeout=timeout) as (
+        read,
+        write,
+        _,
+    ):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            yield session
+
+
+def mcp_result_text(result) -> str:
+    """Serialize an MCP tool-call result to text (content blocks + structured).
+
+    Folding both forms in lets callers assert on the payload without depending
+    on whether a tool returns text content, structured output, or both.
+    """
+    parts = [
+        block.text
+        for block in result.content
+        if getattr(block, "text", None) is not None
+    ]
+    structured = getattr(result, "structuredContent", None)
+    if structured is not None:
+        parts.append(json.dumps(structured, default=str))
+    return "\n".join(parts)
 
 
 # ---------------------------------------------------------------------------
