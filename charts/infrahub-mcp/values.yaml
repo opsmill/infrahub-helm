@@ -29,14 +29,18 @@ serviceAccount:
 
 # -- Infrahub connection settings
 infrahub:
-  # -- Infrahub server address (auto-configured when used as sub-chart)
+  # -- Infrahub server address (e.g. "http://infrahub-infrahub-server:8000")
   address: ""
   # -- API token for authenticating with Infrahub
-  apiToken: ""
-  # -- Name of an existing Secret containing INFRAHUB_API_TOKEN
-  existingSecret: ""
-  # -- Key within the existing Secret that holds the API token
-  existingSecretKey: "INFRAHUB_API_TOKEN"
+  apiToken:
+    # -- API token value, rendered as a plain-text env var. Prefer
+    # `existingSecret` for production deployments.
+    value: ""
+    # -- Name of an existing Secret containing the API token. Takes precedence
+    # over `value` when set.
+    existingSecret: ""
+    # -- Key within the existing Secret that holds the API token
+    existingSecretKey: "INFRAHUB_API_TOKEN"
 
 # -- MCP server configuration
 mcp:
@@ -103,6 +107,77 @@ service:
   port: 8001
   # -- Container target port
   targetPort: 8001
+
+# -- Ingress configuration for exposing the MCP server externally.
+# To serve the MCP server on the same host as Infrahub (e.g. under a "/mcp"
+# path prefix), set `hostname` to the Infrahub server's ingress hostname and
+# keep the default `path`.
+ingress:
+  # -- Whether to enable Ingress for the MCP server
+  enabled: false
+  # -- IngressClass name to use
+  ingressClassName: ""
+  # -- Hostname to configure for the ingress
+  hostname: ""
+  # -- Path prefix under which the MCP server is exposed
+  path: /mcp
+  # -- PathType for the ingress rule
+  pathType: Prefix
+  # -- Annotations to configure on the ingress
+  annotations: {}
+  # -- Additional hosts to expose (each entry: hostname, path, pathType)
+  extraHosts: []
+  # -- Enable TLS for `hostname` using the secret "<fullname>-tls"
+  tls: false
+  # -- Additional TLS configuration entries (raw `tls` list items)
+  extraTls: []
+
+# -- Gateway API configuration for the MCP server.
+# ref: https://gateway-api.sigs.k8s.io/
+# Mutually exclusive with `ingress`.
+gatewayApi:
+  # -- Whether to enable Gateway API HTTPRoute for the MCP server
+  enabled: false
+  httpRoute:
+    # -- HTTPRoute resource name (defaults to "<fullname>-httproute")
+    name: ""
+    # -- Additional labels for the HTTPRoute resource
+    labels: {}
+    # -- Additional annotations for the HTTPRoute resource
+    annotations: {}
+    # -- Hostnames that this HTTPRoute should match
+    hostnames: []
+    # -- Parent Gateway references
+    parentRefs: []
+    # - name: default-gateway
+    #   namespace: net
+    #   sectionName: https-listener
+    # -- Path prefix for the default matching rule
+    path: /mcp
+    # -- Additional HTTPRoute rules beyond the auto-generated one
+    extraRules: []
+  gateway:
+    # -- Whether to create a Gateway resource (most users will reference an existing Gateway via httpRoute.parentRefs)
+    enabled: false
+    # -- GatewayClass name (required when gateway.enabled is true)
+    className: ""
+    # -- Gateway resource name (defaults to "<fullname>-gateway")
+    name: ""
+    # -- Additional labels for the Gateway resource
+    labels: {}
+    # -- Additional annotations for the Gateway resource
+    annotations: {}
+    # -- Gateway listeners configuration
+    listeners: []
+    # - name: https
+    #   port: 443
+    #   protocol: HTTPS
+    #   hostname: ""
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: my-tls-cert
 
 # -- Resource limits and requests
 resources: {}

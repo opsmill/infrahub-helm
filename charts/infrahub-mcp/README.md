@@ -18,14 +18,40 @@ Helm chart for Infrahub MCP Server on Kubernetes
 | envFromExistingSecrets | list | `[]` | Name of existing Secret(s) to load as environment variables |
 | extraEnv | object | `{}` | Additional environment variables (key: value pairs) |
 | fullnameOverride | string | `""` | Override the full name |
+| gatewayApi | object | `{"enabled":false,"gateway":{"annotations":{},"className":"","enabled":false,"labels":{},"listeners":[],"name":""},"httpRoute":{"annotations":{},"extraRules":[],"hostnames":[],"labels":{},"name":"","parentRefs":[],"path":"/mcp"}}` | Gateway API configuration for the MCP server. ref: https://gateway-api.sigs.k8s.io/ Mutually exclusive with `ingress`. |
+| gatewayApi.enabled | bool | `false` | Whether to enable Gateway API HTTPRoute for the MCP server |
+| gatewayApi.gateway.annotations | object | `{}` | Additional annotations for the Gateway resource |
+| gatewayApi.gateway.className | string | `""` | GatewayClass name (required when gateway.enabled is true) |
+| gatewayApi.gateway.enabled | bool | `false` | Whether to create a Gateway resource (most users will reference an existing Gateway via httpRoute.parentRefs) |
+| gatewayApi.gateway.labels | object | `{}` | Additional labels for the Gateway resource |
+| gatewayApi.gateway.listeners | list | `[]` | Gateway listeners configuration |
+| gatewayApi.gateway.name | string | `""` | Gateway resource name (defaults to "<fullname>-gateway") |
+| gatewayApi.httpRoute.annotations | object | `{}` | Additional annotations for the HTTPRoute resource |
+| gatewayApi.httpRoute.extraRules | list | `[]` | Additional HTTPRoute rules beyond the auto-generated one |
+| gatewayApi.httpRoute.hostnames | list | `[]` | Hostnames that this HTTPRoute should match |
+| gatewayApi.httpRoute.labels | object | `{}` | Additional labels for the HTTPRoute resource |
+| gatewayApi.httpRoute.name | string | `""` | HTTPRoute resource name (defaults to "<fullname>-httproute") |
+| gatewayApi.httpRoute.parentRefs | list | `[]` | Parent Gateway references |
+| gatewayApi.httpRoute.path | string | `"/mcp"` | Path prefix for the default matching rule |
 | image | object | `{"pullPolicy":"IfNotPresent","repository":"registry.opsmill.io/opsmill/infrahub-mcp","tag":""}` | Container image configuration |
 | image.tag | string | `""` | Tag defaults to chart appVersion if not specified |
 | imagePullSecrets | list | `[]` | Image pull secrets for private registries |
-| infrahub | object | `{"address":"","apiToken":"","existingSecret":"","existingSecretKey":"INFRAHUB_API_TOKEN"}` | Infrahub connection settings |
-| infrahub.address | string | `""` | Infrahub server address (auto-configured when used as sub-chart) |
-| infrahub.apiToken | string | `""` | API token for authenticating with Infrahub |
-| infrahub.existingSecret | string | `""` | Name of an existing Secret containing INFRAHUB_API_TOKEN |
-| infrahub.existingSecretKey | string | `"INFRAHUB_API_TOKEN"` | Key within the existing Secret that holds the API token |
+| infrahub | object | `{"address":"","apiToken":{"existingSecret":"","existingSecretKey":"INFRAHUB_API_TOKEN","value":""}}` | Infrahub connection settings |
+| infrahub.address | string | `""` | Infrahub server address (e.g. "http://infrahub-infrahub-server:8000") |
+| infrahub.apiToken | object | `{"existingSecret":"","existingSecretKey":"INFRAHUB_API_TOKEN","value":""}` | API token for authenticating with Infrahub |
+| infrahub.apiToken.existingSecret | string | `""` | Name of an existing Secret containing the API token. Takes precedence over `value` when set. |
+| infrahub.apiToken.existingSecretKey | string | `"INFRAHUB_API_TOKEN"` | Key within the existing Secret that holds the API token |
+| infrahub.apiToken.value | string | `""` | API token value, rendered as a plain-text env var. Prefer `existingSecret` for production deployments. |
+| ingress | object | `{"annotations":{},"enabled":false,"extraHosts":[],"extraTls":[],"hostname":"","ingressClassName":"","path":"/mcp","pathType":"Prefix","tls":false}` | Ingress configuration for exposing the MCP server externally. To serve the MCP server on the same host as Infrahub (e.g. under a "/mcp" path prefix), set `hostname` to the Infrahub server's ingress hostname and keep the default `path`. |
+| ingress.annotations | object | `{}` | Annotations to configure on the ingress |
+| ingress.enabled | bool | `false` | Whether to enable Ingress for the MCP server |
+| ingress.extraHosts | list | `[]` | Additional hosts to expose (each entry: hostname, path, pathType) |
+| ingress.extraTls | list | `[]` | Additional TLS configuration entries (raw `tls` list items) |
+| ingress.hostname | string | `""` | Hostname to configure for the ingress |
+| ingress.ingressClassName | string | `""` | IngressClass name to use |
+| ingress.path | string | `"/mcp"` | Path prefix under which the MCP server is exposed |
+| ingress.pathType | string | `"Prefix"` | PathType for the ingress rule |
+| ingress.tls | bool | `false` | Enable TLS for `hostname` using the secret "<fullname>-tls" |
 | livenessProbe | object | `{"failureThreshold":3,"httpGet":{"path":"/health","port":"http"},"initialDelaySeconds":5,"periodSeconds":10,"timeoutSeconds":5}` | Liveness probe configuration |
 | mcp | object | `{"authMode":"none","branching":{"maxRetries":5,"pattern":"mcp/session-{date}-{hex}"},"cache":{"enabled":false,"listTtl":300,"readTtl":3600},"dereferenceSchemas":false,"logLevel":"info","observability":{"otelEnabled":false,"pingIntervalMs":0,"prometheusEnabled":false},"rateLimit":{"burst":0,"rps":0},"readOnly":false,"retry":{"baseDelay":1,"maxAttempts":0}}` | MCP server configuration |
 | mcp.authMode | string | `"none"` | Authentication mode: "none", "token-passthrough", "basic-passthrough", "oidc" |

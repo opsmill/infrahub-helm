@@ -1,13 +1,31 @@
 Infrahub MCP Server has been deployed.
 
+{{- if .Values.ingress.enabled }}
+
+The MCP server is exposed via Ingress. Connect your MCP client to:
+{{- $scheme := ternary "https" "http" (or .Values.ingress.tls (gt (len .Values.ingress.extraTls) 0)) }}
+{{- $path := trimSuffix "/" .Values.ingress.path }}
+  {{ $scheme }}://{{ .Values.ingress.hostname }}{{ $path }}/mcp
+{{- else if .Values.gatewayApi.enabled }}
+
+The MCP server is exposed via the Gateway API (HTTPRoute).
+{{- with .Values.gatewayApi.httpRoute.hostnames }}
+Connect your MCP client to (path prefix {{ $.Values.gatewayApi.httpRoute.path | default "/mcp" }}):
+  {{- range . }}
+  http://{{ . }}{{ trimSuffix "/" ($.Values.gatewayApi.httpRoute.path | default "/mcp") }}/mcp
+  {{- end }}
+{{- end }}
+{{- else }}
+
 Get the MCP server URL by running:
   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "infrahub-mcp.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.service.port }}:{{ .Values.service.targetPort }}
 
 Then connect your MCP client to:
   http://localhost:{{ .Values.service.port }}/mcp
+{{- end }}
 
 Configuration:
   Auth mode:  {{ .Values.mcp.authMode }}
   Read-only:  {{ .Values.mcp.readOnly }}
-  Infrahub:   {{ .Values.infrahub.address | default "auto-configured via sub-chart" }}
+  Infrahub:   {{ .Values.infrahub.address | default "(not set — provide infrahub.address)" }}

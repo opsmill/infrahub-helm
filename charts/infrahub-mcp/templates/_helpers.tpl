@@ -68,3 +68,25 @@ Return the image name
 {{- $tag := .Values.image.tag | default .Chart.AppVersion }}
 {{- printf "%s:%s" .Values.image.repository $tag }}
 {{- end }}
+
+{{/*
+Name for the HTTPRoute resource
+*/}}
+{{- define "infrahub-mcp.httproute.name" -}}
+{{- if .Values.gatewayApi.httpRoute.name -}}
+  {{- .Values.gatewayApi.httpRoute.name -}}
+{{- else -}}
+  {{- printf "%s-httproute" (include "infrahub-mcp.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name for the Gateway resource
+*/}}
+{{- define "infrahub-mcp.gateway.name" -}}
+{{- if .Values.gatewayApi.gateway.name -}}
+  {{- .Values.gatewayApi.gateway.name -}}
+{{- else -}}
+  {{- printf "%s-gateway" (include "infrahub-mcp.fullname" .) -}}
+{{- end -}}
+{{- end -}}
