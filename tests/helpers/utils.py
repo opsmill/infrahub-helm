@@ -3,8 +3,10 @@ Grafana's HTTP API, and small Kubernetes helpers (wait for Job) via kr8s.
 """
 
 import asyncio
+import json
 import time
 import uuid
+from pathlib import Path
 
 import httpx
 
@@ -222,6 +224,194 @@ async def grafana_tempo_traceql(
                 last = f"{resp.status_code}: {resp.text[:200]}"
             await asyncio.sleep(5)
     raise TimeoutError(f"TraceQL {query!r} matched no traces after {timeout}s ({last})")
+
+
+# ---------------------------------------------------------------------------
+# Grafana dashboards: provisioning API + dashboard-JSON inspection
+# ---------------------------------------------------------------------------
+async def grafana_search_dashboards(url: str, auth: tuple[str, str]) -> list[dict]:
+    """Return Grafana's dashboard search results (type=dash-db)."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{url}/api/search", params={"type": "dash-db"}, auth=auth, timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def grafana_wait_for_dashboards(
+    url: str, auth: tuple[str, str], expected_uids: set[str], timeout: float = 180.0
+) -> list[dict]:
+    """Poll search until every expected dashboard UID has been imported.
+
+    Grafana's sidecar copies the dashboard ConfigMaps into the provisioning
+    folder shortly after the pod is Ready, so the set appears a little after
+    deploy — hence the poll rather than a single read.
+    """
+    start = time.time()
+    found: list[dict] = []
+    while time.time() - start < timeout:
+        found = await grafana_search_dashboards(url, auth)
+        if expected_uids <= {d.get("uid") for d in found}:
+            return found
+        await asyncio.sleep(5)
+    missing = expected_uids - {d.get("uid") for d in found}
+    raise TimeoutError(
+        f"Dashboards {sorted(missing)} not imported by Grafana after {timeout}s"
+    )
+
+
+async def grafana_get_dashboard(url: str, auth: tuple[str, str], uid: str) -> dict:
+    """Fetch a dashboard by UID; returns the {'dashboard', 'meta'} envelope.
+
+    A 200 proves Grafana parsed and loaded the stored dashboard model.
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{url}/api/dashboards/uid/{uid}", auth=auth, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+
+
+async def grafana_promql_is_valid(
+    url: str, auth: tuple[str, str], datasource_uid: str, expr: str, timeout: float = 60.0
+) -> dict:
+    """Execute an instant PromQL query through the proxy and return the raw
+    Prometheus response, *without* requiring it to return data.
+
+    Prometheus answers `{"status": "success", ...}` for a query it can parse
+    and run, and `{"status": "error", ...}` (HTTP 400) for a malformed one — so
+    this checks a shipped dashboard query is *valid*, independent of whether
+    series happen to exist yet. A genuine Prometheus error is returned at once;
+    only transient transport/proxy hiccups (non-JSON, e.g. a brief 502) are
+    retried, so they don't masquerade as an invalid query.
+    """
+    proxy = f"{url}/api/datasources/proxy/uid/{datasource_uid}/api/v1/query"
+    start = time.time()
+    last = "no response"
+    async with httpx.AsyncClient() as client:
+        while time.time() - start < timeout:
+            try:
+                resp = await client.get(
+                    proxy, params={"query": expr}, auth=auth, timeout=30
+                )
+                return resp.json()
+            except httpx.HTTPError as exc:
+                last = str(exc)
+            except ValueError:
+                last = f"{resp.status_code}: {resp.text[:200]}"
+            await asyncio.sleep(3)
+    return {"status": "error", "error": f"no JSON response after {timeout}s ({last})"}
+
+
+def load_vendored_dashboards(dashboards_dir) -> list[dict]:
+    """Read the dashboard JSONs the chart ships from ``dashboards_dir``.
+
+    Returns one entry per file: ``{"file", "uid", "title", "model"}``. This is
+    the source of truth the e2e test checks Grafana against, so adding or
+    removing a dashboard in the chart automatically widens/narrows the checks.
+    """
+    dashboards = []
+    for path in sorted(Path(dashboards_dir).glob("*.json")):
+        model = json.loads(path.read_text())
+        dashboards.append(
+            {
+                "file": path.name,
+                "uid": model.get("uid"),
+                "title": model.get("title"),
+                "model": model,
+            }
+        )
+    return dashboards
+
+
+def _walk_dicts(obj, visit) -> None:
+    """Depth-first walk that calls ``visit`` on every dict node."""
+    if isinstance(obj, dict):
+        visit(obj)
+        for value in obj.values():
+            _walk_dicts(value, visit)
+    elif isinstance(obj, list):
+        for value in obj:
+            _walk_dicts(value, visit)
+
+
+def _iter_panels(model: dict):
+    """Yield every panel, descending one level into row panels."""
+    for panel in model.get("panels", []) or []:
+        yield panel
+        for sub in panel.get("panels", []) or []:
+            yield sub
+
+
+def _datasource_type(datasource) -> str | None:
+    """Normalize a panel/target ``datasource`` (dict, str, or None) to its type."""
+    if isinstance(datasource, dict):
+        return datasource.get("type")
+    return datasource if isinstance(datasource, str) else None
+
+
+def dashboard_concrete_datasource_uids(model: dict) -> set[str]:
+    """Hard-coded datasource UIDs referenced anywhere in the dashboard.
+
+    Excludes template-variable references (``${...}``), the builtin ``grafana``
+    datasource, and special sentinels (``-- Mixed --``, ``-- Dashboard --``).
+    Whatever remains must resolve to a real datasource or the dashboard breaks.
+    """
+    uids: set[str] = set()
+
+    def visit(node: dict) -> None:
+        datasource = node.get("datasource")
+        if isinstance(datasource, dict):
+            uid = datasource.get("uid")
+            if (
+                isinstance(uid, str)
+                and uid
+                and not uid.startswith("$")
+                and uid != "grafana"
+                and not uid.startswith("-- ")
+            ):
+                uids.add(uid)
+
+    _walk_dicts(model, visit)
+    return uids
+
+
+def dashboard_datasource_variable_types(model: dict) -> set[str]:
+    """Datasource types selected by the dashboard's ``datasource`` template vars.
+
+    A datasource picker that matches no datasource of its type renders empty,
+    so every type here must exist among Grafana's datasources.
+    """
+    types: set[str] = set()
+    for var in (model.get("templating") or {}).get("list", []) or []:
+        if var.get("type") == "datasource":
+            type_filter = var.get("query")
+            if isinstance(type_filter, str) and type_filter:
+                types.add(type_filter)
+    return types
+
+
+def dashboard_templatefree_prometheus_exprs(model: dict) -> list[str]:
+    """Prometheus panel expressions that use no template variables.
+
+    These run as-is against Prometheus (no Grafana-side interpolation), so they
+    are exactly the shipped queries — ideal for asserting the dashboard's panels
+    issue valid PromQL. Targets whose datasource isn't Prometheus, or whose
+    expression contains a ``$`` variable, are skipped.
+    """
+    exprs: list[str] = []
+    seen: set[str] = set()
+    for panel in _iter_panels(model):
+        panel_ds = panel.get("datasource")
+        for target in panel.get("targets", []) or []:
+            if _datasource_type(target.get("datasource") or panel_ds) != "prometheus":
+                continue
+            expr = target.get("expr")
+            if not expr or "$" in expr or expr in seen:
+                continue
+            seen.add(expr)
+            exprs.append(expr)
+    return exprs
 
 
 # ---------------------------------------------------------------------------
