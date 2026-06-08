@@ -25,9 +25,9 @@ jobs:
       mcp: ${{ steps.filter.outputs.mcp }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
       - id: filter
-        uses: "dorny/paths-filter@v3"
+        uses: "dorny/paths-filter@v4"
         with:
           filters: |
             infrahub:
@@ -52,10 +52,10 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
-      - uses: "azure/setup-helm@v4.3.0"
+      - uses: "azure/setup-helm@v5.0.0"
       - name: "Updating dependencies"
         run: "helm dependency update charts/infrahub"
       - name: "Linting: helm lint infrahub"
@@ -67,10 +67,10 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
-      - uses: "azure/setup-helm@v4.3.0"
+      - uses: "azure/setup-helm@v5.0.0"
       - name: "Linting: helm lint infrahub-enterprise"
         run: "helm lint charts/infrahub-enterprise"
 
@@ -80,10 +80,10 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
-      - uses: "azure/setup-helm@v4.3.0"
+      - uses: "azure/setup-helm@v5.0.0"
       - name: "Updating dependencies: infrahub-observability"
         run: "helm dependency update charts/infrahub-observability"
       - name: "Linting: helm lint infrahub-observability"
@@ -95,10 +95,10 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
-      - uses: "azure/setup-helm@v4.3.0"
+      - uses: "azure/setup-helm@v5.0.0"
       - name: "Linting: helm lint infrahub-mcp"
         run: "helm lint charts/infrahub-mcp"
 
@@ -115,7 +115,7 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
@@ -129,7 +129,7 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
@@ -143,7 +143,7 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
@@ -157,7 +157,7 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
@@ -183,7 +183,7 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
