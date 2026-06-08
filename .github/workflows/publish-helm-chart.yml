@@ -41,14 +41,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: opsmill/infrahub-helm
           ref: ${{ inputs.branch }}
           submodules: true
 
       - name: Install Helm
-        uses: azure/setup-helm@v4.3.0
+        uses: azure/setup-helm@v5.0.0
 
       - name: Install yq
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
