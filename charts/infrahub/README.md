@@ -62,6 +62,7 @@ The chart offers the ability to configure persistence for the database and other
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-backup | 1.2.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub-mcp | 0.1.0 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.1.0 |
 
 ## Values
@@ -101,6 +102,9 @@ The chart offers the ability to configure persistence for the database and other
 | infrahub-backup.backup | object | `{"enabled":false,"mode":"cronjob","schedule":"0 2 * * *","storage":{"s3":{"bucket":"","endpoint":"","prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Backup configuration |
 | infrahub-backup.enabled | bool | `false` | Whether to enable Infrahub Backup |
 | infrahub-backup.restore | object | `{"enabled":false,"s3":{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""}}` | Restore configuration |
+| infrahub-mcp.enabled | bool | `false` | Whether to enable Infrahub MCP Server |
+| infrahub-mcp.infrahub | object | `{"address":"","apiToken":{"value":""}}` | Infrahub connection for the MCP server. Set `address` to the in-cluster Infrahub URL (e.g. "http://<release>-infrahub-server:8000") and provide an API token via `apiToken.value` or `apiToken.existingSecret`. |
+| infrahub-mcp.mcp | object | `{"authMode":"none","logLevel":"info","readOnly":false}` | MCP server settings |
 | infrahub-observability.enabled | bool | `false` | Deploy the infrahub-observability subchart and force tracing on. |
 | infrahubDemoData.affinity | object | `{}` | Affinity for the demo data job pod |
 | infrahubDemoData.backoffLimit | int | `4` | Backoff limit for the Kubernetes job that will load the data |
