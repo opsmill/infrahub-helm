@@ -77,9 +77,10 @@ neo4j:
     minimumClusterSize: 1
     acceptLicenseAgreement: "no"
     resources:
-      limits:
-        cpu: "4"
-        memory: "8Gi"
+      # Neo4j's chart forces limits == requests when 'limits' is unset (nil).
+      # An explicit empty map is the only way to render the container with no
+      # resource limits, allowing Neo4j to burst above its requested memory.
+      limits: {}
       requests:
         cpu: "2"
         memory: "4Gi"
