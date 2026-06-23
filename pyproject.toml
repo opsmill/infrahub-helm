@@ -32,3 +32,8 @@ markers = [
     "observability: tests for the infrahub-observability chart",
     "mcp: tests for the infrahub-mcp chart",
 ]
+
+[dependency-groups]
+dev = [
+    "towncrier>=25.8.0",
+]
