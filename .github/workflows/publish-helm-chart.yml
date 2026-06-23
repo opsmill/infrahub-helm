@@ -63,9 +63,6 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: write  # commit CHANGELOG.md, push the tag, create the release
-
 jobs:
   # ---------------------------------------------------------------------------
   # workflow_call: backwards-compatible passthrough to the reusable packager.
