@@ -1,24 +1,28 @@
 ---
 # yamllint disable rule:truthy rule:line-length
-name: Publish Helm Chart
+name: "Publish Helm Chart"
 
+# Release-driven publishing for the Helm charts. Three entry points:
+#
+#   * workflow_dispatch ("cut release"): for the chosen chart, build its
+#     towncrier changelog from the Chart.yaml version, commit CHANGELOG.md,
+#     create the `<chart>-<version>` tag and open a GitHub Release. Run with
+#     publish=false first for a dry-run preview of the changelog.
+#
+#   * release (published): map the release tag back to a chart and package +
+#     push it to the OCI registry via the reusable package-helm-chart.yml.
+#     Fires for releases cut here AND for releases created by hand in the UI.
+#
+#   * workflow_call: backwards-compatible shim for downstream repositories that
+#     still `uses:` this workflow to package + push a chart directly. It simply
+#     forwards to package-helm-chart.yml. Existing callers need no changes.
+#
+# NOTE: a release created with the default GITHUB_TOKEN does NOT trigger the
+# `release` event (GitHub suppresses it to avoid loops). For the cut-release ->
+# publish chain to run automatically, set a `RELEASE_PAT` secret (a PAT or
+# GitHub App token with `contents: write`); otherwise publish the release
+# manually from the UI and the `release` event will fire on your behalf.
 on:
-  workflow_dispatch:
-    inputs:
-      chart:
-        type: string
-        description: Which chart to publish
-        required: true
-      publish:
-        type: boolean
-        description: Wether to publish the Chart to Infrahub Private Registry
-        required: false
-        default: false
-      branch:
-        type: string
-        description: Branch to checkout
-        required: false
-        default: stable
   workflow_call:
     inputs:
       chart:
@@ -27,121 +31,180 @@ on:
         required: true
       publish:
         type: boolean
-        description: Wether to publish the Chart to Infrahub Private Registry
+        description: Whether to push the chart to the Infrahub private registry
         required: false
         default: false
       branch:
         type: string
-        description: Branch to checkout
+        description: Git ref (branch, tag or SHA) to check out and package
         required: false
         default: stable
+      reusable_call:
+        type: boolean
+        description: "Internal - leave at default. Marks a reusable workflow_call so it is not confused with this repo's own dispatch/release triggers."
+        required: false
+        default: true
+  workflow_dispatch:
+    inputs:
+      chart:
+        type: string
+        description: Which chart to release
+        required: true
+      branch:
+        type: string
+        description: Branch to cut the release from
+        required: false
+        default: stable
+      publish:
+        type: boolean
+        description: "Actually cut the release (commit changelog, tag, create the GitHub Release). Leave unchecked for a dry-run changelog preview."
+        required: false
+        default: false
+  release:
+    types: [published]
+
+permissions:
+  contents: write  # commit CHANGELOG.md, push the tag, create the release
 
 jobs:
-  publish-helm-chart:
+  # ---------------------------------------------------------------------------
+  # workflow_call: backwards-compatible passthrough to the reusable packager.
+  # ---------------------------------------------------------------------------
+  legacy-package:
+    if: ${{ inputs.reusable_call }}
+    uses: ./.github/workflows/package-helm-chart.yml
+    with:
+      chart: ${{ inputs.chart }}
+      publish: ${{ inputs.publish }}
+      ref: ${{ inputs.branch }}
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # workflow_dispatch: cut a release for one chart.
+  # ---------------------------------------------------------------------------
+  cut-release:
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.reusable_call }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
-      - name: Check out the repo
+      - name: "Check out ${{ inputs.branch }}"
         uses: actions/checkout@v5
         with:
-          repository: opsmill/infrahub-helm
           ref: ${{ inputs.branch }}
-          submodules: true
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
-      - name: Install Helm
-        uses: azure/setup-helm@v5.0.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-      - name: Install yq
-        uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
-
-      # Grafana provisioning (dashboards + datasources) is not committed to the
-      # repo. Fetch and adapt it from upstream at package time so it gets
-      # bundled into the chart .tgz.
-      - name: Sync observability provisioning
-        if: ${{ inputs.chart == 'infrahub-observability' }}
-        run: ./scripts/sync-upstream.sh
-
-      - name: Login to Helm Registry
-        run: >
-          helm registry login ${{ vars.HARBOR_HOST }}
-          --username '${{ secrets.HARBOR_USERNAME }}'
-          --password '${{ secrets.HARBOR_PASSWORD }}'
-
-      - name: Update Helm dependencies
+      - name: Validate chart
         run: |
-          helm dependency update ./charts/${{ inputs.chart }}
+          test -f "charts/${{ inputs.chart }}/towncrier.toml" \
+            || { echo "::error::Unknown chart '${{ inputs.chart }}' (no charts/${{ inputs.chart }}/towncrier.toml)"; exit 1; }
 
-      - name: Get Chart Version
-        id: chart-version
+      - name: Resolve version and tag
+        id: meta
         run: |
-          VERSION=$(yq '.version' ./charts/${{ inputs.chart }}/Chart.yaml)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(awk '/^version:/ {print $2; exit}' "charts/${{ inputs.chart }}/Chart.yaml" | tr -d '"')
+          if [ -z "$VERSION" ]; then echo "::error::Could not read version from charts/${{ inputs.chart }}/Chart.yaml"; exit 1; fi
+          TAG="${{ inputs.chart }}-${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG already exists - bump charts/${{ inputs.chart }}/Chart.yaml version first"; exit 1
+          fi
+          echo "Resolved chart=${{ inputs.chart }} version=$VERSION tag=$TAG"
 
-      - name: Detect Flavor Files
-        id: flavors
+      - name: Preview changelog (dry-run)
+        if: ${{ !inputs.publish }}
         run: |
-          CHART_DIR="./charts/${{ inputs.chart }}"
-          FLAVORS=""
-          for f in "$CHART_DIR"/values.*.yaml; do
-            if [ -f "$f" ]; then
-              # Extract flavor name (e.g., values.small.yaml -> small)
-              FLAVOR=$(basename "$f" | sed 's/values\.\(.*\)\.yaml/\1/')
-              if [ -n "$FLAVORS" ]; then
-                FLAVORS="$FLAVORS $FLAVOR"
-              else
-                FLAVORS="$FLAVOR"
-              fi
-            fi
-          done
-          echo "flavors=$FLAVORS" >> $GITHUB_OUTPUT
-          echo "Detected flavors: $FLAVORS"
+          echo "Dry-run: would cut ${{ steps.meta.outputs.tag }}. Rendered changelog section:"
+          uv run towncrier build \
+            --config "charts/${{ inputs.chart }}/towncrier.toml" \
+            --dir "charts/${{ inputs.chart }}" \
+            --version "${{ steps.meta.outputs.version }}" --draft
 
-      - name: Package and Push Flavored Charts
-        if: ${{ steps.flavors.outputs.flavors != '' }}
-        run: |
-          CHART_DIR="./charts/${{ inputs.chart }}"
-          BASE_VERSION="${{ steps.chart-version.outputs.version }}"
-
-          for FLAVOR in ${{ steps.flavors.outputs.flavors }}; do
-            echo "=== Processing flavor: $FLAVOR ==="
-
-            # Backup original files
-            cp "$CHART_DIR/Chart.yaml" "$CHART_DIR/Chart.yaml.bak"
-            cp "$CHART_DIR/values.yaml" "$CHART_DIR/values.yaml.bak"
-
-            # Update Chart.yaml version with flavor suffix
-            FLAVORED_VERSION="${BASE_VERSION}-${FLAVOR}"
-            yq -i ".version = \"$FLAVORED_VERSION\"" "$CHART_DIR/Chart.yaml"
-            echo "Updated Chart.yaml version to: $FLAVORED_VERSION"
-
-            # Merge flavor values into base values.yaml
-            if [ -f "$CHART_DIR/values.$FLAVOR.yaml" ]; then
-              yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' \
-                "$CHART_DIR/values.yaml.bak" "$CHART_DIR/values.$FLAVOR.yaml" > "$CHART_DIR/values.yaml"
-              echo "Merged values.$FLAVOR.yaml into values.yaml"
-            fi
-
-            # Package the flavored chart
-            helm package "$CHART_DIR"
-
-            # Push if publish is enabled
-            if [ "${{ inputs.publish }}" = "true" ]; then
-              echo "Pushing ${{ inputs.chart }}-$FLAVORED_VERSION.tgz to OCI registry"
-              helm push "${{ inputs.chart }}-$FLAVORED_VERSION.tgz" oci://${{ vars.HARBOR_HOST }}/opsmill/chart
-            fi
-
-            # Restore original files
-            mv "$CHART_DIR/Chart.yaml.bak" "$CHART_DIR/Chart.yaml"
-            mv "$CHART_DIR/values.yaml.bak" "$CHART_DIR/values.yaml"
-
-            echo "=== Completed flavor: $FLAVOR ==="
-            echo ""
-          done
-
-      - name: Package Base Helm Chart
-        run: |
-          helm package ./charts/${{ inputs.chart }}
-
-      - name: Push Base Helm Chart to OCI Registry
+      - name: Build changelog
         if: ${{ inputs.publish }}
         run: |
-          helm push ${{ inputs.chart }}-${{ steps.chart-version.outputs.version }}.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
+          uv run towncrier build \
+            --config "charts/${{ inputs.chart }}/towncrier.toml" \
+            --dir "charts/${{ inputs.chart }}" \
+            --version "${{ steps.meta.outputs.version }}" --yes
+
+      - name: Extract release notes
+        if: ${{ inputs.publish }}
+        run: |
+          # The just-built section is the first "## [..." block in CHANGELOG.md.
+          awk '/^## \[/{c++} c==1' "charts/${{ inputs.chart }}/CHANGELOG.md" > "$RUNNER_TEMP/notes.md"
+          echo "--- release notes ---"; cat "$RUNNER_TEMP/notes.md"
+
+      - name: Commit changelog
+        if: ${{ inputs.publish }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A "charts/${{ inputs.chart }}"
+          git commit -m "chore(${{ inputs.chart }}): release ${{ steps.meta.outputs.tag }}"
+          git push origin "HEAD:${{ inputs.branch }}"
+
+      - name: Tag and create GitHub Release
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          git tag "${{ steps.meta.outputs.tag }}"
+          git push origin "${{ steps.meta.outputs.tag }}"
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --title "${{ inputs.chart }} ${{ steps.meta.outputs.version }}" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+  # ---------------------------------------------------------------------------
+  # release published: parse "<chart>-<version>" tag -> chart, validate, then
+  # hand off to the reusable packaging workflow.
+  # ---------------------------------------------------------------------------
+  parse-release:
+    if: ${{ github.event_name == 'release' && !inputs.reusable_call }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      chart: ${{ steps.parse.outputs.chart }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Parse and validate tag
+        id: parse
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          CHART=""
+          # Match the longest charts/<name> that prefixes "<name>-" so that e.g.
+          # infrahub-enterprise-2.0.0 resolves to infrahub-enterprise, not infrahub.
+          for d in $(ls -d charts/*/ | sed 's#charts/##; s#/##' | awk '{ print length, $0 }' | sort -rn | cut -d' ' -f2-); do
+            if [ "${TAG#${d}-}" != "$TAG" ]; then CHART="$d"; break; fi
+          done
+          if [ -z "$CHART" ]; then
+            echo "::error::Release tag '$TAG' does not match any chart (expected <chart>-<version>)"; exit 1
+          fi
+          VERSION="${TAG#${CHART}-}"
+          CHART_VERSION=$(awk '/^version:/ {print $2; exit}' "charts/$CHART/Chart.yaml" | tr -d '"')
+          if [ "$VERSION" != "$CHART_VERSION" ]; then
+            echo "::error::Tag version ($VERSION) does not match charts/$CHART/Chart.yaml version ($CHART_VERSION)"; exit 1
+          fi
+          echo "chart=$CHART" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved $TAG -> chart=$CHART version=$VERSION"
+
+  publish:
+    if: ${{ github.event_name == 'release' && !inputs.reusable_call }}
+    needs: parse-release
+    uses: ./.github/workflows/package-helm-chart.yml
+    with:
+      chart: ${{ needs.parse-release.outputs.chart }}
+      ref: ${{ github.event.release.tag_name }}
+      publish: true
+    secrets: inherit

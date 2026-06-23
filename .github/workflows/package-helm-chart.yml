@@ -1,0 +1,157 @@
+---
+# yamllint disable rule:truthy rule:line-length
+name: "Package and Push Helm Chart"
+
+# Reusable workflow: package a single chart (plus any values.<flavor>.yaml
+# flavors) and push it to the OCI registry.
+#
+# Called by publish-helm-chart.yml on `release: published`. Also runnable
+# manually (workflow_dispatch) as an escape hatch to package/push an arbitrary
+# ref without cutting a GitHub Release.
+on:
+  workflow_call:
+    inputs:
+      chart:
+        type: string
+        description: Which chart to publish
+        required: true
+      publish:
+        type: boolean
+        description: Whether to push the chart to the Infrahub private registry
+        required: false
+        default: false
+      ref:
+        type: string
+        description: Git ref (branch, tag or SHA) to check out and package
+        required: false
+        default: stable
+  workflow_dispatch:
+    inputs:
+      chart:
+        type: string
+        description: Which chart to publish
+        required: true
+      publish:
+        type: boolean
+        description: Whether to push the chart to the Infrahub private registry
+        required: false
+        default: false
+      ref:
+        type: string
+        description: Git ref (branch, tag or SHA) to check out and package
+        required: false
+        default: stable
+
+permissions:
+  contents: read
+
+jobs:
+  package-helm-chart:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v5
+        with:
+          repository: opsmill/infrahub-helm
+          ref: ${{ inputs.ref }}
+          submodules: true
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5.0.0
+
+      - name: Install yq
+        uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
+
+      # Grafana provisioning (dashboards + datasources) is not committed to the
+      # repo. Fetch and adapt it from upstream at package time so it gets
+      # bundled into the chart .tgz.
+      - name: Sync observability provisioning
+        if: ${{ inputs.chart == 'infrahub-observability' }}
+        run: ./scripts/sync-upstream.sh
+
+      - name: Login to Helm Registry
+        run: >
+          helm registry login ${{ vars.HARBOR_HOST }}
+          --username '${{ secrets.HARBOR_USERNAME }}'
+          --password '${{ secrets.HARBOR_PASSWORD }}'
+
+      - name: Update Helm dependencies
+        run: |
+          helm dependency update ./charts/${{ inputs.chart }}
+
+      - name: Get Chart Version
+        id: chart-version
+        run: |
+          VERSION=$(yq '.version' ./charts/${{ inputs.chart }}/Chart.yaml)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Detect Flavor Files
+        id: flavors
+        run: |
+          CHART_DIR="./charts/${{ inputs.chart }}"
+          FLAVORS=""
+          for f in "$CHART_DIR"/values.*.yaml; do
+            if [ -f "$f" ]; then
+              # Extract flavor name (e.g., values.small.yaml -> small)
+              FLAVOR=$(basename "$f" | sed 's/values\.\(.*\)\.yaml/\1/')
+              if [ -n "$FLAVORS" ]; then
+                FLAVORS="$FLAVORS $FLAVOR"
+              else
+                FLAVORS="$FLAVOR"
+              fi
+            fi
+          done
+          echo "flavors=$FLAVORS" >> $GITHUB_OUTPUT
+          echo "Detected flavors: $FLAVORS"
+
+      - name: Package and Push Flavored Charts
+        if: ${{ steps.flavors.outputs.flavors != '' }}
+        run: |
+          CHART_DIR="./charts/${{ inputs.chart }}"
+          BASE_VERSION="${{ steps.chart-version.outputs.version }}"
+
+          for FLAVOR in ${{ steps.flavors.outputs.flavors }}; do
+            echo "=== Processing flavor: $FLAVOR ==="
+
+            # Backup original files
+            cp "$CHART_DIR/Chart.yaml" "$CHART_DIR/Chart.yaml.bak"
+            cp "$CHART_DIR/values.yaml" "$CHART_DIR/values.yaml.bak"
+
+            # Update Chart.yaml version with flavor suffix
+            FLAVORED_VERSION="${BASE_VERSION}-${FLAVOR}"
+            yq -i ".version = \"$FLAVORED_VERSION\"" "$CHART_DIR/Chart.yaml"
+            echo "Updated Chart.yaml version to: $FLAVORED_VERSION"
+
+            # Merge flavor values into base values.yaml
+            if [ -f "$CHART_DIR/values.$FLAVOR.yaml" ]; then
+              yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' \
+                "$CHART_DIR/values.yaml.bak" "$CHART_DIR/values.$FLAVOR.yaml" > "$CHART_DIR/values.yaml"
+              echo "Merged values.$FLAVOR.yaml into values.yaml"
+            fi
+
+            # Package the flavored chart
+            helm package "$CHART_DIR"
+
+            # Push if publish is enabled
+            if [ "${{ inputs.publish }}" = "true" ]; then
+              echo "Pushing ${{ inputs.chart }}-$FLAVORED_VERSION.tgz to OCI registry"
+              helm push "${{ inputs.chart }}-$FLAVORED_VERSION.tgz" oci://${{ vars.HARBOR_HOST }}/opsmill/chart
+            fi
+
+            # Restore original files
+            mv "$CHART_DIR/Chart.yaml.bak" "$CHART_DIR/Chart.yaml"
+            mv "$CHART_DIR/values.yaml.bak" "$CHART_DIR/values.yaml"
+
+            echo "=== Completed flavor: $FLAVOR ==="
+            echo ""
+          done
+
+      - name: Package Base Helm Chart
+        run: |
+          helm package ./charts/${{ inputs.chart }}
+
+      - name: Push Base Helm Chart to OCI Registry
+        if: ${{ inputs.publish }}
+        run: |
+          helm push ${{ inputs.chart }}-${{ steps.chart-version.outputs.version }}.tgz oci://${{ vars.HARBOR_HOST }}/opsmill/chart
