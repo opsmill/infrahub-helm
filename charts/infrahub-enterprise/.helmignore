@@ -23,3 +23,6 @@
 .vscode/
 # helm-unittest
 tests
+# towncrier changelog (not part of the packaged chart)
+towncrier.toml
+changelog/

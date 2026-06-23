@@ -1,0 +1,47 @@
+[tool.towncrier]
+# Per-chart changelog. Build at release time with:
+#   uv run towncrier build --config charts/infrahub-enterprise/towncrier.toml --dir charts/infrahub-enterprise --version $(yq '.version' charts/infrahub-enterprise/Chart.yaml) --yes
+# No importable package, so the version is supplied via --version (from Chart.yaml).
+name = "Infrahub Enterprise"
+directory = "changelog"
+filename = "CHANGELOG.md"
+start_string = "<!-- towncrier release notes start -->\n"
+underlines = ["", "", ""]
+title_format = "## [infrahub-enterprise-{version}](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-{version}) - {project_date}"
+issue_format = "[#{issue}](https://github.com/opsmill/infrahub-helm/issues/{issue})"
+orphan_prefix = "+"
+template = "../../changelog/towncrier.md.template"
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removed"
+name = "Removed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "added"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fixed"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "housekeeping"
+name = "Housekeeping"
+showcontent = true
