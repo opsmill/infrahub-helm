@@ -85,6 +85,9 @@ spec:
           {{- end }}
           image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
+          {{- with .Values.infrahubServer.infrahubServer.startupProbe }}
+          startupProbe: {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe: {{- toYaml .Values.infrahubServer.infrahubServer.livenessProbe | nindent 12 }}
           readinessProbe: {{- toYaml .Values.infrahubServer.infrahubServer.readinessProbe | nindent 12 }}
           name: infrahub-server
