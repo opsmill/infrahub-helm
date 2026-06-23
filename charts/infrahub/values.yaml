@@ -295,6 +295,15 @@ infrahubServer:
     envFromExistingSecret: ""
     # -- List of existing secrets to use for environment variables
     envFromExistingSecrets: []
+    # -- Startup probe to use for the API server. Gates the liveness and readiness probes so a slow start is not mistaken for a hung process. Startup can take several minutes when dozens of active branches with different schemas are present, which slows down the start process. failureThreshold * periodSeconds = 300s (5 min) startup budget.
+    startupProbe:
+      httpGet:
+        path: /api/config
+        port: 8000
+        scheme: HTTP
+      failureThreshold: 60
+      periodSeconds: 5
+      timeoutSeconds: 5
     # -- Liveness probe to use for the API server
     livenessProbe:
       httpGet:

@@ -144,6 +144,7 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.infrahubServer.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the API server |
 | infrahubServer.infrahubServer.livenessProbe | object | `{"failureThreshold":20,"httpGet":{"path":"/api/config","port":8000,"scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":5,"timeoutSeconds":5}` | Liveness probe to use for the API server |
 | infrahubServer.infrahubServer.readinessProbe | object | `{"failureThreshold":20,"httpGet":{"path":"/api/config","port":8000,"scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":5,"timeoutSeconds":5}` | Readiness probe to use for the API server |
+| infrahubServer.infrahubServer.startupProbe | object | `{"failureThreshold":60,"httpGet":{"path":"/api/config","port":8000,"scheme":"HTTP"},"periodSeconds":5,"timeoutSeconds":5}` | Startup probe to use for the API server. Gates the liveness and readiness probes so a slow start is not mistaken for a hung process. Startup can take several minutes when dozens of active branches with different schemas are present, which slows down the start process. failureThreshold * periodSeconds = 300s (5 min) startup budget. |
 | infrahubServer.ingress.annotations | string | `nil` | Annotations to configure on the ingress |
 | infrahubServer.ingress.enabled | bool | `true` | Whether to enable Ingress for the Infrahub API server |
 | infrahubServer.ingress.hostname | string | `"infrahub-cluster.local"` | Hostname to configure for the ingress |
