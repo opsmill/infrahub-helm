@@ -57,6 +57,9 @@ infrahub:
         - -c
         - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; prefect server services start"
       env:
+        # The image bakes PROMETHEUS_MULTIPROC_DIR to a path that is read-only here; blank it so prometheus_client's multiprocess metric files land in the writable workdir instead of failing.
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ""
         - name: PREFECT_API_BLOCKS_REGISTER_ON_START
           value: "false"
         - name: PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE
