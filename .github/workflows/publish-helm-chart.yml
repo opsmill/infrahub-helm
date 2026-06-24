@@ -83,6 +83,11 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && !inputs.reusable_call }}
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    # Scoped to this job only: commit CHANGELOG.md, push the tag, create the
+    # release. Keeping it off the workflow level means `workflow_call` callers
+    # (legacy-package) do not have to grant contents: write.
+    permissions:
+      contents: write
     steps:
       - name: "Check out ${{ inputs.branch }}"
         uses: actions/checkout@v5
