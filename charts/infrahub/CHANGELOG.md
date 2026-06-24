@@ -1,0 +1,5 @@
+## [infrahub-4.27.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.27.0) - 2026-06-24
+
+### Added
+
+- Added a `startupProbe` to the Infrahub server deployment. It gives the server up to 5 minutes (60 × 5s) to start before the liveness and readiness probes take over, preventing the container from being restarted mid-startup (CrashLoopBackOff). This is most likely to occur when dozens of active branches with different schemas are present, which slows down the start process. Configure it via `infrahubServer.infrahubServer.startupProbe`.
