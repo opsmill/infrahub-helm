@@ -92,7 +92,7 @@ spec:
           {{- with .Values.infrahubTaskWorker.infrahubTaskWorker.securityContext }}
           securityContext: {{- toYaml . | nindent 12 }}
           {{- end }}
-          tty: true
+          tty: {{ .Values.infrahubTaskWorker.infrahubTaskWorker.tty }}
           {{- with .Values.infrahubTaskWorker.infrahubTaskWorker.extraVolumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}

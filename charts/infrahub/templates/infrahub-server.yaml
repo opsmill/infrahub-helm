@@ -97,7 +97,7 @@ spec:
           {{- with .Values.infrahubServer.infrahubServer.securityContext }}
           securityContext: {{- toYaml . | nindent 12 }}
           {{- end }}
-          tty: true
+          tty: {{ .Values.infrahubServer.infrahubServer.tty }}
           volumeMounts:
             - mountPath: /opt/infrahub/storage
               name: infrahub-server-storage-data

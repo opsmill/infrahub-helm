@@ -85,7 +85,7 @@ spec:
           {{- with .Values.emma.securityContext }}
           securityContext: {{- toYaml . | nindent 12 }}
           {{- end }}
-          tty: true
+          tty: {{ .Values.emma.tty }}
       restartPolicy: Always
 ---
 apiVersion: v1

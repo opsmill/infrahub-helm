@@ -1,0 +1,1 @@
+Made the `tty` setting configurable for the Infrahub server, task worker and Emma containers, instead of being hardcoded to `true`. It now defaults to `false` and can be enabled via `infrahubServer.infrahubServer.tty`, `infrahubTaskWorker.infrahubTaskWorker.tty` and `emma.tty`.
