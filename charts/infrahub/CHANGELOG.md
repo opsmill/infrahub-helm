@@ -1,3 +1,9 @@
+## [infrahub-4.29.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.0) - 2026-06-25
+
+### Added
+
+- Made the `tty` setting configurable for the Infrahub server, task worker and Emma containers, instead of being hardcoded to `true`. It now defaults to `false` and can be enabled via `infrahubServer.infrahubServer.tty`, `infrahubTaskWorker.infrahubTaskWorker.tty` and `emma.tty`.
+
 ## [infrahub-4.28.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.28.0) - 2026-06-24
 
 ### Changed
