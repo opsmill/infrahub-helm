@@ -31,6 +31,7 @@ markers = [
     "backup: tests for the infrahub-backup chart",
     "observability: tests for the infrahub-observability chart",
     "mcp: tests for the infrahub-mcp chart",
+    "manual: special tests run on demand only; never selected by CI (which filters by chart marker)",
 ]
 
 [dependency-groups]
