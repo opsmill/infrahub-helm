@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.15.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.1) - 2026-06-25
+
+### Fixed
+
+- Bumped the `infrahub` dependency to 4.29.1, which stops tracing env vars from being injected into the Infrahub server and task-worker pods when `infrahub-observability` is enabled but its bundled Tempo collector is not (`infrahub.infrahub-observability.tempo.enabled: false`). This makes it possible to run just part of the observability stack (for example only the Prefect exporter) while exporting traces to an external OTLP collector, or to none at all.
+
 ## [infrahub-enterprise-4.15.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.0) - 2026-06-25
 
 ### Added
