@@ -162,6 +162,8 @@ infrahubTaskWorker:
     envFromExistingSecret: ""
     # -- List of existing secrets to use for environment variables
     envFromExistingSecrets: []
+    # -- Whether to allocate a TTY for the task worker container
+    tty: false
     # -- Extra volumes for the task worker pod
     extraVolumes: []
     # -- Extra volumeMounts for the task worker pod
@@ -324,6 +326,8 @@ infrahubServer:
       initialDelaySeconds: 10
       periodSeconds: 5
       timeoutSeconds: 5
+    # -- Whether to allocate a TTY for the API server container
+    tty: false
     # -- Extra volumes for the server pod
     extraVolumes: []
     # -- Extra volumeMounts for the server pod
@@ -456,6 +460,8 @@ emma:
   podSecurityContext: {}
   # -- Container security context for the emma container
   securityContext: {}
+  # -- Whether to allocate a TTY for the emma container
+  tty: false
   env:
     STREAMLIT_SERVER_BASE_URL_PATH: /emma
   ports:
