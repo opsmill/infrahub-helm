@@ -127,10 +127,18 @@ Define default env variables if required.
 
 {{/*
 Tracing env vars emitted onto server and task-worker pods when either
-.Values.global.tracing.enabled or the infrahub-observability subchart is
-enabled. The latter implies tracing on because the bundled stack ships a
-Tempo collector — when observability is on and tracing.endpoint is unset,
-the endpoint defaults to "<release>-tempo:4317".
+.Values.global.tracing.enabled is set, or the infrahub-observability
+subchart is enabled together with its bundled Tempo collector. The latter
+implies tracing on only because that stack ships Tempo — when observability
+and its tempo subchart are both enabled and tracing.endpoint is unset, the
+endpoint defaults to "<release>-tempo:4317".
+
+Disabling the bundled Tempo (infrahub-observability.tempo.enabled: false)
+stops these env vars from being injected unless global.tracing.enabled is
+set explicitly. This lets you run the rest of the observability stack (e.g.
+just the Prefect exporter) while exporting traces to an external OTLP
+collector — or to none at all — without server and task-worker pods
+endlessly retrying a non-existent <release>-tempo endpoint.
 
 The INFRAHUB_TRACE_* names match upstream TraceSettings (env_prefix
 INFRAHUB_TRACE_) in backend/infrahub/config.py.
@@ -143,10 +151,11 @@ fails the handshake against a plaintext OTLP collector. Setting
 OTEL_EXPORTER_OTLP_INSECURE makes the OTel SDK itself honour the setting.
 */}}
 {{- define "infrahub-helm.tracingEnv" -}}
-{{- $obsEnabled := index .Values "infrahub-observability" "enabled" -}}
-{{- if or .Values.global.tracing.enabled $obsEnabled }}
+{{- $obs := index .Values "infrahub-observability" -}}
+{{- $obsTempoEnabled := and $obs.enabled (dig "tempo" "enabled" true $obs) -}}
+{{- if or .Values.global.tracing.enabled $obsTempoEnabled }}
 {{- $endpoint := .Values.global.tracing.endpoint -}}
-{{- if and (not $endpoint) $obsEnabled -}}
+{{- if and (not $endpoint) $obsTempoEnabled -}}
 {{- $endpoint = printf "%s-tempo:4317" .Release.Name -}}
 {{- end }}
 - name: INFRAHUB_TRACE_ENABLE
