@@ -1,1 +1,0 @@
-Bumped the `infrahub` dependency to 4.29.0, which makes the container `tty` setting configurable for the Infrahub server, task worker and Emma containers (previously hardcoded to `true`). It now defaults to `false` and can be enabled via `infrahub.infrahubServer.infrahubServer.tty`, `infrahub.infrahubTaskWorker.infrahubTaskWorker.tty` and `infrahub.emma.tty`.
