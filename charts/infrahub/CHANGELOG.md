@@ -1,3 +1,9 @@
+## [infrahub-4.29.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.1) - 2026-06-25
+
+### Fixed
+
+- Tracing env vars are no longer injected into the Infrahub server and task-worker pods when `infrahub-observability` is enabled but its bundled Tempo collector is not (`infrahub-observability.tempo.enabled: false`). Previously the pods received an `INFRAHUB_TRACE_EXPORTER_ENDPOINT` pointing at a non-existent `<release>-tempo` service and continuously failed to export spans. Tracing is now implied on only when the bundled Tempo is actually deployed; otherwise it is governed solely by `global.tracing.enabled` / `global.tracing.endpoint`. This makes it possible to run just part of the observability stack (for example only the Prefect exporter) while exporting traces to an external OTLP collector, or to none at all.
+
 ## [infrahub-4.29.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.0) - 2026-06-25
 
 ### Added
