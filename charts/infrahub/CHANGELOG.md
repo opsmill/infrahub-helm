@@ -1,3 +1,13 @@
+## [infrahub-4.29.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.2) - 2026-06-26
+
+### Changed
+
+- Bumped the bundled `infrahub-backup` subchart to `1.2.1` (infrahub-backup `1.7.4`), which fixes backup/restore authentication against the task-manager PostgreSQL.
+
+### Fixed
+
+- Fixed the `prefect-server` pod crash-looping on startup. The Infrahub image bakes `PROMETHEUS_MULTIPROC_DIR` to `/prom_shared`, a root-owned directory on the root filesystem; because the pod runs as a non-root user with a read-only root filesystem, `prometheus_client` could not write its multiprocess metric files there and the container exited before becoming ready. As the Infrahub server and the task worker both wait for `prefect-server` at startup, this could block the whole stack from coming up. `PROMETHEUS_MULTIPROC_DIR` now points at the writable `/tmp` mount that prefect-helm already provides.
+
 ## [infrahub-4.29.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.1) - 2026-06-25
 
 ### Fixed
