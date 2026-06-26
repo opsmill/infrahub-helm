@@ -424,6 +424,15 @@ prefect-server:
     env:
       - name: PREFECT_UI_SERVE_BASE
         value: /
+      # The Infrahub image bakes PROMETHEUS_MULTIPROC_DIR to /prom_shared, a
+      # root-owned directory on the root filesystem. The prefect-server pod runs
+      # as a non-root user with a read-only root filesystem (the prefect-helm
+      # defaults), so prometheus_client cannot create its multiprocess metric
+      # files there and the container crash-loops on startup, blocking the task
+      # worker and the Infrahub server that wait for it. Point the multiprocess
+      # dir at the writable /tmp mount prefect-helm already provides.
+      - name: PROMETHEUS_MULTIPROC_DIR
+        value: /tmp
     podLabels:
       infrahub/service: task-manager
   serviceAccount:

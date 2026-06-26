@@ -229,6 +229,8 @@ The chart offers the ability to configure persistence for the database and other
 | prefect-server.server.command[2] | string | `"--"` |  |
 | prefect-server.server.env[0].name | string | `"PREFECT_UI_SERVE_BASE"` |  |
 | prefect-server.server.env[0].value | string | `"/"` |  |
+| prefect-server.server.env[1].name | string | `"PROMETHEUS_MULTIPROC_DIR"` |  |
+| prefect-server.server.env[1].value | string | `"/tmp"` |  |
 | prefect-server.server.podLabels.infrahub/service | string | `"task-manager"` |  |
 | prefect-server.serviceAccount.create | bool | `false` |  |
 | rabbitmq.auth.password | string | `"infrahub"` |  |
