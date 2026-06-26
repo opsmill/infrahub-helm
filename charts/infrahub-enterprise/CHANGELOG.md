@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.15.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.2) - 2026-06-26
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.29.2`, which picks up the `infrahub-backup` `1.7.4` fix for backup/restore PostgreSQL authentication.
+
 ## [infrahub-enterprise-4.15.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.1) - 2026-06-25
 
 ### Fixed
