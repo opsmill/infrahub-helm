@@ -58,7 +58,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.28.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.29.2 |
 
 ## Values
 
