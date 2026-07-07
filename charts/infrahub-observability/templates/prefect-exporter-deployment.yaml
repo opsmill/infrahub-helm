@@ -35,6 +35,10 @@ spec:
         - name: prefect-exporter
           image: "{{ .Values.prefectExporter.image.repository }}:{{ .Values.prefectExporter.image.tag }}"
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.prefectExporter.image.pullPolicy }}
+          {{- with .Values.prefectExporter.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             - name: PREFECT_API_URL
               value: {{ include "infrahub-observability.prefectApiUrl" . | quote }}
