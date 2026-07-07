@@ -61,12 +61,25 @@ def helm_install(
     timeout: str = "15m",
     dependency_update: bool = False,
 ) -> None:
-    """Run `helm upgrade --install` for a local chart and wait for readiness."""
+    """Run `helm upgrade --install` for a local chart and wait for readiness.
+
+    We deliberately do *not* use helm's own ``--wait``. Helm (v4, via kstatus)
+    treats a Deployment that trips its ``progressDeadlineSeconds`` — the
+    Kubernetes default is 600s — as a *terminal failure* and aborts, even though
+    the rollout is still making progress and our ``--timeout`` is far larger. On
+    a cold/loaded CI runner the Infrahub stack (neo4j, prefect + postgres,
+    rabbitmq, redis, then the server + task-worker) routinely needs more than
+    600s just to pull images and start, so ``helm --wait`` fails spuriously and
+    the whole test errors out during setup. Instead we let helm apply the chart
+    and then wait for readiness ourselves with ``wait_for_workloads``, which
+    honors the intended ``timeout`` and tolerates a slow-but-progressing
+    rollout. See https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#failed-deployment
+    """
     cmd = [
         "helm", "upgrade", "--install", release, str(chart_path),
         "--create-namespace", "-n", namespace,
         "--kubeconfig", kubeconfig,
-        "--wait", "--timeout", timeout,
+        "--timeout", timeout,
     ]
     if dependency_update:
         cmd.append("--dependency-update")
@@ -75,6 +88,39 @@ def helm_install(
     for key, value in (sets or {}).items():
         cmd.extend(["--set", f"{key}={value}"])
     subprocess.run(cmd, check=True)
+    wait_for_workloads(namespace=namespace, kubeconfig=kubeconfig, timeout=timeout)
+
+
+def wait_for_workloads(*, namespace: str, kubeconfig: str, timeout: str = "15m") -> None:
+    """Block until every workload in a namespace is ready, up to ``timeout``.
+
+    This replaces helm's ``--wait`` (see ``helm_install``). For Deployments we
+    wait on the ``Available`` condition: unlike helm's kstatus waiter and
+    ``kubectl rollout status``, ``Available`` is *not* invalidated when a
+    Deployment briefly exceeds its progress deadline, so a rollout that is slow
+    but still progressing is tolerated for the full ``timeout``. StatefulSets and
+    DaemonSets have no progress-deadline concept, so ``rollout status`` is safe
+    for them (and covers per-node DaemonSet readiness). ``timeout`` is a Go
+    duration string (e.g. "15m"), which both ``kubectl`` subcommands accept.
+    """
+    base = ["kubectl", "-n", namespace, "--kubeconfig", kubeconfig]
+
+    def names(kind: str) -> list[str]:
+        result = subprocess.run(
+            [*base, "get", kind, "-o", "name"], capture_output=True, text=True, check=True
+        )
+        return result.stdout.split()
+
+    deployments = names("deployment")
+    if deployments:
+        subprocess.run(
+            [*base, "wait", "--for=condition=Available", f"--timeout={timeout}", *deployments],
+            check=True,
+        )
+    # StatefulSets/DaemonSets: rollout status waits without a progress deadline.
+    for kind in ("statefulset", "daemonset"):
+        for obj in names(kind):
+            subprocess.run([*base, "rollout", "status", obj, f"--timeout={timeout}"], check=True)
 
 
 def install_traefik(
@@ -324,7 +370,7 @@ async def infrahub_mcp_k8s(
         },
     )
 
-    # helm --wait already gated on the server and MCP deployments being ready;
+    # helm_install already gated on the server and MCP deployments being ready;
     # the test reaches both through the Traefik ingress (no port-forward).
     yield {
         "namespace": namespace,

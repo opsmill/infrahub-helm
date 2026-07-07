@@ -36,7 +36,7 @@ def pytest_collection_modifyitems(items):
 # Fixture: vcluster
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
-async def vcluster(tmp_path_factory) -> AsyncGenerator[dict, None]:
+async def vcluster(tmp_path_factory, request) -> AsyncGenerator[dict, None]:
     """Create a vCluster (docker driver) and yield connection details."""
     kubeconfig_path = str(tmp_path_factory.mktemp("vcluster") / "kubeconfig")
     cluster_name = f"pytest-{uuid.uuid4().hex[:12]}"
@@ -56,6 +56,13 @@ async def vcluster(tmp_path_factory) -> AsyncGenerator[dict, None]:
     result = subprocess.run(connect_cmd, capture_output=True, text=True, check=True)
     Path(kubeconfig_path).write_text(result.stdout)
 
+    # Stash the kubeconfig on the session so the failure-diagnostics hook can
+    # dump namespaces even when a *chart* fixture fails during setup (that
+    # session-scoped fixture never runs its own teardown, so a fixture-based
+    # dump would be skipped entirely — which is exactly why a failed helm
+    # install in CI produced no pod/event/log output).
+    request.session._e2e_kubeconfig = kubeconfig_path
+
     await kubeconfig.load_kube_config(config_file=kubeconfig_path)
     async with kubeclient.ApiClient() as api:
         yield {
@@ -72,7 +79,7 @@ async def vcluster(tmp_path_factory) -> AsyncGenerator[dict, None]:
 
 
 # ---------------------------------------------------------------------------
-# Hooks: capture per-phase reports + dump namespace logs on failure
+# Hooks: dump namespace diagnostics on failure (setup *or* call phase)
 # ---------------------------------------------------------------------------
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -80,53 +87,74 @@ def pytest_runtest_makereport(item, call):
     report = outcome.get_result()
     setattr(item, f"rep_{report.when}", report)
 
-
-@pytest.fixture(autouse=True)
-async def _dump_logs_on_failure(request):
-    """Dump pod state and recent container logs for the test namespaces on failure."""
-    yield
-    rep_call = getattr(request.node, "rep_call", None)
-    if rep_call is None or not rep_call.failed:
-        return
-
-    vcluster = (
-        request.getfixturevalue("vcluster") if "vcluster" in request.fixturenames else None
-    )
-    if not vcluster:
-        return
-
-    # Dump every namespace a deployment fixture registered on the session.
-    namespaces = getattr(request.session, "_e2e_namespaces", None) or set()
-    for namespace in sorted(namespaces):
-        await _dump_namespace_logs(vcluster["kubeconfig_path"], namespace)
-
-
-async def _dump_namespace_logs(kubeconfig: str, namespace: str) -> None:
-    """Print pod statuses and recent container logs for a namespace (kr8s)."""
-    import kr8s.asyncio
-    from kr8s.asyncio.objects import Event, Pod
-
-    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
-    print(f"\n{'=' * 70}\nDiagnostics for namespace '{namespace}'\n{'=' * 70}")
-
-    print("\n--- pods ---")
-    pods = [pod async for pod in Pod.list(namespace=namespace, api=api)]
-    for pod in pods:
-        status = pod.raw.get("status", {})
-        statuses = status.get("containerStatuses", []) or []
-        ready = sum(1 for c in statuses if c.get("ready"))
-        restarts = sum(c.get("restartCount", 0) for c in statuses)
-        print(f"{pod.name}\t{ready}/{len(statuses)}\t{status.get('phase')}\trestarts={restarts}")
-
-    print("\n--- events ---")
-    async for event in Event.list(namespace=namespace, api=api):
-        raw = event.raw
-        print(f"{raw.get('type')}\t{raw.get('reason')}\t{raw.get('message')}")
-
-    for pod in pods:
-        print(f"\n--- logs {namespace}/{pod.name} ---")
+    # Dump diagnostics for any failed phase. Crucially this includes the *setup*
+    # phase: the chart deployments are session-scoped fixtures, so when one fails
+    # to become ready the failure surfaces during setup and no fixture teardown
+    # runs — a fixture-based dump would be silently skipped (this is why the
+    # flaky "helm install" failures in CI came with zero pod/event/log output).
+    # Running from the report hook is independent of fixture setup ordering, and
+    # the dump is best-effort: it must never mask the real failure.
+    if report.failed:
         try:
-            lines = [line async for line in pod.logs(tail_lines=100)]
-            print("\n".join(lines) or "(no logs)")
-        except Exception as exc:  # pod may be pending / not started
-            print(f"(could not fetch logs: {exc})")
+            _dump_e2e_diagnostics(item.session)
+        except Exception as exc:  # pragma: no cover - diagnostics are best-effort
+            print(f"\n(failed to dump e2e diagnostics: {exc})", flush=True)
+
+
+def _dump_e2e_diagnostics(session) -> None:
+    """Print pod state, events, and recent container logs for every namespace a
+    deployment fixture registered on the session."""
+    kubeconfig = getattr(session, "_e2e_kubeconfig", None)
+    namespaces = getattr(session, "_e2e_namespaces", None) or set()
+    if not kubeconfig or not namespaces:
+        return
+    for namespace in sorted(namespaces):
+        _dump_namespace_diagnostics(kubeconfig, namespace)
+
+
+def _dump_namespace_diagnostics(kubeconfig: str, namespace: str) -> None:
+    """Shell out to kubectl to dump a namespace's state and recent logs.
+
+    Uses kubectl (not kr8s) so it works from this synchronous hook without an
+    event loop, and surfaces exactly what a human would run to triage a stuck
+    rollout: pod/workload status, events, and the tail of each container's logs
+    (including the previous container when a pod has been restarting).
+    """
+    base = ["kubectl", "-n", namespace, "--kubeconfig", kubeconfig]
+    print(f"\n{'=' * 70}\nDiagnostics for namespace '{namespace}'\n{'=' * 70}", flush=True)
+
+    def run(title: str, args: list[str]) -> str:
+        print(f"\n--- {title} ---", flush=True)
+        try:
+            proc = subprocess.run([*base, *args], capture_output=True, text=True, timeout=60)
+        except Exception as exc:  # kubectl missing / cluster unreachable
+            print(f"(kubectl {' '.join(args)} failed: {exc})", flush=True)
+            return ""
+        print((proc.stdout or proc.stderr).strip() or "(no output)", flush=True)
+        return proc.stdout
+
+    run("workloads", ["get", "deployment,statefulset,daemonset,pod", "-o", "wide"])
+    run("events", ["get", "events", "--sort-by=.lastTimestamp"])
+
+    # Enumerate pods (quietly) and dump each one's recent logs below.
+    try:
+        listing = subprocess.run(
+            [*base, "get", "pods", "-o", "name"], capture_output=True, text=True, timeout=60
+        )
+        pods = listing.stdout.split()
+    except Exception:  # cluster unreachable — already surfaced above
+        pods = []
+    for pod in pods:
+        print(f"\n--- logs {namespace}/{pod} ---", flush=True)
+        for extra in ([], ["--previous"]):  # current, then last-terminated
+            try:
+                proc = subprocess.run(
+                    [*base, "logs", pod, "--all-containers", "--tail=100", "--prefix", *extra],
+                    capture_output=True, text=True, timeout=60,
+                )
+            except Exception as exc:
+                print(f"(could not fetch logs{' (previous)' if extra else ''}: {exc})", flush=True)
+                continue
+            output = proc.stdout.strip()
+            if output:
+                print(f"{'[previous] ' if extra else ''}{output}", flush=True)
