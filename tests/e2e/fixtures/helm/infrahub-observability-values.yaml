@@ -28,6 +28,6 @@ grafana:
   # admin/admin matches the chart default; tests authenticate with it.
 
 # No sibling Infrahub release in this standalone chart test, so the Prefect
-# exporter would never reach a Prefect API and stall `helm --wait`.
+# exporter would never reach a Prefect API and would stall the readiness wait.
 prefectExporter:
   enabled: false
