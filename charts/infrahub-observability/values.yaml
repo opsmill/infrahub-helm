@@ -237,6 +237,12 @@ prefectExporter:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # -- Pod-level security context for the Prefect exporter pod.
   securityContext:
     runAsNonRoot: true
     runAsUser: 1000
+  # -- Container-level security context for the prefect-exporter container.
+  # Empty by default so it stays optional; set this to satisfy cluster policies
+  # that require a container-level securityContext (e.g. allowPrivilegeEscalation,
+  # readOnlyRootFilesystem, capabilities).
+  containerSecurityContext: {}
