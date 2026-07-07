@@ -1,3 +1,7 @@
+## [infrahub-enterprise-4.15.5](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.5) - 2026-07-07
+
+No significant changes.
+
 ## [infrahub-enterprise-4.15.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.2) - 2026-06-26
 
 ### Changed
