@@ -9,7 +9,13 @@ import uuid
 import pytest
 
 from tests.e2e.conftest import loadbalancer_url
-from tests.helpers.utils import mcp_result_text, mcp_session, wait_for_http
+from tests.helpers.utils import (
+    INFRAHUB_ADMIN_TOKEN,
+    mcp_result_text,
+    mcp_session,
+    wait_for_http,
+    wait_for_infrahub_branch_ready,
+)
 
 pytestmark = [pytest.mark.e2e, pytest.mark.k8s, pytest.mark.mcp]
 
@@ -38,6 +44,13 @@ async def test_mcp_tools_work_via_shared_ingress(infrahub_mcp_k8s):
     await wait_for_http(
         f"{base}/api/config", headers=headers, timeout=180.0, interval=5.0
     )
+
+    # The first MCP write auto-creates a session branch, which runs Infrahub's
+    # `create-branch` Prefect flow. That flow is registered by the task-worker
+    # shortly *after* the server reports healthy, so gate on branch creation
+    # actually working before driving the MCP tools — otherwise the write races
+    # the worker and fails with a transient GraphQL 500.
+    await wait_for_infrahub_branch_ready(base, INFRAHUB_ADMIN_TOKEN, headers=headers)
 
     tag_name = f"mcp-e2e-{uuid.uuid4().hex[:8]}"
 

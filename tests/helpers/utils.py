@@ -45,6 +45,53 @@ async def wait_for_http(
     raise TimeoutError(f"{url} did not return {expected_status} after {timeout}s")
 
 
+async def wait_for_infrahub_branch_ready(
+    url: str,
+    token: str,
+    *,
+    headers: dict | None = None,
+    timeout: float = 180.0,
+    interval: float = 5.0,
+) -> None:
+    """Poll (via the Infrahub SDK) until a branch can actually be created.
+
+    An HTTP 200 on ``/api/config`` only means the web app is up — it does *not*
+    mean the task-worker has finished registering its Prefect flow deployments.
+    Branch creation runs the ``create-branch`` deployment, so until that is
+    registered ``client.branch.create`` fails with a Prefect 404 surfaced as a
+    GraphQL 500 ("Deployment not found"). Callers that create branches (e.g. the
+    MCP session auto-branch) must wait for this, or they race the worker and
+    flake.
+
+    Creates a throwaway branch (retrying through the transient error) and deletes
+    it best-effort. ``headers`` may carry a ``Host`` header to route through a
+    name-based ingress; it is merged into the SDK client's request headers so the
+    probe reaches Infrahub the same way the caller does.
+    """
+    from infrahub_sdk import Config, InfrahubClient
+    from infrahub_sdk.exceptions import Error as InfrahubError
+
+    client = InfrahubClient(config=Config(address=url, api_token=token))
+    client.headers.update(headers or {})
+
+    start = time.time()
+    last = "no response"
+    while time.time() - start < timeout:
+        probe = f"e2e-branch-probe-{uuid.uuid4().hex[:8]}"
+        try:
+            await client.branch.create(branch_name=probe, sync_with_git=False)
+        except (InfrahubError, httpx.HTTPError) as exc:
+            last = str(exc) or type(exc).__name__
+            await asyncio.sleep(interval)
+            continue
+        try:  # cleanup is best-effort — the cluster is throwaway
+            await client.branch.delete(branch_name=probe)
+        except (InfrahubError, httpx.HTTPError):
+            pass
+        return
+    raise TimeoutError(f"Infrahub branch API not ready after {timeout}s ({last})")
+
+
 # ---------------------------------------------------------------------------
 # Infrahub SDK helpers — a BuiltinTag is the simplest object to round-trip.
 # ---------------------------------------------------------------------------
