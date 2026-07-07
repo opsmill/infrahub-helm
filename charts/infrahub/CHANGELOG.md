@@ -1,3 +1,7 @@
+## [infrahub-4.29.5](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.5) - 2026-07-07
+
+No significant changes.
+
 ## [infrahub-4.29.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.2) - 2026-06-26
 
 ### Changed
