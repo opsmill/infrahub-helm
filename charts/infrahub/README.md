@@ -63,7 +63,7 @@ The chart offers the ability to configure persistence for the database and other
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-backup | 1.2.1 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-mcp | 0.1.0 |
-| oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.1.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.2.0 |
 
 ## Values
 
@@ -92,6 +92,7 @@ The chart offers the ability to configure persistence for the database and other
 | global.commonLabels | object | `{}` | Labels to use for all installed Kubernetes resources |
 | global.imagePullPolicy | string | `"IfNotPresent"` | Default image pull policy |
 | global.imagePullSecrets | list | `[]` | Image pull secrets |
+| global.infrahubImageFlavor | string | `""` | Flavor of the Infrahub image (e.g. `avd`). When set, it is appended to the image tag as `<tag>-<flavor>`, whether the tag comes from `global.infrahubTag` or defaults to the chart appVersion. This selects a flavored image without pinning the image tag, so upgrading the chart alone is enough to track new versions. |
 | global.infrahubRepository | string | `"opsmill/infrahub"` | Repository for Infrahub images |
 | global.kubernetesClusterDomain | string | `"cluster.local"` | Kubernetes cluster domain |
 | global.podLabels | object | `{}` | Labels to use for all configured pods |
@@ -211,7 +212,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.10.0"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.10.5"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |

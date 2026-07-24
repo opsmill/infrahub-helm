@@ -66,6 +66,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
+Tag of the Infrahub image.
+Defaults to the chart appVersion, unless overridden with global.infrahubTag.
+When global.infrahubImageFlavor is set (e.g. "avd"), it is appended to the
+resolved tag as "-<flavor>" so a flavored image can be selected while the
+version still tracks the chart appVersion.
+*/}}
+{{- define "infrahub-helm.infrahubImageTag" -}}
+{{- $tag := .Values.global.infrahubTag | default .Chart.AppVersion -}}
+{{- with .Values.global.infrahubImageFlavor -}}
+{{- $tag = printf "%s-%s" $tag . -}}
+{{- end -}}
+{{- $tag -}}
+{{- end }}
+
+{{/*
 Create the name of the service account to use.
 Returns an empty string when no ServiceAccount is created nor named, so that
 the serviceAccountName field can be omitted from pod specs.

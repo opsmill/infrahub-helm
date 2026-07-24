@@ -50,7 +50,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: infrahub-upgrade
-          image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
+          image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ include "infrahub-helm.infrahubImageTag" . }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
           command: ["infrahub", "upgrade"]
           env:

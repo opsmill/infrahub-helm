@@ -83,7 +83,7 @@ spec:
                 name: {{ . }}
             {{- end }}
           {{- end }}
-          image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
+          image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ include "infrahub-helm.infrahubImageTag" . }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
           {{- with .Values.infrahubServer.infrahubServer.startupProbe }}
           startupProbe: {{- toYaml . | nindent 12 }}
