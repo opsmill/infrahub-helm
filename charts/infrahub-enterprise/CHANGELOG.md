@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.16.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.16.0) - 2026-07-24
+
+### Added
+
+- Bumped the `infrahub` dependency to 4.30.0, which adds `global.infrahubImageFlavor` to select a flavored Infrahub image (for example `avd`) without pinning the image tag. When set, the flavor is appended to the resolved image tag as `<tag>-<flavor>`, whether the tag comes from `global.infrahubTag` or defaults to the chart `appVersion`, so upgrading the chart alone is enough to track new versions. ([#79](https://github.com/opsmill/infrahub-helm/issues/79))
+
 ## [infrahub-enterprise-4.15.5](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.15.5) - 2026-07-07
 
 No significant changes.
