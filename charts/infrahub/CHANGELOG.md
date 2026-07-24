@@ -1,3 +1,9 @@
+## [infrahub-4.30.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.30.0) - 2026-07-24
+
+### Added
+
+- Added `global.infrahubImageFlavor` to select a flavored Infrahub image (for example `avd`) without pinning the image tag. When set, the flavor is appended to the resolved image tag as `<tag>-<flavor>`, whether the tag comes from `global.infrahubTag` or defaults to the chart `appVersion`, so upgrading the chart alone is enough to track new versions. ([#79](https://github.com/opsmill/infrahub-helm/issues/79))
+
 ## [infrahub-4.29.5](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.29.5) - 2026-07-07
 
 No significant changes.
