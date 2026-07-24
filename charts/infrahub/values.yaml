@@ -4,6 +4,12 @@ global:
   kubernetesClusterDomain: cluster.local
   # -- Repository for Infrahub images
   infrahubRepository: opsmill/infrahub
+  # -- Flavor of the Infrahub image (e.g. `avd`). When set, it is appended to
+  # the image tag as `<tag>-<flavor>`, whether the tag comes from
+  # `global.infrahubTag` or defaults to the chart appVersion. This selects a
+  # flavored image without pinning the image tag, so upgrading the chart alone
+  # is enough to track new versions.
+  infrahubImageFlavor: ""
   # -- Default image pull policy
   imagePullPolicy: IfNotPresent
   # -- Image pull secrets

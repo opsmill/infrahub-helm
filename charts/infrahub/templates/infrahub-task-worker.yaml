@@ -84,7 +84,7 @@ spec:
                 name: {{ . }}
             {{- end }}
           {{- end }}
-          image: {{ default .Values.global.imageRegistry .Values.infrahubTaskWorker.infrahubTaskWorker.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ .Values.global.infrahubTag | default .Chart.AppVersion }}
+          image: {{ default .Values.global.imageRegistry .Values.infrahubTaskWorker.infrahubTaskWorker.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ include "infrahub-helm.infrahubImageTag" . }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubTaskWorker.infrahubTaskWorker.imagePullPolicy }}
           {{- with .Values.infrahubTaskWorker.resources }}
           resources: {{- toYaml . | nindent 12 }}
