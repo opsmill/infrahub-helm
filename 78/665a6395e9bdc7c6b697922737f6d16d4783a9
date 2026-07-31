@@ -1,0 +1,25 @@
+charts/infrahub/changelog/+upgrade-extra-args.added.md
+  s_dd2218f8e6ce58::t_ca2892365cf4bb 1
+charts/infrahub/templates/infrahub-upgrade-job.yaml
+  s_dd2218f8e6ce58::t_bafabe7118ab3b 56-58
+charts/infrahub/values.yaml
+  s_dd2218f8e6ce58::t_183a2c43491a67 351-352
+charts/infrahub/README.md
+  s_dd2218f8e6ce58::t_dd26c4b5cbcce8 262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "78665a6395e9bdc7c6b697922737f6d16d4783a9",
+  "prompts": {},
+  "sessions": {
+    "s_dd2218f8e6ce58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "06f5db64-0a2c-4cab-a595-2e334119c720",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
