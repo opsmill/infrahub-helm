@@ -201,7 +201,6 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.neo4j.minimumClusterSize | int | `1` |  |
 | neo4j.neo4j.name | string | `"infrahub"` |  |
 | neo4j.neo4j.password | string | `"admin"` |  |
-| neo4j.neo4j.resources.limits | object | `{}` |  |
 | neo4j.neo4j.resources.requests.cpu | string | `"2"` |  |
 | neo4j.neo4j.resources.requests.memory | string | `"4Gi"` |  |
 | neo4j.services.admin.enabled | bool | `false` |  |
