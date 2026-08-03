@@ -1,0 +1,1 @@
+Dropped the explicit empty `neo4j.neo4j.resources.limits` map. The 2026.5.0 `neo4j` subchart only auto-fills limits for the shorthand `resources.cpu`/`resources.memory` form, so the requests-only block now leaves limits unset on its own. Neo4j still runs without a memory cap, and the rendered container is unchanged.
