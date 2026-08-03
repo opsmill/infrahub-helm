@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.17.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.17.0) - 2026-08-03
+
+### Added
+
+- Bumped the `infrahub` dependency to 4.31.0, which adds `infrahub.upgrade.extraArgs` to pass additional arguments to the `infrahub upgrade` command run by the upgrade hook job, such as `--rebase-branches` to rebase open branches after migrations that require it.
+
 ## [infrahub-enterprise-4.16.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.16.0) - 2026-07-24
 
 ### Added

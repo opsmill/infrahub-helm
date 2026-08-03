@@ -1,1 +1,0 @@
-Bumped the `infrahub` dependency to 4.31.0, which adds `infrahub.upgrade.extraArgs` to pass additional arguments to the `infrahub upgrade` command run by the upgrade hook job, such as `--rebase-branches` to rebase open branches after migrations that require it.
