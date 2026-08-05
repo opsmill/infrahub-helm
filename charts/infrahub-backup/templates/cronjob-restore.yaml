@@ -1,0 +1,77 @@
+{{- include "infrahub-backup.validateRestore" . -}}
+{{- if and .Values.restore.enabled (eq .Values.restore.mode "cronjob") }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "infrahub-backup.fullname" . }}-restore
+  labels:
+    {{- include "infrahub-backup.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.restore.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronJob.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronJob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronJob.failedJobsHistoryLimit }}
+  {{- if .Values.cronJob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ .Values.cronJob.startingDeadlineSeconds }}
+  {{- end }}
+  suspend: {{ .Values.cronJob.suspend }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.job.backoffLimit }}
+      {{- if .Values.job.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "infrahub-backup.selectorLabels" . | nindent 12 }}
+        spec:
+          serviceAccountName: {{ include "infrahub-backup.serviceAccountName" . }}
+          restartPolicy: Never
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: restore
+              image: {{ include "infrahub-backup.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              {{- with .Values.securityContext }}
+              securityContext:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              args:
+                {{- include "infrahub-backup.restoreArgs" . | nindent 16 }}
+              env:
+                - name: INFRAHUB_K8S_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                {{- include "infrahub-backup.restoreS3EnvVars" . | nindent 16 }}
+              {{- with .Values.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: {{ .Values.restore.storage.path }}
+          volumes:
+            - name: backup-storage
+              emptyDir: {}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

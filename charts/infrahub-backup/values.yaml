@@ -66,10 +66,14 @@ backup:
 restore:
   # -- Enable restore functionality (mutually exclusive with backup)
   enabled: false
+  # -- Restore mode: "job" for one-shot, "cronjob" for scheduled (e.g. a nightly prod -> staging sync)
+  mode: "job"
+  # -- Schedule for CronJob mode (cron expression)
+  schedule: "0 4 * * *"
 
   # -- Storage configuration
   storage:
-    # -- Storage type: "s3" or "local"
+    # -- Storage type: "s3" or "local" ("cronjob" mode requires "s3")
     type: "s3"
 
     # -- Path within the pod to store backups
@@ -79,8 +83,12 @@ restore:
     s3:
       # -- S3 bucket containing the backup
       bucket: ""
-      # -- S3 key (path) to the backup artifact
+      # -- S3 key prefix the backups live under (only used with latest; match the source's backup.storage.s3.prefix)
+      prefix: ""
+      # -- S3 key (path) to the backup artifact (exactly one of key or latest must be set)
       key: ""
+      # -- Restore the newest backup under bucket/prefix instead of naming one (exactly one of key or latest must be set)
+      latest: false
       # -- S3 endpoint URL (for non-AWS S3-compatible storage)
       endpoint: ""
       # -- S3 region

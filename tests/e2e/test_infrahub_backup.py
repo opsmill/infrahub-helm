@@ -2,10 +2,12 @@
 restores correctly.
 
 Flow: seed a tag -> run the backup Job (S3/MinIO) -> delete the tag ->
-run the restore Job -> assert the tag is back.
+run the restore Job -> assert the tag is back -> delete the tag again ->
+trigger the restore CronJob -> assert the tag is back again.
 """
 
 import asyncio
+import subprocess
 
 import boto3
 import pytest
@@ -118,6 +120,51 @@ async def test_backup_restore(infrahub_k8s, minio_k8s):
     await wait_for_job(kubeconfig, namespace, "ihb-restore-infrahub-backup-restore")
 
     # 6. Verify the tag is back (fresh port-forward; restore may bounce pods).
+    async with portforward_service(
+        kubeconfig, namespace, 8000,
+        label_selector=infrahub_k8s["server_label"], ready_path="/api/config",
+    ) as url:
+        await verify_infrahub_data(url, token, seed)
+
+    # 7. Delete the tag again so the scheduled restore has something to prove.
+    async with portforward_service(
+        kubeconfig, namespace, 8000,
+        label_selector=infrahub_k8s["server_label"], ready_path="/api/config",
+    ) as url:
+        await modify_infrahub_data(url, token, seed)
+
+    # 8. Deploy the restore CronJob in latest-selection mode and fire it
+    # manually rather than waiting out the schedule. `--latest --s3` picks the
+    # newest archive in the bucket — the one the backup Job just wrote.
+    helm_install(
+        release="ihb-restore-cron",
+        chart_path=chart,
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        sets={
+            **common_s3,
+            "restore.enabled": "true",
+            "restore.mode": "cronjob",
+            "restore.storage.type": "s3",
+            "restore.storage.s3.bucket": bucket,
+            "restore.storage.s3.latest": "true",
+            "restore.storage.s3.endpoint": minio_k8s["endpoint"],
+            "restore.storage.s3.region": "us-east-1",
+            "restore.storage.s3.secretName": minio_k8s["secret_name"],
+        },
+        timeout="10m",
+    )
+    subprocess.run(
+        [
+            "kubectl", "-n", namespace, "--kubeconfig", kubeconfig,
+            "create", "job", "ihb-restore-cron-manual",
+            "--from=cronjob/ihb-restore-cron-infrahub-backup-restore",
+        ],
+        check=True,
+    )
+    await wait_for_job(kubeconfig, namespace, "ihb-restore-cron-manual")
+
+    # 9. Verify the scheduled restore brought the tag back.
     async with portforward_service(
         kubeconfig, namespace, 8000,
         label_selector=infrahub_k8s["server_label"], ready_path="/api/config",

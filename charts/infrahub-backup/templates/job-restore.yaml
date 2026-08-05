@@ -1,4 +1,5 @@
-{{- if .Values.restore.enabled }}
+{{- include "infrahub-backup.validateRestore" . -}}
+{{- if and .Values.restore.enabled (eq .Values.restore.mode "job") }}
 apiVersion: batch/v1
 kind: Job
 metadata:
