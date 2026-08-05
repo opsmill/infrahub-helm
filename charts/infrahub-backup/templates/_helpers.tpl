@@ -104,6 +104,18 @@ Return S3 environment variables for restore
 */}}
 {{- define "infrahub-backup.restoreS3EnvVars" -}}
 {{- if eq .Values.restore.storage.type "s3" }}
+{{- if .Values.restore.storage.s3.latest }}
+- name: INFRAHUB_S3_BUCKET
+  value: {{ .Values.restore.storage.s3.bucket | quote }}
+{{- if .Values.restore.storage.s3.prefix }}
+- name: INFRAHUB_S3_PREFIX
+  value: {{ .Values.restore.storage.s3.prefix | quote }}
+{{- end }}
+{{- if .Values.restore.storage.s3.endpoint }}
+- name: INFRAHUB_S3_ENDPOINT
+  value: {{ .Values.restore.storage.s3.endpoint | quote }}
+{{- end }}
+{{- end }}
 - name: INFRAHUB_S3_REGION
   value: {{ .Values.restore.storage.s3.region | quote }}
 {{- if .Values.restore.storage.s3.secretName }}
@@ -166,6 +178,9 @@ Return restore command arguments
 - --sleep={{ .Values.restore.options.sleep }}
 {{- end }}
 - "{{ .Values.restore.storage.path }}/{{ .Values.restore.storage.local.filename }}"
+{{- else if .Values.restore.storage.s3.latest }}
+- --latest
+- --s3
 {{- else }}
 {{- if .Values.restore.storage.s3.endpoint }}
 - --s3-endpoint={{ .Values.restore.storage.s3.endpoint }}
@@ -174,5 +189,30 @@ Return restore command arguments
 {{- end }}
 {{- range .Values.restore.options.extraArgs }}
 - {{ . | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
+Validate the restore configuration, failing the render on combinations that
+would otherwise fail (or restore the wrong data) only at runtime.
+*/}}
+{{- define "infrahub-backup.validateRestore" -}}
+{{- if .Values.restore.enabled }}
+{{- if eq .Values.restore.mode "cronjob" }}
+{{- if ne .Values.restore.storage.type "s3" }}
+{{- fail "restore.mode=cronjob requires restore.storage.type=s3: local storage mounts an emptyDir, which is empty on every scheduled run" }}
+{{- end }}
+{{- if .Values.backup.enabled }}
+{{- fail "backup.enabled and restore.mode=cronjob are mutually exclusive: the release producing backups must never be a scheduled-restore target" }}
+{{- end }}
+{{- end }}
+{{- if eq .Values.restore.storage.type "s3" }}
+{{- if and .Values.restore.storage.s3.latest .Values.restore.storage.s3.key }}
+{{- fail "restore.storage.s3.key and restore.storage.s3.latest are mutually exclusive: name an exact archive or restore the newest one, not both" }}
+{{- end }}
+{{- if and (not .Values.restore.storage.s3.latest) (not .Values.restore.storage.s3.key) }}
+{{- fail "restore with S3 storage requires restore.storage.s3.key (exact archive) or restore.storage.s3.latest=true (newest archive)" }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

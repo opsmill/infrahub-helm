@@ -54,24 +54,28 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | rbac | object | `{"create":true}` | RBAC configuration |
 | rbac.create | bool | `true` | Create Role and RoleBinding for pod exec permissions |
 | resources | object | `{"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource limits and requests |
-| restore | object | `{"enabled":false,"options":{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"sleep":"3m"},"storage":{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Restore configuration |
+| restore | object | `{"enabled":false,"mode":"job","options":{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"sleep":"3m"},"schedule":"0 4 * * *","storage":{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Restore configuration |
 | restore.enabled | bool | `false` | Enable restore functionality (mutually exclusive with backup) |
+| restore.mode | string | `"job"` | Restore mode: "job" for one-shot, "cronjob" for scheduled (e.g. a nightly prod -> staging sync) |
 | restore.options | object | `{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"sleep":"3m"}` | Restore options |
 | restore.options.excludeTaskmanager | bool | `false` | Exclude task-manager database from restore |
 | restore.options.extraArgs | list | `[]` | Extra arguments to pass to the restore command |
 | restore.options.migrateFormat | bool | `false` | Migrate backup format from older versions |
 | restore.options.sleep | string | `"3m"` | Sleep duration before restore when using local storage (allows time to copy files) |
-| restore.storage | object | `{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""},"type":"s3"}` | Storage configuration |
+| restore.schedule | string | `"0 4 * * *"` | Schedule for CronJob mode (cron expression) |
+| restore.storage | object | `{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""},"type":"s3"}` | Storage configuration |
 | restore.storage.local | object | `{"filename":"infrahub_backup_latest.tar.gz"}` | Local storage settings |
 | restore.storage.local.filename | string | `"infrahub_backup_latest.tar.gz"` | File name of the backup to restore |
 | restore.storage.path | string | `"/infrahub_backups"` | Path within the pod to store backups |
-| restore.storage.s3 | object | `{"bucket":"","endpoint":"","key":"","region":"us-east-1","secretName":""}` | S3 artifact location |
+| restore.storage.s3 | object | `{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""}` | S3 artifact location |
 | restore.storage.s3.bucket | string | `""` | S3 bucket containing the backup |
 | restore.storage.s3.endpoint | string | `""` | S3 endpoint URL (for non-AWS S3-compatible storage) |
-| restore.storage.s3.key | string | `""` | S3 key (path) to the backup artifact |
+| restore.storage.s3.key | string | `""` | S3 key (path) to the backup artifact (exactly one of key or latest must be set) |
+| restore.storage.s3.latest | bool | `false` | Restore the newest backup under bucket/prefix instead of naming one (exactly one of key or latest must be set) |
+| restore.storage.s3.prefix | string | `""` | S3 key prefix the backups live under (only used with latest; match the source's backup.storage.s3.prefix) |
 | restore.storage.s3.region | string | `"us-east-1"` | S3 region |
 | restore.storage.s3.secretName | string | `""` | Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY |
-| restore.storage.type | string | `"s3"` | Storage type: "s3" or "local" |
+| restore.storage.type | string | `"s3"` | Storage type: "s3" or "local" ("cronjob" mode requires "s3") |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":false}` | Container security context |
 | serviceAccount | object | `{"annotations":{},"create":true,"name":""}` | ServiceAccount configuration |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
