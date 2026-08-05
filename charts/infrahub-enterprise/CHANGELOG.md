@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.18.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.18.0) - 2026-08-05
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.32.0`, which picks up the `infrahub-backup` `1.3.0` bump adding a scheduled restore mode: `infrahub.infrahub-backup.restore.mode=cronjob` with `infrahub.infrahub-backup.restore.schedule` renders a CronJob instead of a one-shot Job, and `infrahub.infrahub-backup.restore.storage.s3.latest=true` restores the newest backup under the bucket/prefix instead of naming an exact archive.
+
 ## [infrahub-enterprise-4.17.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.17.0) - 2026-08-03
 
 ### Added
