@@ -1,3 +1,9 @@
+## [infrahub-4.32.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.32.0) - 2026-08-05
+
+### Changed
+
+- Bumped the bundled `infrahub-backup` subchart to `1.3.0` (image `2.3.0`), which adds a scheduled restore mode: `infrahub-backup.restore.mode=cronjob` with `infrahub-backup.restore.schedule` renders a CronJob instead of a one-shot Job, and `infrahub-backup.restore.storage.s3.latest=true` (with `infrahub-backup.restore.storage.s3.prefix`) restores the newest backup under the bucket/prefix instead of naming an exact archive — enabling an unattended, recurring prod → staging sync.
+
 ## [infrahub-4.31.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.31.0) - 2026-08-03
 
 ### Added
