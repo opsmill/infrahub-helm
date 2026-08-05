@@ -61,7 +61,7 @@ The chart offers the ability to configure persistence for the database and other
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
-| oci://registry.opsmill.io/opsmill/chart | infrahub-backup | 1.2.1 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub-backup | 1.3.0 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-mcp | 0.1.0 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.2.0 |
 
@@ -212,7 +212,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.10.5"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.10.6"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
