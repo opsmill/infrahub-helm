@@ -16,8 +16,8 @@ infrahub:
           cpu: "8"
           memory: "32Gi"
     config:
-      server.memory.heap.initial_size: "24G"
-      server.memory.heap.max_size: "24G"
+      server.memory.heap.initial_size: "16G"
+      server.memory.heap.max_size: "16G"
       server.memory.pagecache.size: "4G"
   redis:
     master:
