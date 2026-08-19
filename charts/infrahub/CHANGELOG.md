@@ -1,3 +1,14 @@
+## [infrahub-4.33.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.33.0) - 2026-08-19
+
+### Changed
+
+- Bumped `appVersion` to 1.11.0, so the chart deploys Infrahub 1.11 by default. 1.11 ships the Neo4j 6.2 Python driver, which is the driver Neo4j 2026.05 is validated against.
+- Upgraded the `neo4j` subchart from 2025.10.1-4 to 2026.5.0, which deploys Neo4j 2026.05.0. This matches the Neo4j version Infrahub is tested against. Deployments using a persistent data volume will have their store upgraded by Neo4j on first startup, so back up the database before upgrading the chart.
+
+### Housekeeping
+
+- Dropped the explicit empty `neo4j.neo4j.resources.limits` map. The 2026.5.0 `neo4j` subchart only auto-fills limits for the shorthand `resources.cpu`/`resources.memory` form, so the requests-only block now leaves limits unset on its own. Neo4j still runs without a memory cap, and the rendered container is unchanged.
+
 ## [infrahub-4.32.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.32.0) - 2026-08-05
 
 ### Changed
