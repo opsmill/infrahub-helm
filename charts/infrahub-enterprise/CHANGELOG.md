@@ -1,3 +1,13 @@
+## [infrahub-enterprise-4.19.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.19.0) - 2026-08-19
+
+### Changed
+
+- Bumped the `infrahub` dependency to 4.33.0, which upgrades the `neo4j` subchart from 2025.10.1-4 to 2026.5.0 (Neo4j 2026.05.0). Deployments using a persistent data volume will have their store upgraded by Neo4j on first startup, so back up the database before upgrading the chart.
+
+### Fixed
+
+- Lowered the Neo4j JVM heap in the `medium` and `medium-data` config presets from 24G to 16G. Neo4j's default JVM arguments include `-XX:+AlwaysPreTouch`, so the whole heap is committed and resident at startup on an empty database; combined with the 4G page cache, the presets reserved 28 GB of their 32 GB target and left too little for the JVM's off-heap allocations and the operating system, which showed up as stop-the-world pauses logged with `gcTime=0, gcCount=0` and Infrahub reporting `Database Service unavailable`. Reserved memory is now 20 GB of 32 GB. The page cache is unchanged at 4G; override `infrahub.neo4j.config.server.memory.*` to tune either pool for your workload. ([#87](https://github.com/opsmill/infrahub-helm/issues/87))
+
 ## [infrahub-enterprise-4.18.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.18.0) - 2026-08-05
 
 ### Changed
