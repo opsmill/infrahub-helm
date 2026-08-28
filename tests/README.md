@@ -42,6 +42,21 @@ Modules marked `manual` are never collected by CI (which selects chart markers)
 and are run on demand by path:
 
 ```bash
-uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                # tracing env opt-out
-uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py # OpenShift overlay
+uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                  # tracing env opt-out
+uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py   # OpenShift overlay
+uv run pytest -v -s -m manual tests/e2e/test_infrahub_upstream_playwright.py # upstream UI suite
 ```
+
+`test_infrahub_upstream_playwright.py` runs [Infrahub's own pytest-playwright
+suite](https://github.com/opsmill/infrahub/tree/stable/tests/e2e) against a
+Helm-deployed Infrahub Enterprise instead of the testcontainers stack it boots
+by default, on the OpenShift overlay's configuration. It clones the upstream
+repository into `.cache/upstream-infrahub`, installs its environment and a
+Chromium build, and points it at the deployment with `INFRAHUB_ADDRESS`; the
+chart's demo-data Job supplies the dataset the suite's own fixtures would
+otherwise load. `INFRAHUB_E2E_REF` picks the upstream ref — it defaults to
+`infrahub-v<appVersion>`, the release the chart deploys, since the suite tracks
+the UI and `stable` runs ahead of the released image between releases.
+`INFRAHUB_E2E_SRC` reuses an existing prepared checkout and `INFRAHUB_E2E_TESTS`
+narrows the run to a subset. It needs `uv` and enough disk for the checkout and
+browser.
