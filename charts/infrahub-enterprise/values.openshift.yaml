@@ -1,0 +1,136 @@
+# yamllint disable rule:line-length
+---
+# OpenShift overlay: clears every hard-coded uid/gid so the SCC assigns them,
+# and makes the directories the containers write to writable by whichever uid it
+# picks.
+#
+# The default `restricted-v2` SCC rejects a pod that pins runAsUser, runAsGroup
+# or fsGroup outside the range allocated to the namespace, and assigns a uid
+# from that range itself. The defaults this chart ships (1000 for Infrahub and
+# Prefect, 7474 for Neo4j, 1001 for the Bitnami charts) all fall outside it.
+#
+# Layer this file on top of a config preset, last:
+#
+#   helm install infrahub-enterprise ... -f values.medium.yaml -f values.openshift.yaml
+#
+# Only use it on a cluster that assigns a uid of its own. Kubernetes does not:
+# with the security contexts gone, every container falls back to the uid baked
+# into its image, which for the Neo4j and Bitnami images is root - Neo4j then
+# refuses to start.
+#
+# The clearing has to be done from a values file. `--set <key>=null` is ignored
+# by Helm 3, which keeps the chart default; a null inside a `-f` file removes
+# the key on both Helm 3 and Helm 4. Helm 3 prints a "cannot overwrite table
+# with non table" warning while doing so - cosmetic, the block is still dropped.
+# Overriding with `{}` does not work at all: Helm merges maps, so the defaults
+# survive.
+#
+# Clearing the uids is not enough on its own, hence the volumes below. The
+# Infrahub image owns /prom_shared and /opt/infrahub/git as uid 1000 with mode
+# 0755, so an arbitrary uid can write to neither: prometheus_client fails to
+# create its multiprocess metric files and gunicorn dies with "Worker failed to
+# boot", and the task worker cannot clone repositories. Both are redirected onto
+# storage the SCC's fsGroup makes writable - an emptyDir is no more ephemeral
+# than the container filesystem those paths live on today.
+infrahub:
+  # The pod security context here is also what the pre-upgrade Job renders.
+  infrahubServer:
+    podSecurityContext: null
+    infrahubServer:
+      env:
+        PROMETHEUS_MULTIPROC_DIR: /tmp
+      extraVolumes:
+        - name: git-repositories
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: git-repositories
+          mountPath: /opt/infrahub/git
+
+  infrahubTaskWorker:
+    podSecurityContext: null
+    infrahubTaskWorker:
+      env:
+        PROMETHEUS_MULTIPROC_DIR: /tmp
+      extraVolumes:
+        - name: git-repositories
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: git-repositories
+          mountPath: /opt/infrahub/git
+
+  infrahubDemoData:
+    podSecurityContext: null
+  emma:
+    podSecurityContext: null
+
+  # Neo4j pins 7474. Its templates render the value unconditionally, so this
+  # emits `securityContext: null` instead of dropping the key - the API server
+  # treats both as unset.
+  neo4j:
+    securityContext: null
+    containerSecurityContext: null
+
+  prefect-server:
+    server:
+      # Clearing the container context also drops
+      # `readOnlyRootFilesystem: false`, which is already the Kubernetes default.
+      podSecurityContext: null
+      containerSecurityContext: null
+      # Prefect runs the same Infrahub image. Its env is a list, and overriding
+      # a list would discard the tuning a config preset puts there, so
+      # /prom_shared is covered with a volume rather than the env var used for
+      # the Infrahub pods above.
+      extraVolumes:
+        - name: prom-shared
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: prom-shared
+          mountPath: /prom_shared
+    # Only rendered when the config presets turn on
+    # backgroundServices.runAsSeparateDeployment; Prefect pins 1001 there.
+    backgroundServices:
+      podSecurityContext: null
+      containerSecurityContext: null
+      extraVolumes:
+        - name: prom-shared
+          emptyDir: {}
+      extraVolumeMounts:
+        - name: prom-shared
+          mountPath: /prom_shared
+    # Bitnami charts gate their security contexts behind an `enabled` flag
+    # rather than honouring a null.
+    postgresql:
+      primary:
+        podSecurityContext:
+          enabled: false
+        containerSecurityContext:
+          enabled: false
+
+  redis:
+    master:
+      podSecurityContext:
+        enabled: false
+      containerSecurityContext:
+        enabled: false
+    replica:
+      podSecurityContext:
+        enabled: false
+      containerSecurityContext:
+        enabled: false
+
+  rabbitmq:
+    podSecurityContext:
+      enabled: false
+    containerSecurityContext:
+      enabled: false
+
+  # Optional sub-charts - no-ops while they stay disabled. The observability
+  # chart also bundles Grafana, Prometheus and Alloy, which carry their own
+  # security contexts and need their own overrides if you enable it.
+  infrahub-backup:
+    podSecurityContext: null
+  infrahub-mcp:
+    podSecurityContext: null
+  infrahub-observability:
+    prefectExporter:
+      securityContext: null

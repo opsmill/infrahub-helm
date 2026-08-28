@@ -37,3 +37,11 @@ uv run pytest -v                    tests/e2e   # everything
 
 Each run creates and tears down its own vcluster. On failure the suite dumps
 pod status and recent container logs for every namespace it deployed into.
+
+Modules marked `manual` are never collected by CI (which selects chart markers)
+and are run on demand by path:
+
+```bash
+uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                # tracing env opt-out
+uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py # OpenShift overlay
+```
