@@ -1,0 +1,27 @@
+# Extra values for the upstream Infrahub pytest-playwright suite
+# (tests/e2e/test_infrahub_upstream_playwright.py), on top of the enterprise
+# values, the OpenShift overlay and the SCC simulation.
+infrahub:
+  infrahubDemoData:
+    # In INFRAHUB_ADDRESS mode the upstream suite's data fixtures are no-ops, so
+    # the deployment has to arrive already carrying the base schema, the menu,
+    # the infrastructure_edge dataset and the demo-edge repository — which is
+    # exactly what this Job loads.
+    enabled: true
+    # The Job races the server: it starts with the rest of the release and each
+    # attempt fails until the API answers. The chart's default of 4 leaves no
+    # margin on a cold cluster (3 attempts were burnt before the first success),
+    # so give the retries room.
+    backoffLimit: 20
+    # Same ids openshift-scc-simulation.yaml assigns to the long-running pods.
+    podSecurityContext:
+      runAsUser: 1000670000
+      runAsGroup: 0
+      fsGroup: 1000670000
+  infrahubServer:
+    service:
+      # Playwright drives a real browser: it opens far more concurrent
+      # connections than a `kubectl port-forward` tunnel survives (the run dies
+      # with "Route.fetch: socket hang up"). vcluster's embedded load balancer
+      # hands the Service a node address the test runner can reach directly.
+      type: LoadBalancer
