@@ -7,11 +7,13 @@ reflects the working-tree changes.
 """
 
 import asyncio
+import os
 import shutil
 import subprocess
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from string import Template
 from typing import AsyncGenerator
 
 import kr8s.asyncio
@@ -20,7 +22,16 @@ import yaml
 from kr8s.asyncio.objects import Service as AsyncService
 
 from tests.conftest import CHARTS_DIR, REPO_ROOT
-from tests.helpers.utils import INFRAHUB_ADMIN_TOKEN, wait_for_http
+from tests.helpers.tls import (
+    create_certificate_authority,
+    issue_server_certificate,
+    service_dns_names,
+)
+from tests.helpers.utils import (
+    INFRAHUB_ADMIN_TOKEN,
+    wait_for_http,
+    wait_for_infrahub_branch_ready,
+)
 
 FIXTURES_DIR = Path(__file__).parent.resolve() / "fixtures" / "helm"
 
@@ -544,4 +555,223 @@ async def minio_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
         "endpoint": "http://minio:9000",
         "secret_name": "minio-creds",
         "service_name": "minio",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture: infrahub_custom_ca_k8s (Infrahub trusting a private CA, plus two
+# git servers behind HTTPS — one signed by that CA, one that is not)
+# ---------------------------------------------------------------------------
+# The custom-CA behaviour is not in a released Infrahub image yet, so the test
+# runs against an image built from the pull request that adds it. Override the
+# whole reference with INFRAHUB_CUSTOM_IMAGE to test another build; point
+# INFRAHUB_SOURCE_DIR at a local infrahub checkout to skip the clone.
+INFRAHUB_CUSTOM_CA_PR = "10487"
+
+CUSTOM_CA_NAMESPACE = "infrahub-custom-ca"
+# The Service name is also the hostname in the repository URL and in the SAN of
+# the certificate, so these three cannot drift apart.
+TRUSTED_GIT_SERVER = "git-https"
+UNTRUSTED_GIT_SERVER = "git-https-untrusted"
+CA_BUNDLE_CONFIGMAP = "infrahub-ca-bundle"
+CA_BUNDLE_PATH = "/opt/infrahub/tls/ca-bundle.pem"
+
+
+def build_custom_infrahub_image() -> str:
+    """Build the Infrahub image carrying the pull request under test, and return
+    its full reference.
+
+    Progress goes to the console; only the reference comes back on stdout.
+    """
+    command = [
+        str(REPO_ROOT / "scripts" / "build-infrahub-image.sh"),
+        "--pr",
+        INFRAHUB_CUSTOM_CA_PR,
+    ]
+    source_dir = os.environ.get("INFRAHUB_SOURCE_DIR")
+    if source_dir:
+        command.extend(["--source", source_dir])
+    result = subprocess.run(command, stdout=subprocess.PIPE, text=True, check=True)
+    image = result.stdout.strip()
+    if not image:
+        raise AssertionError(f"{' '.join(command)} printed no image reference")
+    return image
+
+
+def import_image_into_vcluster(image: str, cluster_name: str) -> None:
+    """Hand a locally-built image to the vcluster node's containerd.
+
+    The docker driver runs the node as a container with its own image store, and
+    nothing can pull this image from a registry, so it has to be shipped in over
+    `docker save`. Pods must then use a pull policy that tolerates a missing
+    registry (the e2e values set IfNotPresent).
+    """
+    container = f"vcluster.cp.{cluster_name}"
+    save = subprocess.Popen(["docker", "save", image], stdout=subprocess.PIPE)
+    try:
+        subprocess.run(
+            ["docker", "exec", "-i", container, "ctr", "-n", "k8s.io", "images", "import", "-"],
+            stdin=save.stdout,
+            check=True,
+        )
+    finally:
+        if save.stdout:
+            save.stdout.close()
+        save.wait()
+    if save.returncode != 0:
+        raise AssertionError(f"docker save {image} failed with {save.returncode}")
+
+
+def split_image_reference(image: str) -> tuple[str, str, str]:
+    """Split ``registry/repository:tag`` into its three parts.
+
+    The chart composes the image from a registry, a repository and a tag held in
+    separate values, so an arbitrary reference has to be taken apart to override
+    them.
+    """
+    reference, _, tag = image.rpartition(":")
+    if not reference or "/" in tag:
+        raise AssertionError(f"image reference '{image}' has no tag")
+    registry, _, repository = reference.partition("/")
+    if not repository:
+        raise AssertionError(f"image reference '{image}' has no registry")
+    return registry, repository, tag
+
+
+async def deploy_git_https_server(
+    *,
+    api,
+    namespace: str,
+    name: str,
+    image: str,
+    certificate,
+) -> None:
+    """Create one HTTPS git server: its TLS Secret, then the templated manifests."""
+    from kr8s.asyncio.objects import ConfigMap, Deployment, Secret, Service
+
+    tls_secret = Secret(
+        {
+            "metadata": {"name": f"{name}-tls", "namespace": namespace},
+            "type": "kubernetes.io/tls",
+            "stringData": {
+                "tls.crt": certificate.certificate_pem,
+                "tls.key": certificate.private_key_pem,
+            },
+        },
+        namespace=namespace,
+        api=api,
+    )
+    await tls_secret.create()
+
+    template = Template((FIXTURES_DIR / "git-https-server.yaml").read_text())
+    manifests = yaml.safe_load_all(template.substitute(name=name, image=image))
+    kinds = {"ConfigMap": ConfigMap, "Deployment": Deployment, "Service": Service}
+    deployment = None
+    for manifest in manifests:
+        if not manifest:
+            continue
+        manifest.setdefault("metadata", {})["namespace"] = namespace
+        obj = kinds[manifest["kind"]](manifest, namespace=namespace, api=api)
+        await obj.create()
+        if manifest["kind"] == "Deployment":
+            deployment = obj
+
+    assert deployment is not None, "git-https-server.yaml declares no Deployment"
+    await deployment.wait("condition=Available", timeout=300)
+
+
+@pytest.fixture(scope="session")
+async def infrahub_custom_ca_k8s(
+    vcluster: dict, staged_charts, request
+) -> AsyncGenerator[dict, None]:
+    """Deploy Infrahub with a private CA bundle mounted, next to two git servers.
+
+    Both git servers speak HTTPS with a certificate no public trust store knows;
+    only one of the two CAs is in the bundle Infrahub is given. That pairing is
+    what makes the test conclusive — the repository that clones is trusted
+    through the mounted bundle and nothing else, and the one that fails shows
+    verification is still on.
+    """
+    from kr8s.asyncio.objects import ConfigMap
+
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = CUSTOM_CA_NAMESPACE
+    _register_namespace(request, namespace)
+
+    image = os.environ.get("INFRAHUB_CUSTOM_IMAGE") or build_custom_infrahub_image()
+    import_image_into_vcluster(image, vcluster["cluster_name"])
+    registry, repository, tag = split_image_reference(image)
+
+    trusted_ca = create_certificate_authority("Infrahub e2e trusted CA")
+    untrusted_ca = create_certificate_authority("Infrahub e2e untrusted CA")
+
+    subprocess.run(
+        ["kubectl", "create", "namespace", namespace, "--kubeconfig", kubeconfig],
+        check=True,
+    )
+    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
+
+    for server, authority in ((TRUSTED_GIT_SERVER, trusted_ca), (UNTRUSTED_GIT_SERVER, untrusted_ca)):
+        await deploy_git_https_server(
+            api=api,
+            namespace=namespace,
+            name=server,
+            image=image,
+            certificate=issue_server_certificate(
+                authority=authority,
+                common_name=server,
+                dns_names=service_dns_names(server, namespace),
+            ),
+        )
+
+    # Only the trusted CA goes into the bundle; the untrusted one exists solely
+    # to be rejected.
+    ca_bundle = ConfigMap(
+        {
+            "metadata": {"name": CA_BUNDLE_CONFIGMAP, "namespace": namespace},
+            "data": {"ca-bundle.pem": trusted_ca.pem},
+        },
+        namespace=namespace,
+        api=api,
+    )
+    await ca_bundle.create()
+
+    helm_install(
+        release="infrahub",
+        chart_path=staged_charts["infrahub"],
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        values_files=[
+            FIXTURES_DIR / "infrahub-values.yaml",
+            FIXTURES_DIR / "infrahub-custom-ca-values.yaml",
+        ],
+        sets={
+            "global.infrahubRepository": repository,
+            "global.infrahubTag": tag,
+            "infrahubServer.infrahubServer.imageRegistry": registry,
+            "infrahubTaskWorker.infrahubTaskWorker.imageRegistry": registry,
+        },
+    )
+
+    # A healthy /api/config only means the web app is up. The task worker writes
+    # the git TLS configuration and registers its Prefect deployments during its
+    # own startup, and both the git-config check and the repository import depend
+    # on that having happened — so gate on the branch API, which needs a
+    # registered deployment to answer.
+    async with portforward_service(
+        kubeconfig, namespace, 8000,
+        label_selector="service=infrahub-server", ready_path="/api/config",
+    ) as url:
+        await wait_for_infrahub_branch_ready(url, INFRAHUB_ADMIN_TOKEN)
+
+    yield {
+        "namespace": namespace,
+        "kubeconfig_path": kubeconfig,
+        "token": INFRAHUB_ADMIN_TOKEN,
+        "server_label": "service=infrahub-server",
+        "worker_label": "service=infrahub-task-worker",
+        "image": image,
+        "ca_bundle_path": CA_BUNDLE_PATH,
+        "trusted_repository_url": f"https://{TRUSTED_GIT_SERVER}/demo.git",
+        "untrusted_repository_url": f"https://{UNTRUSTED_GIT_SERVER}/demo.git",
     }
