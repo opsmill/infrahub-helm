@@ -13,7 +13,7 @@ infrahub:
     neo4j:
       resources:
         limits:
-          cpu: "4"
+          cpu: "5"
           memory: "16Gi"
         requests:
           cpu: "4"
@@ -22,6 +22,7 @@ infrahub:
       server.memory.heap.initial_size: "8G"
       server.memory.heap.max_size: "8G"
       server.memory.pagecache.size: "1G"
+      server.cypher.parallel.worker_limit: "4"
   redis:
     master:
       resourcesPreset: "small"
