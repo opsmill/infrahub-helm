@@ -16,7 +16,7 @@ infrahub:
           cpu: "17"
           memory: "64Gi"
         requests:
-          cpu: "17"
+          cpu: "16"
           memory: "64Gi"
     config:
       server.memory.heap.initial_size: "31G"
