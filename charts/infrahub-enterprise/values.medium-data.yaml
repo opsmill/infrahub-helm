@@ -12,6 +12,9 @@ infrahub:
   neo4j:
     neo4j:
       resources:
+        limits:
+          cpu: "8"
+          memory: "32Gi"
         requests:
           cpu: "8"
           memory: "32Gi"
