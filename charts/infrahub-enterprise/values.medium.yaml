@@ -19,6 +19,7 @@ infrahub:
       server.memory.heap.initial_size: "16G"
       server.memory.heap.max_size: "16G"
       server.memory.pagecache.size: "4G"
+      server.cypher.parallel.worker_limit: "8"
   redis:
     master:
       resourcesPreset: "medium"
