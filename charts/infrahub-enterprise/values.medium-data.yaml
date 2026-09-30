@@ -4,8 +4,14 @@ configPreset: medium-data
 infrahub:
   infrahubServer:
     replicas: 2
+    resources:
+      requests:
+        cpu: "1"
   infrahubTaskWorker:
     replicas: 2
+    resources:
+      requests:
+        cpu: "1"
     infrahubTaskWorker:
       env:
         INFRAHUB_PAGINATION_SIZE: "500"

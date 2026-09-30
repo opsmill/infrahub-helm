@@ -4,8 +4,14 @@ configPreset: small
 infrahub:
   infrahubServer:
     replicas: 1
+    resources:
+      requests:
+        cpu: "1"
   infrahubTaskWorker:
     replicas: 2
+    resources:
+      requests:
+        cpu: "1"
     infrahubTaskWorker:
       env:
         INFRAHUB_PAGINATION_SIZE: "50"
