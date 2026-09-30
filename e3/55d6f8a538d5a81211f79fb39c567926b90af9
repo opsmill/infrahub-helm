@@ -1,0 +1,29 @@
+charts/infrahub-enterprise/changelog/+preset-app-cpu-requests.changed.md
+  s_34245e8c4a6d4e::t_7bb8c60c6b1773 1
+charts/infrahub-enterprise/values.large-data.yaml
+  s_34245e8c4a6d4e::t_9a873ffec5ab09 7-9,12-14
+charts/infrahub-enterprise/values.large.yaml
+  s_34245e8c4a6d4e::t_d9ddce10ed457b 7-9,12-14
+charts/infrahub-enterprise/values.medium-data.yaml
+  s_34245e8c4a6d4e::t_600b953efff7dc 7-9,12-14
+charts/infrahub-enterprise/values.medium.yaml
+  s_34245e8c4a6d4e::t_e6059d0238b00c 7-9,12-14
+charts/infrahub-enterprise/values.small.yaml
+  s_34245e8c4a6d4e::t_bdc15a88b48e97 7-9,12-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e355d6f8a538d5a81211f79fb39c567926b90af9",
+  "prompts": {},
+  "sessions": {
+    "s_34245e8c4a6d4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b7ffab56-2cb2-46c9-836e-9b56d39a3f6c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
