@@ -1,0 +1,36 @@
+# Overlay on infrahub-values.yaml for the custom-CA e2e test: mount the private
+# CA bundle into the server and the task worker and point Infrahub at it.
+#
+# This is the Helm form of the "Trust a private CA" guide. INFRAHUB_TLS_CA_BUNDLE
+# is the only setting; git, the HTTP client, the database, the broker, the cache
+# and S3 all inherit it. The path is not discovered from the mount, so the two
+# have to agree.
+#
+# The bundle holds the test's CA only, deliberately: it replaces the system trust
+# store for the components it applies to, so a repository that clones under it can
+# only have been trusted through this file.
+infrahubServer:
+  infrahubServer:
+    env:
+      INFRAHUB_TLS_CA_BUNDLE: /opt/infrahub/tls/ca-bundle.pem
+    extraVolumes:
+      - name: ca-bundle
+        configMap:
+          name: infrahub-ca-bundle
+    extraVolumeMounts:
+      - name: ca-bundle
+        mountPath: /opt/infrahub/tls
+        readOnly: true
+
+infrahubTaskWorker:
+  infrahubTaskWorker:
+    env:
+      INFRAHUB_TLS_CA_BUNDLE: /opt/infrahub/tls/ca-bundle.pem
+    extraVolumes:
+      - name: ca-bundle
+        configMap:
+          name: infrahub-ca-bundle
+    extraVolumeMounts:
+      - name: ca-bundle
+        mountPath: /opt/infrahub/tls
+        readOnly: true

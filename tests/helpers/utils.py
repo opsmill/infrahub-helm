@@ -549,3 +549,61 @@ async def wait_for_job(
     if any(c.get("type") == "Failed" and str(c.get("status")) == "True" for c in conditions):
         logs = await _job_pod_logs(api, namespace, job_name)
         raise AssertionError(f"Job '{job_name}' failed\n{logs}")
+
+
+# ---------------------------------------------------------------------------
+# Infrahub git repositories
+# ---------------------------------------------------------------------------
+async def add_read_only_repository(
+    url: str, token: str, *, name: str, location: str, ref: str = "main"
+) -> str:
+    """Add a read-only repository and return its id.
+
+    Infrahub checks the remote is reachable before it keeps the node: a failure
+    deletes the repository again and surfaces as a GraphQL error, so this call
+    raising *is* the signal that the remote could not be reached.
+    """
+    client = _infrahub_client(url, token)
+    repository = await client.create(
+        kind="CoreReadOnlyRepository", name=name, location=location, ref=ref
+    )
+    await repository.save()
+    return repository.id
+
+
+async def wait_for_repository_imported(
+    url: str,
+    token: str,
+    *,
+    name: str,
+    timeout: float = 300.0,
+    interval: float = 5.0,
+) -> dict:
+    """Poll a repository until it is online and has a commit, and return its state.
+
+    `operational_status` turns online once the worker has talked to the remote,
+    and `commit` is only filled in once the clone landed — together they say the
+    repository was really fetched, not merely resolved.
+    """
+    from infrahub_sdk.exceptions import Error as InfrahubError
+
+    client = _infrahub_client(url, token)
+    start = time.time()
+    last: dict = {}
+    while time.time() - start < timeout:
+        try:
+            repository = await client.get(kind="CoreReadOnlyRepository", name__value=name)
+        except (InfrahubError, httpx.HTTPError) as exc:
+            last = {"error": str(exc) or type(exc).__name__}
+            await asyncio.sleep(interval)
+            continue
+        last = {
+            "operational_status": repository.operational_status.value,
+            "sync_status": repository.sync_status.value,
+            "internal_status": repository.internal_status.value,
+            "commit": repository.commit.value,
+        }
+        if last["operational_status"] == "online" and last["commit"]:
+            return last
+        await asyncio.sleep(interval)
+    raise TimeoutError(f"Repository '{name}' was not imported after {timeout}s (last state: {last})")

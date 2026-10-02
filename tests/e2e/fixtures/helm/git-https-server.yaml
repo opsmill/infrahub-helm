@@ -1,0 +1,125 @@
+# A git repository served over HTTPS, for the custom-CA e2e test.
+#
+# Rendered once per server with string.Template, so every value below is fixed
+# except ${name} (the Service/Deployment name, which is also the hostname the
+# certificate is issued for) and ${image} (an image that ships git, used only to
+# seed the repository). Every other dollar sign has to be escaped, so the file
+# deliberately uses none.
+#
+# nginx serves the bare repository as static files: git's "dumb" HTTP protocol
+# needs nothing more than that for ls-remote and clone, which is all Infrahub
+# does with a read-only repository. The TLS material comes from a Secret named
+# "${name}-tls", issued by a CA the test generates.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${name}-nginx
+data:
+  nginx.conf: |
+    worker_processes 1;
+    error_log /dev/stderr info;
+    events {
+      worker_connections 128;
+    }
+    http {
+      access_log /dev/stdout combined;
+      server {
+        listen 8443 ssl;
+        ssl_certificate     /etc/nginx/tls/tls.crt;
+        ssl_certificate_key /etc/nginx/tls/tls.key;
+        root /srv/git;
+        location / {
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${name}
+  labels:
+    app: ${name}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${name}
+  template:
+    metadata:
+      labels:
+        app: ${name}
+    spec:
+      initContainers:
+        # Build a bare repository with a single commit and lay out the files the
+        # dumb HTTP protocol reads (info/refs, objects/info/packs).
+        - name: seed-repository
+          image: ${image}
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              git init -q -b main /tmp/seed
+              cd /tmp/seed
+              printf '%s\n' '# Repository served over HTTPS by a private CA' > README.md
+              printf '%s\n' '---' '# No objects to import: the test proves the clone succeeded.' > .infrahub.yml
+              git add -A
+              git commit -qm 'initial commit'
+              git clone -q --bare /tmp/seed /srv/git/demo.git
+              git -C /srv/git/demo.git repack -a -d -q
+              git -C /srv/git/demo.git update-server-info
+          volumeMounts:
+            - name: repositories
+              mountPath: /srv/git
+      containers:
+        - name: nginx
+          image: nginx:1.29-alpine
+          ports:
+            - containerPort: 8443
+              name: https
+          readinessProbe:
+            # Serving the ref advertisement means the repository was seeded and
+            # TLS is up, which is exactly what a git client asks for first.
+            httpGet:
+              path: /demo.git/info/refs
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 60
+          volumeMounts:
+            - name: repositories
+              mountPath: /srv/git
+              readOnly: true
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tls
+              mountPath: /etc/nginx/tls
+              readOnly: true
+      volumes:
+        - name: repositories
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: ${name}-nginx
+        - name: tls
+          secret:
+            secretName: ${name}-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${name}
+  labels:
+    app: ${name}
+spec:
+  selector:
+    app: ${name}
+  ports:
+    # Port 443 so the repository URL Infrahub is given needs no port suffix.
+    - name: https
+      port: 443
+      targetPort: 8443
