@@ -1,0 +1,27 @@
+charts/infrahub-enterprise/changelog/+infrahub-4.33.5.fixed.md
+  s_ab8c8140e829f0::t_96fcf8c17d6dcd 1
+charts/infrahub-enterprise/Chart.yaml
+  s_ab8c8140e829f0::t_84528ed35255db 21,30
+charts/infrahub-enterprise/README.md
+  s_ab8c8140e829f0::t_9e3509214c7720 74
+charts/infrahub/Chart.yaml
+  s_ab8c8140e829f0::t_e9bbf311ccac05 21
+charts/infrahub/README.md
+  s_ab8c8140e829f0::t_5162f5eee5cebf 214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f3271540b3bea3d8a1caa7d255de3d908e14dfe",
+  "prompts": {},
+  "sessions": {
+    "s_ab8c8140e829f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e7ffad8-5b91-4efe-ac89-8f92464116e9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon AURA--SCUSSEL <simon@opsmill.com>"
+    }
+  }
+}
