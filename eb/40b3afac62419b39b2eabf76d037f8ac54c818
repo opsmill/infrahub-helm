@@ -1,0 +1,57 @@
+charts/infrahub-enterprise/CHANGELOG.md
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-16
+charts/infrahub-enterprise/README.md
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 57-69
+charts/infrahub/Chart.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 21,26
+charts/infrahub-enterprise/Chart.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 21,26,30
+charts/infrahub-enterprise/values.large-data.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 7-9,12-14,28
+charts/infrahub-enterprise/values.large.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 7-9,12-14,28
+charts/infrahub-enterprise/values.small.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 7-9,12-14,28
+charts/infrahub-enterprise/README.md.gotmpl
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 56-68
+tests/e2e/fixtures/helm/openshift-scc-simulation.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-50
+tests/e2e/fixtures/helm/upstream-e2e-values.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-27
+charts/infrahub/values.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 418
+tests/e2e/test_infrahub_upstream_playwright.py
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-319
+charts/infrahub-enterprise/values.medium-data.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 7-9,12-14,28
+charts/infrahub-enterprise/values.medium.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 7-9,12-14,28
+tests/README.md
+  s_ab8c8140e829f0::t_ff120b49c8c5d1 42-43,46-49,57-69
+  s_ab8c8140e829f0::t_e8176ad20e9fa7 52-56
+  s_ab8c8140e829f0::t_ad5e880f63a7d0 71-75
+  s_ab8c8140e829f0::t_195b76a40822c4 76
+  s_ab8c8140e829f0::t_b14fc7ba278394 70
+charts/infrahub-enterprise/values.openshift.yaml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-136
+.github/workflows/changelog-check.yml
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-119
+tests/e2e/test_infrahub_enterprise_openshift.py
+  s_ab8c8140e829f0::t_54c2c0c43a66c6 1-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb40b3afac62419b39b2eabf76d037f8ac54c818",
+  "prompts": {},
+  "sessions": {
+    "s_ab8c8140e829f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e7ffad8-5b91-4efe-ac89-8f92464116e9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon AURA--SCUSSEL <simon@opsmill.com>"
+    }
+  }
+}
