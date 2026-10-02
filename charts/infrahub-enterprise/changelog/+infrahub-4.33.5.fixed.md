@@ -1,1 +1,0 @@
-Bumped the bundled `infrahub` dependency to `4.33.5`, whose upgrade job now mounts the server's `extraVolumes` and `extraVolumeMounts`. With `infrahub.upgrade.enabled`, a setting that points to a file mounted this way, such as a private CA bundle, no longer makes the upgrade job fail at startup.

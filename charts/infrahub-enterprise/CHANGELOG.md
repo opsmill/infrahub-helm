@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.21.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.21.2) - 2026-10-02
+
+### Fixed
+
+- Bumped the bundled `infrahub` dependency to `4.33.5`, whose upgrade job now mounts the server's `extraVolumes` and `extraVolumeMounts`. With `infrahub.upgrade.enabled`, a setting that points to a file mounted this way, such as a private CA bundle, no longer makes the upgrade job fail at startup.
+
 ## [infrahub-enterprise-4.21.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.21.0) - 2026-09-30
 
 ### Changed
