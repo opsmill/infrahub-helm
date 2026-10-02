@@ -338,9 +338,9 @@ infrahubServer:
       timeoutSeconds: 5
     # -- Whether to allocate a TTY for the API server container
     tty: false
-    # -- Extra volumes for the server pod
+    # -- Extra volumes for the server pod, also added to the upgrade job
     extraVolumes: []
-    # -- Extra volumeMounts for the server pod
+    # -- Extra volumeMounts for the server pod, also added to the upgrade job
     extraVolumeMounts: []
 
 
