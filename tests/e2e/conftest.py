@@ -736,21 +736,23 @@ async def infrahub_custom_ca_k8s(
     )
     await ca_bundle.create()
 
+    values_files = [
+        FIXTURES_DIR / "infrahub-values.yaml",
+        FIXTURES_DIR / "infrahub-custom-ca-values.yaml",
+    ]
+    sets = {
+        "global.infrahubRepository": repository,
+        "global.infrahubTag": tag,
+        "infrahubServer.infrahubServer.imageRegistry": registry,
+        "infrahubTaskWorker.infrahubTaskWorker.imageRegistry": registry,
+    }
     helm_install(
         release="infrahub",
         chart_path=staged_charts["infrahub"],
         namespace=namespace,
         kubeconfig=kubeconfig,
-        values_files=[
-            FIXTURES_DIR / "infrahub-values.yaml",
-            FIXTURES_DIR / "infrahub-custom-ca-values.yaml",
-        ],
-        sets={
-            "global.infrahubRepository": repository,
-            "global.infrahubTag": tag,
-            "infrahubServer.infrahubServer.imageRegistry": registry,
-            "infrahubTaskWorker.infrahubTaskWorker.imageRegistry": registry,
-        },
+        values_files=values_files,
+        sets=sets,
     )
 
     # A healthy /api/config only means the web app is up. The task worker writes
@@ -774,4 +776,9 @@ async def infrahub_custom_ca_k8s(
         "ca_bundle_path": CA_BUNDLE_PATH,
         "trusted_repository_url": f"https://{TRUSTED_GIT_SERVER}/demo.git",
         "untrusted_repository_url": f"https://{UNTRUSTED_GIT_SERVER}/demo.git",
+        # How the release was installed, so a test can upgrade it in place.
+        "release": "infrahub",
+        "chart_path": staged_charts["infrahub"],
+        "values_files": values_files,
+        "sets": sets,
     }

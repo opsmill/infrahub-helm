@@ -17,7 +17,7 @@ recipe from the "Trust a private CA" guide. Set ``INFRAHUB_SOURCE_DIR`` to a
 local infrahub checkout to skip the clone, or ``INFRAHUB_CUSTOM_IMAGE`` to a
 reference to skip the build entirely.
 
-What it proves, in three parts:
+What it proves, in four parts:
 
 - the task worker's global git config carries the bundle, so every HTTPS remote
   is verified against it (this is the part the pull request adds; before it, git
@@ -26,7 +26,10 @@ What it proves, in three parts:
 - a repository on a server signed by a *different* private CA is rejected. That
   control is what makes the first result mean something: verification is still
   on, and the bundle — not a disabled check and not the system store — is what
-  let the first repository through.
+  let the first repository through;
+- a ``helm upgrade`` with the upgrade job enabled completes, so the job sees the
+  bundle the server mounts (the job reuses the server's environment, and
+  Infrahub refuses to start when the bundle path is missing).
 """
 
 import asyncio
@@ -180,4 +183,48 @@ async def test_repository_behind_an_untrusted_ca_is_rejected(infrahub_custom_ca_
     # thing, so match the part they share rather than one build's message.
     assert "verification failed" in str(exc_info.value).lower(), (
         f"expected a certificate verification failure, got: {exc_info.value}"
+    )
+
+
+def test_upgrade_job_trusts_the_ca_bundle(infrahub_custom_ca_k8s):
+    """`helm upgrade` with the upgrade job on runs `infrahub upgrade` to completion.
+
+    The upgrade job takes the server's environment, so it is handed
+    `INFRAHUB_TLS_CA_BUNDLE` too, and Infrahub checks at startup that the file
+    exists. The job only finds it when the chart also gives it the server's
+    `extraVolumes` (opsmill/infrahub-helm#97); without them it stops before doing
+    anything, with "must be the path to an existing file or PEM text", and the
+    upgrade fails.
+    """
+    infrahub = infrahub_custom_ca_k8s
+    target = ["--kubeconfig", infrahub["kubeconfig_path"], "-n", infrahub["namespace"]]
+    command = ["helm", "upgrade", infrahub["release"], str(infrahub["chart_path"]), *target, "--timeout", "10m"]
+    for values_file in infrahub["values_files"]:
+        command.extend(["-f", str(values_file)])
+    for key, value in {**infrahub["sets"], "upgrade.enabled": "true"}.items():
+        command.extend(["--set", f"{key}={value}"])
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+
+    # The hook deletes the job only when it succeeds, so a failed one still has its logs.
+    if result.returncode != 0:
+        logs = subprocess.run(
+            ["kubectl", *target, "logs", "-l", "service=infrahub-upgrade", "--tail", "20"],
+            capture_output=True, text=True, check=False,
+        )
+        pytest.fail(
+            f"helm upgrade failed:\n{result.stderr.strip()}\n"
+            f"upgrade job logs:\n{logs.stdout.strip() or logs.stderr.strip()}"
+        )
+
+    # A successful hook leaves no job behind; its completion event shows it ran.
+    completed = subprocess.run(
+        [
+            "kubectl", *target, "get", "events",
+            "--field-selector", "involvedObject.kind=Job,reason=Completed",
+            "-o", "jsonpath={.items[*].involvedObject.name}",
+        ],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    assert any(name.endswith("-infrahub-upgrade") for name in completed), (
+        f"no completed upgrade job among the namespace's Job events: {completed}"
     )

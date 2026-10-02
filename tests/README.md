@@ -73,7 +73,9 @@ over HTTPS by a private CA, using the Helm form of the
 [Trust a private CA](https://docs.infrahub.app/deploy-manage/install-configure/production-deployment/private-ca)
 guide: the bundle mounted through `extraVolumes`/`extraVolumeMounts` and
 `INFRAHUB_TLS_CA_BUNDLE`. A second repository behind a CA that is *not* in the
-bundle must be rejected.
+bundle must be rejected. Last, it runs a `helm upgrade` with `upgrade.enabled`,
+which only passes when the upgrade job gets the server's `extraVolumes` too
+([#97](https://github.com/opsmill/infrahub-helm/pull/97)).
 
 `test_git_custom_ca.py` needs an Infrahub image carrying
 [opsmill/infrahub#10487](https://github.com/opsmill/infrahub/pull/10487), which
