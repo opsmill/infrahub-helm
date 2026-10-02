@@ -4,8 +4,14 @@ configPreset: large
 infrahub:
   infrahubServer:
     replicas: 4
+    resources:
+      requests:
+        cpu: "1"
   infrahubTaskWorker:
     replicas: 8
+    resources:
+      requests:
+        cpu: "1"
     infrahubTaskWorker:
       env:
         INFRAHUB_PAGINATION_SIZE: "1000"
@@ -19,6 +25,7 @@ infrahub:
       server.memory.heap.initial_size: "31G"
       server.memory.heap.max_size: "31G"
       server.memory.pagecache.size: "16G"
+      server.cypher.parallel.worker_limit: "16"
   redis:
     master:
       resourcesPreset: "large"

@@ -1,0 +1,50 @@
+# Emulates what OpenShift's `restricted-v2` SCC injects into every pod it
+# admits: an arbitrary uid from the range allocated to the namespace, primary
+# gid 0, and fsGroup set to the same uid. A vcluster has no SCC, so without this
+# the pods fall back to the uid baked into each image (root for the Neo4j and
+# Bitnami images) — a configuration that never occurs on OpenShift.
+#
+# Layered after values.openshift.yaml, which cleared the pinned ids this puts
+# back; the ids here stand in for the ones OpenShift would assign.
+infrahub:
+  infrahubServer:
+    podSecurityContext: &scc
+      runAsUser: 1000670000
+      runAsGroup: 0
+      fsGroup: 1000670000
+  infrahubTaskWorker:
+    podSecurityContext: *scc
+  neo4j:
+    securityContext: *scc
+  prefect-server:
+    server:
+      podSecurityContext: *scc
+    postgresql:
+      primary:
+        podSecurityContext:
+          enabled: true
+          fsGroup: 1000670000
+        containerSecurityContext:
+          enabled: true
+          runAsUser: 1000670000
+          runAsGroup: 0
+          runAsNonRoot: true
+  redis:
+    master:
+      podSecurityContext:
+        enabled: true
+        fsGroup: 1000670000
+      containerSecurityContext:
+        enabled: true
+        runAsUser: 1000670000
+        runAsGroup: 0
+        runAsNonRoot: true
+  rabbitmq:
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1000670000
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1000670000
+      runAsGroup: 0
+      runAsNonRoot: true

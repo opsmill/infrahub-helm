@@ -39,20 +39,41 @@ uv run pytest -v                    tests/e2e   # everything
 Each run creates and tears down its own vcluster. On failure the suite dumps
 pod status and recent container logs for every namespace it deployed into.
 
-## Manual tests
-
-Modules marked `manual` are never collected by CI, which only ever selects the
-per-chart markers. Run them on demand:
+Modules marked `manual` are never collected by CI (which selects chart markers)
+and are run on demand by path:
 
 ```bash
-uv run pytest -v -m manual tests/e2e/test_tracing_optout.py
-uv run pytest -v -m manual tests/e2e/test_git_custom_ca.py
+uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                  # tracing env opt-out
+uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py   # OpenShift overlay
+uv run pytest -v -s -m manual tests/e2e/test_infrahub_upstream_playwright.py # upstream UI suite
+uv run pytest -v -m manual tests/e2e/test_git_custom_ca.py                   # git behind a private CA
 ```
 
-| Module | What it checks |
-|--------|----------------|
-| `test_tracing_optout.py` | Enabling `infrahub-observability` for only the Prefect exporter injects no `INFRAHUB_TRACE_*` env vars, while the bundled-Tempo and external-collector paths still do. Only rendered objects are inspected, so it needs no running pods. |
-| `test_git_custom_ca.py` | Infrahub imports a git repository served over HTTPS by a private CA, using the Helm form of the [Trust a private CA](https://docs.infrahub.app/deploy-manage/install-configure/production-deployment/private-ca) guide: the bundle mounted through `extraVolumes`/`extraVolumeMounts` and `INFRAHUB_TLS_CA_BUNDLE`. A second repository behind a CA that is *not* in the bundle must be rejected. |
+`test_tracing_optout.py` checks that enabling `infrahub-observability` for only
+the Prefect exporter injects no `INFRAHUB_TRACE_*` env vars, while the
+bundled-Tempo and external-collector paths still do. Only rendered objects are
+inspected, so it needs no running pods.
+
+`test_infrahub_upstream_playwright.py` runs [Infrahub's own pytest-playwright
+suite](https://github.com/opsmill/infrahub/tree/stable/tests/e2e) against a
+Helm-deployed Infrahub Enterprise instead of the testcontainers stack it boots
+by default, on the OpenShift overlay's configuration. It clones the upstream
+repository into `.cache/upstream-infrahub`, installs its environment and a
+Chromium build, and points it at the deployment with `INFRAHUB_ADDRESS`; the
+chart's demo-data Job supplies the dataset the suite's own fixtures would
+otherwise load. `INFRAHUB_E2E_REF` picks the upstream ref — it defaults to
+`infrahub-v<appVersion>`, the release the chart deploys, since the suite tracks
+the UI and `stable` runs ahead of the released image between releases.
+`INFRAHUB_E2E_SRC` reuses an existing prepared checkout and `INFRAHUB_E2E_TESTS`
+narrows the run to a subset. It needs `uv` and enough disk for the checkout and
+browser.
+
+`test_git_custom_ca.py` checks that Infrahub imports a git repository served
+over HTTPS by a private CA, using the Helm form of the
+[Trust a private CA](https://docs.infrahub.app/deploy-manage/install-configure/production-deployment/private-ca)
+guide: the bundle mounted through `extraVolumes`/`extraVolumeMounts` and
+`INFRAHUB_TLS_CA_BUNDLE`. A second repository behind a CA that is *not* in the
+bundle must be rejected.
 
 `test_git_custom_ca.py` needs an Infrahub image carrying
 [opsmill/infrahub#10487](https://github.com/opsmill/infrahub/pull/10487), which

@@ -1,3 +1,19 @@
+## [infrahub-enterprise-4.21.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.21.0) - 2026-09-30
+
+### Changed
+
+- The `small`, `medium`, `medium-data`, `large` and `large-data` config presets now request 1 CPU for each Infrahub server and task worker pod. Without a request, those pods could get almost no CPU when their node was busy: Neo4j runs without a CPU limit, so a large merge or diff could take all the CPU left on the node and starve the server and task workers, stalling the web UI and the task pipeline and slowing the merge itself. The request guarantees each pod its share when the node is contended, and lets the scheduler place the pods only on nodes with room for them. It sets no limit, so nothing is throttled. The presets now reserve 3 (`small`), 6 (`medium`), 4 (`medium-data`), 12 (`large`) or 6 (`large-data`) more CPUs, which the cluster must be able to schedule. Override `infrahub.infrahubServer.resources` or `infrahub.infrahubTaskWorker.resources` to change them.
+
+## [infrahub-enterprise-4.20.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.20.0) - 2026-09-30
+
+### Added
+
+- Added `values.openshift.yaml`, an overlay that makes the chart deployable under OpenShift's `restricted-v2` SCC. It clears every hard-coded uid/gid the SCC refuses to admit — Infrahub's server, task worker, demo-data job and Emma (1000), Prefect's server and background services (1000/1001), Neo4j (7474), and the Bitnami Redis, RabbitMQ and PostgreSQL sub-charts (1001) — so the SCC assigns them from the namespace's allocated range instead. Clearing the ids is not sufficient on its own: the Infrahub image owns `/prom_shared` and `/opt/infrahub/git` as uid 1000 with mode 0755, so an arbitrary uid cannot write to either, and the overlay redirects both onto writable storage. Layer it after a config preset, for example `helm install ... -f values.medium.yaml -f values.openshift.yaml`. It must be passed as a values file: `--set <key>=null` is ignored by Helm 3, and overriding a security context with `{}` leaves the defaults in place because Helm merges maps.
+
+### Fixed
+
+- Pinned the Cypher parallel runtime's worker count in the `small`, `medium`, `medium-data`, `large` and `large-data` config presets. The presets set no CPU limit on Neo4j, so the JVM reports every logical processor on the node as available, and Neo4j sizes its parallel runtime from that count: `server.cypher.parallel.worker_limit` defaults to `0`, which starts one worker per available processor. On a large node Neo4j started far more parallel runtime workers than the preset's CPU request covered, oversubscribing the CPU the preset was sized for. The presets now set `server.cypher.parallel.worker_limit` to the preset's CPU request (4, 8 or 16). Neo4j still runs without resource limits: the worker limit bounds the parallel runtime and `server.memory.*` bounds the heap and page cache. Override `infrahub.neo4j.config.server.cypher.parallel.worker_limit` to resize the worker pool, for example after raising `infrahub.neo4j.neo4j.resources.requests.cpu`.
+
 ## [infrahub-enterprise-4.19.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.19.0) - 2026-08-19
 
 ### Changed

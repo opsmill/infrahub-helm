@@ -53,6 +53,19 @@ helm delete infrahub
 
 The chart offers the ability to configure persistence for the database and other components. Check the `persistence` section of each component in `values.yaml` for more details.
 
+## OpenShift
+
+The chart pins a uid/gid on most pods (1000 for Infrahub and Prefect, 7474 for Neo4j, 1001 for the Bitnami sub-charts). OpenShift's default `restricted-v2` SCC rejects those: it assigns a uid from the range allocated to the namespace instead. `values.openshift.yaml` clears them all, and redirects the two paths the Infrahub image leaves unwritable for an arbitrary uid (`/prom_shared` and `/opt/infrahub/git`) onto storage the SCC's fsGroup makes writable. Layer it after a config preset:
+
+```sh
+helm install infrahub-enterprise path/to/infrahub-enterprise/chart \
+  -f values.medium.yaml -f values.openshift.yaml
+```
+
+Pass it as a values file. `--set <key>=null` is ignored by Helm 3, which keeps the chart default, and overriding a security context with `{}` never works on either Helm version because Helm merges maps. Helm 3 also prints a `cannot overwrite table with non table` warning for each cleared block; it is cosmetic, the block is still dropped.
+
+Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernetes does not: with the security contexts gone, every container falls back to the uid baked into its image, which for the Neo4j and Bitnami images is root, and Neo4j refuses to start.
+
 {{ template "chart.maintainersSection" . }}
 
 {{ template "chart.requirementsSection" . }}
