@@ -1,1 +1,0 @@
-The upgrade job now mounts the server's `extraVolumes` and `extraVolumeMounts`. It already reused the server's environment, so a setting that points to a mounted file, such as a CA bundle for `INFRAHUB_TLS_CA_BUNDLE` or `INFRAHUB_STORAGE_TLS_CA_FILE`, made the job fail at startup because the file was missing.
