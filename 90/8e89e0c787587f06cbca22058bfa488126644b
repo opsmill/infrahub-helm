@@ -1,0 +1,27 @@
+tests/README.md
+  s_ab8c8140e829f0::t_195b76a40822c4 77-78
+  s_ab8c8140e829f0::t_edb0bd68fc33c2 76
+tests/e2e/test_git_custom_ca.py
+  s_ab8c8140e829f0::t_e9dc7f5a8e823a 20,29-32,187-205,207-211,213-229
+  s_ab8c8140e829f0::t_f847b7ca8da1e6 206,212
+  s_ab8c8140e829f0::t_aa4971a6d8ac76 230
+tests/e2e/conftest.py
+  s_ab8c8140e829f0::t_c0c9d8e69ba683 779-783
+  s_ab8c8140e829f0::t_ff1fcf0e2b12a7 739-748,754-755
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "908e89e0c787587f06cbca22058bfa488126644b",
+  "prompts": {},
+  "sessions": {
+    "s_ab8c8140e829f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e7ffad8-5b91-4efe-ac89-8f92464116e9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon AURA--SCUSSEL <simon@opsmill.com>"
+    }
+  }
+}
