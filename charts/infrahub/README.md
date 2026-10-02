@@ -140,8 +140,8 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubServer.infrahubServer.env | object | `{"INFRAHUB_ALLOW_ANONYMOUS_ACCESS":"true","INFRAHUB_CACHE_PORT":6379,"INFRAHUB_DB_TYPE":"neo4j","INFRAHUB_GIT_REPOSITORIES_DIRECTORY":"/opt/infrahub/git","INFRAHUB_INITIAL_ADMIN_TOKEN":"06438eb2-8019-4776-878c-0941b1f1d1ec","INFRAHUB_INITIAL_AGENT_TOKEN":"44af444d-3b26-410d-9546-b758657e026c","INFRAHUB_LOG_LEVEL":"INFO","INFRAHUB_PRODUCTION":"false","INFRAHUB_SECURITY_SECRET_KEY":"327f747f-efac-42be-9e73-999f08f86b92","INFRAHUB_WORKFLOW_ADDRESS":"prefect-server","INFRAHUB_WORKFLOW_PORT":4200,"PREFECT_API_URL":"http://prefect-server:4200/api"}` | Container environment for the API server |
 | infrahubServer.infrahubServer.envFromExistingSecret | DEPRECATED | `""` | Name of an existing secret to use for environment variables. Use envFromExistingSecrets instead. @deprecated Use envFromExistingSecrets instead |
 | infrahubServer.infrahubServer.envFromExistingSecrets | list | `[]` | List of existing secrets to use for environment variables |
-| infrahubServer.infrahubServer.extraVolumeMounts | list | `[]` | Extra volumeMounts for the server pod |
-| infrahubServer.infrahubServer.extraVolumes | list | `[]` | Extra volumes for the server pod |
+| infrahubServer.infrahubServer.extraVolumeMounts | list | `[]` | Extra volumeMounts for the server pod, also added to the upgrade job |
+| infrahubServer.infrahubServer.extraVolumes | list | `[]` | Extra volumes for the server pod, also added to the upgrade job |
 | infrahubServer.infrahubServer.imagePullPolicy | string | `"Always"` | Image pull policy for the API server |
 | infrahubServer.infrahubServer.imageRegistry | string | `"registry.opsmill.io"` | Image registry to use for the API server |
 | infrahubServer.infrahubServer.livenessProbe | object | `{"failureThreshold":20,"httpGet":{"path":"/api/config","port":8000,"scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":5,"timeoutSeconds":5}` | Liveness probe to use for the API server |
