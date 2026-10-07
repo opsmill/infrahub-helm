@@ -1,0 +1,35 @@
+tests/e2e/fixtures/helm/redhat-supporting-services-values.yaml
+  s_c0e6b6e1d6dc1d::t_0d2672b3b90bbb 21-22
+  s_c0e6b6e1d6dc1d::t_1362b1749d9d16 1-20,23-41
+tests/e2e/test_infrahub_upstream_playwright.py
+  s_c0e6b6e1d6dc1d::t_66fd522665a9f1 40-43,135,248,275,286,392
+  s_c0e6b6e1d6dc1d::t_719a6a9bdd41fa 36-39,49-50,56,66
+  s_c0e6b6e1d6dc1d::t_7d0465f4369520 236-247,249-274,276-285,287-293,306-311
+  s_c0e6b6e1d6dc1d::t_cfde8e79601082 131-134,142-143
+  s_c0e6b6e1d6dc1d::t_20bffe9bcca160 312
+tests/README.md
+  s_c0e6b6e1d6dc1d::t_03720a07f822f0 71,77-82
+  s_c0e6b6e1d6dc1d::t_78e0059835db66 72-76
+tests/e2e/fixtures/helm/redhat-supporting-services.yaml
+  s_c0e6b6e1d6dc1d::t_33d1dfb05de058 33-37
+  s_c0e6b6e1d6dc1d::t_6ec4e537f0e354 21
+  s_c0e6b6e1d6dc1d::t_8bd498432ec256 1,3-4,6-8,10-12,14-16,18-20
+  s_c0e6b6e1d6dc1d::t_060953d3b5fe25 54
+  s_c0e6b6e1d6dc1d::t_245d3aedef1b9f 2,5,9,13,17,22-32,38-53,55-317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e54b94032128f0785d8f2e2c6955f682bedb4421",
+  "prompts": {},
+  "sessions": {
+    "s_c0e6b6e1d6dc1d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99ff56d7-1da6-480a-9a68-ea1878060213",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Simon AURA--SCUSSEL <simon@opsmill.com>"
+    }
+  }
+}
