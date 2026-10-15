@@ -97,7 +97,21 @@ async def infrahub_enterprise_openshift_k8s(vcluster, staged_charts, request):
         "kubeconfig_path": kubeconfig,
         "token": INFRAHUB_ADMIN_TOKEN,
         "server_label": "service=infrahub-server",
+        "worker_label": "service=infrahub-task-worker",
     }
+
+
+def _exec(infrahub: dict, label: str, *command: str) -> subprocess.CompletedProcess:
+    """Run a command in the first pod matching ``label``."""
+    base = ["kubectl", "-n", infrahub["namespace"], "--kubeconfig", infrahub["kubeconfig_path"]]
+    pods = subprocess.run(
+        [*base, "get", "pod", "-l", label, "-o", "name"],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    assert pods, f"no pod matching {label}"
+    return subprocess.run(
+        [*base, "exec", pods[0], "--", *command], capture_output=True, text=True, timeout=120
+    )
 
 
 def test_overlay_leaves_no_pinned_ids(staged_charts):
@@ -166,3 +180,49 @@ async def test_infrahub_enterprise_openshift_runs(infrahub_enterprise_openshift_
 
         seed = await seed_infrahub_data(url, token)
         await verify_infrahub_data(url, token, seed)
+
+
+@pytest.mark.parametrize("label", ["server_label", "worker_label"])
+async def test_infrahub_pods_can_write_where_they_need_to(infrahub_enterprise_openshift_k8s, label):
+    """Every location the Infrahub containers write to is writable by the assigned uid.
+
+    The image owns these as uid 1000, and the uid has no home of its own, so
+    without the overlay's volumes none of them is writable. Nothing fails
+    loudly: the task worker logs that it cannot write its git configuration and
+    Prefect warns that it cannot create its home, then both keep running.
+    """
+    infrahub = infrahub_enterprise_openshift_k8s
+    result = _exec(
+        infrahub, infrahub[label], "sh", "-c",
+        'for d in "$HOME" /prom_shared /opt/infrahub/git; do test -w "$d" || echo "$d"; done',
+    )
+    assert result.returncode == 0, result.stderr
+    assert not result.stdout.split(), f"not writable as the assigned uid: {result.stdout.split()}"
+
+
+async def test_task_worker_writes_its_git_config(infrahub_enterprise_openshift_k8s):
+    """The task worker writes its global git configuration at startup.
+
+    That file carries `http.sslCAInfo` and `http.sslVerify` from `git.tls_ca_file`
+    and `git.tls_insecure`, so a worker that cannot write it clones HTTPS remotes
+    against the system certificates only. The image already ships
+    /opt/infrahub/.gitconfig with the git user in it, so reading a key back
+    only counts when the file sits in a directory the worker can write.
+    """
+    infrahub = infrahub_enterprise_openshift_k8s
+    worker = infrahub["worker_label"]
+    result = _exec(
+        infrahub, worker, "python", "-c",
+        "from infrahub import config; config.load_and_exit();"
+        " print(config.SETTINGS.git.global_config_file)",
+    )
+    assert result.returncode == 0, f"could not resolve the git config path: {result.stderr.strip()}"
+    path = result.stdout.strip()
+
+    writable = _exec(infrahub, worker, "sh", "-c", 'test -w "$(dirname "$1")"', "sh", path)
+    assert writable.returncode == 0, f"the task worker cannot write next to {path}"
+
+    user_name = _exec(infrahub, worker, "git", "config", "--file", path, "--get", "user.name")
+    assert user_name.stdout.strip() == "Infrahub", (
+        f"the task worker did not write {path}: {user_name.stderr.strip()}"
+    )

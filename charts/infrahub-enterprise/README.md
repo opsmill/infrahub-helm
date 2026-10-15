@@ -56,7 +56,7 @@ The chart offers the ability to configure persistence for the database and other
 
 ## OpenShift
 
-The chart pins a uid/gid on most pods (1000 for Infrahub and Prefect, 7474 for Neo4j, 1001 for the Bitnami sub-charts). OpenShift's default `restricted-v2` SCC rejects those: it assigns a uid from the range allocated to the namespace instead. `values.openshift.yaml` clears them all, and redirects the two paths the Infrahub image leaves unwritable for an arbitrary uid (`/prom_shared` and `/opt/infrahub/git`) onto storage the SCC's fsGroup makes writable. Layer it after a config preset:
+The chart pins a uid/gid on most pods (1000 for Infrahub and Prefect, 7474 for Neo4j, 1001 for the Bitnami sub-charts). OpenShift's default `restricted-v2` SCC rejects those: it assigns a uid from the range allocated to the namespace instead. `values.openshift.yaml` clears them all. It also moves what the Infrahub image leaves unwritable for an arbitrary uid onto storage the SCC's fsGroup makes writable: `/prom_shared`, `/opt/infrahub/git`, and the home directory, which holds Prefect's `.prefect` directory and the global git configuration the task worker writes at startup. Without a writable git configuration, the task worker cannot apply `git.tls_ca_file` or `git.tls_insecure`, and cloning from an HTTPS remote behind a private CA fails certificate verification. Layer the overlay after a config preset:
 
 ```sh
 helm install infrahub-enterprise path/to/infrahub-enterprise/chart \

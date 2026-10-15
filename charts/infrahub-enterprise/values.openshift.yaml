@@ -26,23 +26,45 @@
 # survive.
 #
 # Clearing the uids is not enough on its own, hence the volumes below. The
-# Infrahub image owns /prom_shared and /opt/infrahub/git as uid 1000 with mode
-# 0755, so an arbitrary uid can write to neither: prometheus_client fails to
-# create its multiprocess metric files and gunicorn dies with "Worker failed to
-# boot", and the task worker cannot clone repositories. Both are redirected onto
-# storage the SCC's fsGroup makes writable - an emptyDir is no more ephemeral
-# than the container filesystem those paths live on today.
+# Infrahub image leaves three locations unwritable for an arbitrary uid:
+#
+# - /prom_shared, owned by uid 1000 with mode 0755: prometheus_client fails to
+#   create its multiprocess metric files and gunicorn dies with "Worker failed
+#   to boot".
+# - /opt/infrahub/git, same ownership: the task worker cannot clone
+#   repositories.
+# - The home directory. The uid has no /etc/passwd entry, so HOME is /, where
+#   Prefect cannot create .prefect. The task worker writes its global git
+#   configuration to /opt/infrahub/.gitconfig (`git.global_config_file`), which
+#   it cannot update: the http.sslCAInfo and http.sslVerify keys set from
+#   `git.tls_ca_file` and `git.tls_insecure` are never written, and cloning
+#   from an HTTPS remote behind a private CA fails certificate verification.
+#   The worker only logs the error at startup.
+#
+# Each is redirected onto an emptyDir, which the SCC's fsGroup makes writable -
+# no more ephemeral than the container filesystem those paths live on today.
+# PROMETHEUS_MULTIPROC_DIR must stay off /tmp: each gunicorn worker deletes the
+# entries of that directory when it starts and fails on a subdirectory, such as
+# the one Infrahub writes an inline CA bundle to.
 infrahub:
   # The pod security context here is also what the pre-upgrade Job renders.
   infrahubServer:
     podSecurityContext: null
     infrahubServer:
       env:
-        PROMETHEUS_MULTIPROC_DIR: /tmp
-      extraVolumes:
+        HOME: /home/infrahub
+      extraVolumes: &infrahubVolumes
+        - name: home
+          emptyDir: {}
+        - name: prom-shared
+          emptyDir: {}
         - name: git-repositories
           emptyDir: {}
-      extraVolumeMounts:
+      extraVolumeMounts: &infrahubVolumeMounts
+        - name: home
+          mountPath: /home/infrahub
+        - name: prom-shared
+          mountPath: /prom_shared
         - name: git-repositories
           mountPath: /opt/infrahub/git
 
@@ -50,13 +72,10 @@ infrahub:
     podSecurityContext: null
     infrahubTaskWorker:
       env:
-        PROMETHEUS_MULTIPROC_DIR: /tmp
-      extraVolumes:
-        - name: git-repositories
-          emptyDir: {}
-      extraVolumeMounts:
-        - name: git-repositories
-          mountPath: /opt/infrahub/git
+        HOME: /home/infrahub
+        INFRAHUB_GIT_GLOBAL_CONFIG_FILE: /home/infrahub/.gitconfig
+      extraVolumes: *infrahubVolumes
+      extraVolumeMounts: *infrahubVolumeMounts
 
   infrahubDemoData:
     podSecurityContext: null
@@ -76,10 +95,8 @@ infrahub:
       # `readOnlyRootFilesystem: false`, which is already the Kubernetes default.
       podSecurityContext: null
       containerSecurityContext: null
-      # Prefect runs the same Infrahub image. Its env is a list, and overriding
-      # a list would discard the tuning a config preset puts there, so
-      # /prom_shared is covered with a volume rather than the env var used for
-      # the Infrahub pods above.
+      # Prefect runs the same Infrahub image. Its chart already sets HOME to an
+      # emptyDir; /prom_shared still needs one.
       extraVolumes:
         - name: prom-shared
           emptyDir: {}
