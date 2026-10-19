@@ -44,16 +44,17 @@ spec:
               value: {{ include "infrahub-observability.prefectApiUrl" . | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.prefectExporter.logLevel | quote }}
+            {{- with .Values.prefectExporter.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           ports:
             - name: metrics
               containerPort: 8000
               protocol: TCP
+          {{- with .Values.prefectExporter.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /metrics
-              port: metrics
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.prefectExporter.resources | nindent 12 }}
       {{- with .Values.prefectExporter.nodeSelector }}

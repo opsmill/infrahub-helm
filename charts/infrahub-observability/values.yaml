@@ -246,3 +246,19 @@ prefectExporter:
   # that require a container-level securityContext (e.g. allowPrivilegeEscalation,
   # readOnlyRootFilesystem, capabilities).
   containerSecurityContext: {}
+  # -- Readiness probe for the prefect-exporter container. The exporter builds
+  # /metrics by querying the Prefect API on every request, so the response
+  # time grows with the number of flows and deployments. timeoutSeconds is set
+  # well above the Kubernetes default of 1s so the pod becomes Ready on larger
+  # instances. Set to {} to remove the probe.
+  readinessProbe:
+    httpGet:
+      path: /metrics
+      port: metrics
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  # -- Extra environment variables for the prefect-exporter container, for
+  # example the exporter's OFFSET_MINUTES or FAILED_RUNS_OFFSET_MINUTES.
+  extraEnv: []
