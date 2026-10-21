@@ -100,6 +100,9 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          # Without a pin uv picks the newest Python it can find, which may
+          # be a release that the locked dependencies have no wheels for.
+          python-version: "3.14"
 
       - name: Validate chart
         run: |
