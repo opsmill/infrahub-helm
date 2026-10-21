@@ -63,7 +63,7 @@ The chart offers the ability to configure persistence for the database and other
 | oci://registry-1.docker.io/bitnamicharts | redis | 19.5.2 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-backup | 1.3.0 |
 | oci://registry.opsmill.io/opsmill/chart | infrahub-mcp | 0.1.0 |
-| oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.2.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub-observability | 0.2.1 |
 
 ## Values
 
