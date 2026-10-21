@@ -1,3 +1,10 @@
+## [infrahub-4.34.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.34.0) - 2026-10-21
+
+### Changed
+
+- Upgraded the `infrahub-observability` subchart from 0.2.0 to 0.3.0. The prefect-exporter readiness probe can now be set with `infrahub-observability.prefectExporter.readinessProbe`, and its default timeout is 10 seconds instead of 1 second, so the prefect-exporter pod becomes Ready on instances where `/metrics` takes more than 1 second to respond. Extra environment variables for the prefect-exporter container can be set with `infrahub-observability.prefectExporter.extraEnv`.
+- Upgraded the `prefect-server` subchart from 2026.6.5172345 to 2026.10.21032730. Prefect messaging can now connect through a full Redis URL, set with `prefect-server.backgroundServices.messaging.redis.url` or read from a Secret with `existingSecret` and `existingSecretUrlKey`. The subchart passes the URL to Prefect as `PREFECT_REDIS_MESSAGING_URL` and then ignores the `host`, `port`, `db`, `username`, `password` and `ssl` settings. The subchart also turns on startup, liveness and readiness probes for the Prefect server by default: the startup and liveness probes call `/api/health` and the readiness probe calls `/api/ready`. With the default settings, Kubernetes restarts a Prefect server that does not respond within five minutes of starting, for example while it runs database migrations; raise `prefect-server.server.startupProbe.config.failureThreshold` to allow more time. The Prefect server still runs the Infrahub image set in `prefect-server.global.prefect.image`.
+
 ## [infrahub-4.33.5](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.33.5) - 2026-10-02
 
 ### Fixed
