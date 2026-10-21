@@ -71,7 +71,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.33.5 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.34.0 |
 
 ## Values
 
@@ -133,7 +133,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 | infrahub.prefect-server.migrations.enabled | bool | `false` |  |
 | infrahub.prefect-server.server.args[0] | string | `"sh"` |  |
 | infrahub.prefect-server.server.args[1] | string | `"-c"` |  |
-| infrahub.prefect-server.server.args[2] | string | `"env INFRAHUB_CACHE_ADDRESS=$PREFECT_REDIS_MESSAGING_HOST gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"` |  |
+| infrahub.prefect-server.server.args[2] | string | `"if [ -n \"$PREFECT_REDIS_MESSAGING_URL\" ]; then export INFRAHUB_CACHE_URL=\"${INFRAHUB_CACHE_URL:-$PREFECT_REDIS_MESSAGING_URL}\"; else export INFRAHUB_CACHE_ADDRESS=\"$PREFECT_REDIS_MESSAGING_HOST\"; fi; exec gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"` |  |
 | infrahub.prefect-server.server.command[0] | string | `"/usr/bin/tini"` |  |
 | infrahub.prefect-server.server.command[1] | string | `"-g"` |  |
 | infrahub.prefect-server.server.command[2] | string | `"--"` |  |
