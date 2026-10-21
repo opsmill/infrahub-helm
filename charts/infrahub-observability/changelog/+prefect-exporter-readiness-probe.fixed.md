@@ -1,1 +1,0 @@
-Added `prefectExporter.readinessProbe` and `prefectExporter.extraEnv`, and raised the default readiness probe timeout to 10 seconds, so the prefect-exporter pod becomes Ready on instances where `/metrics` takes more than 1 second to respond.
