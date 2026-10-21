@@ -1,11 +1,14 @@
 {{- define "infrahub.validateConfigPreset" -}}
 {{- if and .Values.configPreset (index .Values "infrahub" "prefect-server" "enabled") }}
-  {{- $redisHost := default "" (index .Values "infrahub" "prefect-server" "backgroundServices" "messaging" "redis" "host") }}
+  {{- $redis := index .Values "infrahub" "prefect-server" "backgroundServices" "messaging" "redis" }}
+  {{- $redisHost := default "" $redis.host }}
+  {{- /* prefect-server ignores the host when a Redis URL is set, so the example value is harmless then. */}}
+  {{- $hasRedisUrl := or $redis.url (and $redis.existingSecret $redis.existingSecretUrlKey) }}
   {{- $docketUrl := default "" (index .Values "infrahub" "prefect-server" "backgroundServices" "messaging" "docket" "url") }}
 
   {{- $errors := list }}
 
-  {{- if eq (trim $redisHost) "example-infrahub-cache-master" }}
+  {{- if and (not $hasRedisUrl) (eq (trim $redisHost) "example-infrahub-cache-master") }}
     {{- $errors = append $errors "infrahub.prefect-server.backgroundServices.messaging.redis.host still has the example value 'example-infrahub-cache-master', please set the correct hostname" }}
   {{- end }}
 

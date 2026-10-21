@@ -77,7 +77,13 @@ infrahub:
       args:
         - sh
         - -c
-        - "env INFRAHUB_CACHE_ADDRESS=$PREFECT_REDIS_MESSAGING_HOST gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'"
+        # Infrahub's startup lock uses the Redis that Prefect messaging uses. When messaging is set
+        # through a URL, the chart sets no host, so the URL is passed on unless INFRAHUB_CACHE_URL is set.
+        - >-
+          if [ -n "$PREFECT_REDIS_MESSAGING_URL" ];
+          then export INFRAHUB_CACHE_URL="${INFRAHUB_CACHE_URL:-$PREFECT_REDIS_MESSAGING_URL}";
+          else export INFRAHUB_CACHE_ADDRESS="$PREFECT_REDIS_MESSAGING_HOST"; fi;
+          exec gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:4200 'infrahub.prefect_server.app:create_infrahub_prefect()'
       env:
       - name: PREFECT_UI_SERVE_BASE
         value: /
