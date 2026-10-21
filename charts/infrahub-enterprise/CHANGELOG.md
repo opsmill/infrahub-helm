@@ -1,3 +1,18 @@
+## [infrahub-enterprise-4.22.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.22.0) - 2026-10-21
+
+### Added
+
+- The sizing presets accept a Redis URL for Prefect messaging, set with `infrahub.prefect-server.backgroundServices.messaging.redis.url` or read from a Secret with `existingSecret` and `existingSecretUrlKey`. When a URL is set, the chart no longer rejects the example value of `redis.host`, because the subchart ignores the host. The Prefect server takes a lock in Infrahub's cache when it starts, and connects to the cache through `INFRAHUB_CACHE_ADDRESS`, which the chart sets from the messaging host. With a messaging URL there is no host, so the Prefect server now sets `INFRAHUB_CACHE_URL` to the messaging URL instead, unless `INFRAHUB_CACHE_URL` is already set. This requires an Infrahub version that reads `INFRAHUB_CACHE_URL`.
+
+### Changed
+
+- Bumped the `infrahub` dependency to 4.34.0, which upgrades the `prefect-server` subchart from 2026.6.5172345 to 2026.10.21032730. The Prefect server now has startup, liveness and readiness probes by default. With the default settings, Kubernetes restarts a Prefect server that does not respond within five minutes of starting, for example while it runs database migrations; raise `infrahub.prefect-server.server.startupProbe.config.failureThreshold` to allow more time.
+- The `infrahub` 4.34.0 dependency now includes the `infrahub-observability` subchart 0.3.0. The prefect-exporter readiness probe can now be set with `infrahub.infrahub-observability.prefectExporter.readinessProbe`, and its default timeout is 10 seconds instead of 1 second, so the prefect-exporter pod becomes Ready on instances where `/metrics` takes more than 1 second to respond. Extra environment variables for the prefect-exporter container can be set with `infrahub.infrahub-observability.prefectExporter.extraEnv`.
+
+### Fixed
+
+- With `values.openshift.yaml`, the task worker can now write its global git configuration, so `git.tls_ca_file` and `git.tls_insecure` take effect and Infrahub can clone from an HTTPS remote behind a private CA. Under the uid OpenShift assigns, the worker could not update `/opt/infrahub/.gitconfig`, owned by uid 1000. It logged `could not lock config file` at startup, and git then verified HTTPS remotes against the system certificates only. Prefect also could not create its `.prefect` directory, because the home directory resolved to `/`. The overlay now sets `HOME` to `/home/infrahub` on an `emptyDir` for the Infrahub server, the task worker and the upgrade job, and points `INFRAHUB_GIT_GLOBAL_CONFIG_FILE` at `/home/infrahub/.gitconfig` for the task worker. It also replaces `PROMETHEUS_MULTIPROC_DIR=/tmp` with an `emptyDir` at `/prom_shared`. Each gunicorn worker deletes the entries of that directory when it starts, and stops the server container when it finds a subdirectory there, such as `/tmp/infrahub-tls`, where Infrahub writes a CA bundle supplied as PEM text.
+
 ## [infrahub-enterprise-4.21.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.21.2) - 2026-10-02
 
 ### Fixed
