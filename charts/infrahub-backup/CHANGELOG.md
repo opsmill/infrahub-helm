@@ -1,3 +1,9 @@
+## [infrahub-backup-1.4.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.4.0) - 2026-10-26
+
+### Changed
+
+- Bumped the `infrahub-backup` image to `2.4.0`. See the [infrahub-backup 2.4.0 release notes](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.0).
+
 ## [infrahub-backup-1.3.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.3.0) - 2026-08-05
 
 ### Added
