@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.23.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.23.0) - 2026-10-26
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.35.0`, which bumps the `infrahub-backup` subchart to `1.4.0` (image `2.4.0`). See the [infrahub-backup 2.4.0 release notes](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.0).
+
 ## [infrahub-enterprise-4.22.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.22.0) - 2026-10-21
 
 ### Added
