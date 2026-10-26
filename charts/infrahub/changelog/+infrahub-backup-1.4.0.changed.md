@@ -1,0 +1,1 @@
+Bumped the bundled `infrahub-backup` subchart to `1.4.0` (image `2.4.0`). See the [infrahub-backup 2.4.0 release notes](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.0).
