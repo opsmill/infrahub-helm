@@ -16,6 +16,7 @@ from pathlib import Path
 from string import Template
 from typing import AsyncGenerator
 
+import httpx
 import kr8s.asyncio
 import pytest
 import yaml
@@ -504,16 +505,72 @@ async def observability_k8s(
 
 
 # ---------------------------------------------------------------------------
-# Fixture: minio_k8s (in-cluster S3 backend for the backup test)
+# Fixture: s3_k8s (in-cluster S3 backend for the backup test, served by Garage)
 # ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-async def minio_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
-    """Deploy MinIO (with the backup bucket pre-created) into the namespace.
+GARAGE_ADMIN_TOKEN = "infrahub-helm-e2e-admin-token"
+GARAGE_RPC_SECRET = "a0b1c2d3e4f5061728394a5b6c7d8e9fa0b1c2d3e4f5061728394a5b6c7d8e9f"
+GARAGE_S3_PORT = 3900
+GARAGE_ADMIN_PORT = 3903
+# Garage only imports keys shaped like the ones it generates: "GK" and 24 hex
+# characters, with a 64-character hex secret. Fixed test values, not secrets.
+S3_ACCESS_KEY = "GKdeadbeefdeadbeefdeadbeef"
+S3_SECRET_KEY = "deadbeef" * 8
 
-    The bucket is created by the MinIO container command, and the credentials
-    Secret consumed by the backup/restore Jobs is created here via kr8s.
+
+async def _bootstrap_garage(admin_url: str, bucket: str) -> None:
+    """Make a fresh Garage node serve the backup bucket.
+
+    A new node stores nothing until a storage layout is applied, and the access
+    key and the bucket have to be created through the admin API.
     """
-    from kr8s.asyncio.objects import Deployment, Secret, Service
+    async with httpx.AsyncClient(
+        base_url=f"{admin_url}/v2",
+        headers={"Authorization": f"Bearer {GARAGE_ADMIN_TOKEN}"},
+        timeout=10.0,
+    ) as client:
+
+        async def call(method: str, endpoint: str, payload: dict | None = None) -> dict:
+            resp = await client.request(method, endpoint, json=payload)
+            resp.raise_for_status()
+            return resp.json() if resp.content else {}
+
+        status = await call("GET", "/GetClusterStatus")
+        node_id = status["nodes"][0]["id"]
+        await call(
+            "POST",
+            "/UpdateClusterLayout",
+            {"roles": [{"id": node_id, "zone": "e2e", "capacity": 10**9, "tags": []}]},
+        )
+        await call("POST", "/ApplyClusterLayout", {"version": status["layoutVersion"] + 1})
+
+        await call(
+            "POST",
+            "/ImportKey",
+            {"accessKeyId": S3_ACCESS_KEY, "secretAccessKey": S3_SECRET_KEY, "name": "e2e"},
+        )
+        created = await call("POST", "/CreateBucket", {"globalAlias": bucket})
+        await call(
+            "POST",
+            "/AllowBucketKey",
+            {
+                "bucketId": created["id"],
+                "accessKeyId": S3_ACCESS_KEY,
+                "permissions": {"read": True, "write": True, "owner": True},
+            },
+        )
+
+    # The admin API reports healthy only once the layout is applied.
+    await wait_for_http(f"{admin_url}/health", timeout=60.0, interval=1.0)
+
+
+@pytest.fixture(scope="session")
+async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
+    """Deploy a single-node Garage that serves the backup bucket into the namespace.
+
+    Garage creates the bucket and the access key through its admin API, and the
+    credentials Secret consumed by the backup/restore Jobs is created here via kr8s.
+    """
+    from kr8s.asyncio.objects import ConfigMap, Deployment, Secret, Service
 
     kubeconfig = infrahub_k8s["kubeconfig_path"]
     namespace = infrahub_k8s["namespace"]
@@ -521,24 +578,31 @@ async def minio_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
 
     api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
 
-    # MinIO Deployment + Service from the manifest fixture.
-    manifests = list(yaml.safe_load_all((FIXTURES_DIR / "minio.yaml").read_text()))
-    objects = {"Deployment": Deployment, "Service": Service}
+    # Garage ConfigMap + Deployment + Service from the manifest fixture.
+    template = Template((FIXTURES_DIR / "garage.yaml").read_text())
+    manifests = yaml.safe_load_all(
+        template.substitute(rpc_secret=GARAGE_RPC_SECRET, admin_token=GARAGE_ADMIN_TOKEN)
+    )
+    kinds = {"ConfigMap": ConfigMap, "Deployment": Deployment, "Service": Service}
     deployment = None
     for manifest in manifests:
+        if not manifest:
+            continue
         manifest.setdefault("metadata", {})["namespace"] = namespace
-        obj = objects[manifest["kind"]](manifest, namespace=namespace, api=api)
+        obj = kinds[manifest["kind"]](manifest, namespace=namespace, api=api)
         await obj.create()
         if manifest["kind"] == "Deployment":
             deployment = obj
 
+    assert deployment is not None, "garage.yaml declares no Deployment"
+
     # Credentials Secret consumed by the backup/restore Jobs.
     secret = Secret(
         {
-            "metadata": {"name": "minio-creds", "namespace": namespace},
+            "metadata": {"name": "garage-credentials", "namespace": namespace},
             "stringData": {
-                "AWS_ACCESS_KEY_ID": "minioadmin",
-                "AWS_SECRET_ACCESS_KEY": "minioadmin",
+                "AWS_ACCESS_KEY_ID": S3_ACCESS_KEY,
+                "AWS_SECRET_ACCESS_KEY": S3_SECRET_KEY,
             },
         },
         namespace=namespace,
@@ -548,13 +612,21 @@ async def minio_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
 
     await deployment.wait("condition=Available", timeout=300)
 
+    async with portforward_service(
+        kubeconfig, namespace, GARAGE_ADMIN_PORT, name="garage"
+    ) as admin_url:
+        await _bootstrap_garage(admin_url, bucket)
+
     yield {
         "namespace": namespace,
         "kubeconfig_path": kubeconfig,
         "bucket": bucket,
-        "endpoint": "http://minio:9000",
-        "secret_name": "minio-creds",
-        "service_name": "minio",
+        "endpoint": f"http://garage:{GARAGE_S3_PORT}",
+        "port": GARAGE_S3_PORT,
+        "access_key": S3_ACCESS_KEY,
+        "secret_key": S3_SECRET_KEY,
+        "secret_name": "garage-credentials",
+        "service_name": "garage",
     }
 
 

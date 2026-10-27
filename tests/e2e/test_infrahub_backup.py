@@ -1,7 +1,7 @@
 """E2E: deploy infrahub-backup against a running Infrahub and prove a backup
 restores correctly.
 
-Flow: seed a tag -> run the backup Job (S3/MinIO) -> delete the tag ->
+Flow: seed a tag -> run the backup Job (S3, served by Garage) -> delete the tag ->
 run the restore Job -> assert the tag is back -> delete the tag again ->
 trigger the restore CronJob -> assert the tag is back again.
 """
@@ -27,32 +27,33 @@ from tests.helpers.utils import (
 pytestmark = [pytest.mark.e2e, pytest.mark.k8s, pytest.mark.backup]
 
 
-def _latest_backup_key(minio_url: str, bucket: str) -> str:
+def _latest_backup_key(s3_url: str, s3: dict) -> str:
     """List the backup bucket (blocking boto3) and return the newest artifact.
 
     Run via asyncio.to_thread so it does not block the event loop that drives
-    the kr8s port-forward to MinIO.
+    the kr8s port-forward to the S3 server.
     """
-    s3 = boto3.client(
+    bucket = s3["bucket"]
+    client = boto3.client(
         "s3",
-        endpoint_url=minio_url,
-        aws_access_key_id="minioadmin",
-        aws_secret_access_key="minioadmin",
+        endpoint_url=s3_url,
+        aws_access_key_id=s3["access_key"],
+        aws_secret_access_key=s3["secret_key"],
         region_name="us-east-1",
     )
-    objects = s3.list_objects_v2(Bucket=bucket).get("Contents", [])
+    objects = client.list_objects_v2(Bucket=bucket).get("Contents", [])
     keys = sorted(obj["Key"] for obj in objects if obj["Key"].endswith(".tar.gz"))
     if not keys:
         raise AssertionError(f"No backup artifact found in s3://{bucket}")
     return keys[-1]
 
 
-async def test_backup_restore(infrahub_k8s, minio_k8s):
+async def test_backup_restore(infrahub_k8s, s3_k8s):
     """A backup taken via the chart restores the seeded data."""
     kubeconfig = infrahub_k8s["kubeconfig_path"]
     namespace = infrahub_k8s["namespace"]
     token = infrahub_k8s["token"]
-    bucket = minio_k8s["bucket"]
+    bucket = s3_k8s["bucket"]
     chart = CHARTS_DIR / "infrahub-backup"
 
     common_s3 = {"image.pullPolicy": "IfNotPresent"}
@@ -77,20 +78,20 @@ async def test_backup_restore(infrahub_k8s, minio_k8s):
             "backup.options.force": "true",
             "backup.storage.type": "s3",
             "backup.storage.s3.bucket": bucket,
-            "backup.storage.s3.endpoint": minio_k8s["endpoint"],
+            "backup.storage.s3.endpoint": s3_k8s["endpoint"],
             "backup.storage.s3.region": "us-east-1",
-            "backup.storage.s3.secretName": minio_k8s["secret_name"],
+            "backup.storage.s3.secretName": s3_k8s["secret_name"],
         },
         timeout="10m",
     )
     await wait_for_job(kubeconfig, namespace, "ihb-backup-infrahub-backup")
 
-    # 3. Locate the artifact written to MinIO (boto3 is blocking, so run it off
-    # the event loop that's pumping the port-forward).
+    # 3. Locate the artifact written to the bucket (boto3 is blocking, so run it
+    # off the event loop that's pumping the port-forward).
     async with portforward_service(
-        kubeconfig, namespace, 9000, name=minio_k8s["service_name"]
-    ) as minio_url:
-        backup_key = await asyncio.to_thread(_latest_backup_key, minio_url, bucket)
+        kubeconfig, namespace, s3_k8s["port"], name=s3_k8s["service_name"]
+    ) as s3_url:
+        backup_key = await asyncio.to_thread(_latest_backup_key, s3_url, s3_k8s)
 
     # 4. Delete the tag so the restore has something to prove.
     async with portforward_service(
@@ -111,9 +112,9 @@ async def test_backup_restore(infrahub_k8s, minio_k8s):
             "restore.storage.type": "s3",
             "restore.storage.s3.bucket": bucket,
             "restore.storage.s3.key": backup_key,
-            "restore.storage.s3.endpoint": minio_k8s["endpoint"],
+            "restore.storage.s3.endpoint": s3_k8s["endpoint"],
             "restore.storage.s3.region": "us-east-1",
-            "restore.storage.s3.secretName": minio_k8s["secret_name"],
+            "restore.storage.s3.secretName": s3_k8s["secret_name"],
         },
         timeout="10m",
     )
@@ -148,9 +149,9 @@ async def test_backup_restore(infrahub_k8s, minio_k8s):
             "restore.storage.type": "s3",
             "restore.storage.s3.bucket": bucket,
             "restore.storage.s3.latest": "true",
-            "restore.storage.s3.endpoint": minio_k8s["endpoint"],
+            "restore.storage.s3.endpoint": s3_k8s["endpoint"],
             "restore.storage.s3.region": "us-east-1",
-            "restore.storage.s3.secretName": minio_k8s["secret_name"],
+            "restore.storage.s3.secretName": s3_k8s["secret_name"],
         },
         timeout="10m",
     )
