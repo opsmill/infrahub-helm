@@ -1,0 +1,36 @@
+charts/infrahub/changelog/+task-manager-retention.added.md
+  s_cfd0841cea4d76::t_af8cf604613c07 1
+charts/infrahub-enterprise/values.small.yaml
+  s_cfd0841cea4d76::t_8991c674d3265f 65
+charts/infrahub/README.md
+  s_cfd0841cea4d76::t_59fd24ff03a4e6 214
+charts/infrahub-enterprise/values.large-data.yaml
+  s_cfd0841cea4d76::t_56f738c38d5cb5 65
+charts/infrahub-enterprise/values.large.yaml
+  s_cfd0841cea4d76::t_749c65c52576ef 65
+charts/infrahub/values.yaml
+  s_cfd0841cea4d76::t_9a4ecb4ca9fa38 419-421,424-440
+  s_cfd0841cea4d76::t_45eb5185f80388 422-423
+charts/infrahub-enterprise/values.medium-data.yaml
+  s_cfd0841cea4d76::t_90d11c729e66a5 65
+charts/infrahub-enterprise/values.medium.yaml
+  s_cfd0841cea4d76::t_299f4b48841d1d 65
+charts/infrahub-enterprise/changelog/+background-services-retention.changed.md
+  s_cfd0841cea4d76::t_63cac433505d86 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "472f1264c2ae5195c78a14d0c85cf546e501ccdc",
+  "prompts": {},
+  "sessions": {
+    "s_cfd0841cea4d76": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9acd83a-988e-4ad7-b6b4-f8da4ae196af",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
