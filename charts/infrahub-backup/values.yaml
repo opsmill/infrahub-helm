@@ -37,7 +37,7 @@ backup:
       bucket: ""
       # -- S3 key prefix for backup artifacts
       prefix: ""
-      # -- S3 endpoint URL (for non-AWS S3-compatible storage like MinIO)
+      # -- S3 endpoint URL (for S3-compatible storage other than AWS S3)
       endpoint: ""
       # -- S3 region
       region: "us-east-1"
