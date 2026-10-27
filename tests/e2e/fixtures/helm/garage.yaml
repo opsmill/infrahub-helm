@@ -1,0 +1,104 @@
+# In-cluster Garage used as the S3 backend for the infrahub-backup e2e test.
+# A throwaway single-node instance that only lives for the duration of the
+# test vcluster.
+#
+# Rendered with string.Template, so every value below is fixed except
+# ${rpc_secret} and ${admin_token}, which come from the s3_k8s fixture in
+# tests/e2e/conftest.py. The fixture also uses the admin token to apply the
+# storage layout and create the bucket and access key once the pod is ready.
+# Every other dollar sign has to be escaped, so the file deliberately uses none.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage
+  labels:
+    app: garage
+data:
+  garage.toml: |
+    metadata_dir = "/var/lib/garage/meta"
+    data_dir = "/var/lib/garage/data"
+    db_engine = "sqlite"
+
+    # Single node, so one copy of every block is all there is.
+    replication_factor = 1
+
+    rpc_bind_addr = "[::]:3901"
+    rpc_public_addr = "127.0.0.1:3901"
+
+    [s3_api]
+    # The region the backup and restore Jobs sign requests for.
+    s3_region = "us-east-1"
+    api_bind_addr = "[::]:3900"
+
+    [admin]
+    api_bind_addr = "[::]:3903"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garage
+  labels:
+    app: garage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: garage
+  template:
+    metadata:
+      labels:
+        app: garage
+    spec:
+      containers:
+        - name: garage
+          image: dxflrs/garage:v2.4.1
+          env:
+            - name: GARAGE_RPC_SECRET
+              value: "${rpc_secret}"
+            - name: GARAGE_ADMIN_TOKEN
+              value: "${admin_token}"
+          ports:
+            - containerPort: 3900
+              name: s3
+            - containerPort: 3903
+              name: admin
+          # The admin API's /health returns 503 until the storage layout is
+          # applied. The fixture applies it through a port-forward, which only
+          # reaches a ready pod, so readiness waits for the admin port alone.
+          readinessProbe:
+            tcpSocket:
+              port: 3903
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            failureThreshold: 60
+          volumeMounts:
+            - name: config
+              mountPath: /etc/garage.toml
+              subPath: garage.toml
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/garage
+      volumes:
+        - name: config
+          configMap:
+            name: garage
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage
+  labels:
+    app: garage
+spec:
+  selector:
+    app: garage
+  ports:
+    - name: s3
+      port: 3900
+      targetPort: 3900
+    - name: admin
+      port: 3903
+      targetPort: 3903

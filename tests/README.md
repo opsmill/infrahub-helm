@@ -10,7 +10,7 @@ chart changed (see `.github/workflows/ci.yml`):
 |--------------------------|-----------------|----------------|
 | `infrahub`               | `infrahub`      | Deploys the community chart; a `BuiltinTag` round-trips through the Infrahub SDK. |
 | `infrahub-enterprise`    | `enterprise`    | Same SDK check against the enterprise chart. |
-| `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to MinIO, deletes the tag, runs the restore Job, asserts the tag is back. |
+| `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. |
 | `infrahub-observability` | `observability` | Deploys Infrahub + the stack together (tracing → Tempo, Alloy scraping Infrahub), drives API traffic, then asserts via Grafana that Infrahub metrics (Prometheus) and Infrahub traces (Tempo) are queryable. |
 | `infrahub-mcp`           | `mcp`           | Deploys Infrahub with the MCP sub-chart behind a shared ingress and drives it over the streamable-HTTP transport. |
 
