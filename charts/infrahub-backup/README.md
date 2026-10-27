@@ -31,7 +31,7 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | backup.storage.path | string | `"/infrahub_backups"` | Path within the pod to store backups |
 | backup.storage.s3 | object | `{"bucket":"","endpoint":"","prefix":"","region":"us-east-1","secretName":""}` | S3 storage settings |
 | backup.storage.s3.bucket | string | `""` | S3 bucket name |
-| backup.storage.s3.endpoint | string | `""` | S3 endpoint URL (for non-AWS S3-compatible storage like MinIO) |
+| backup.storage.s3.endpoint | string | `""` | S3 endpoint URL (for S3-compatible storage other than AWS S3) |
 | backup.storage.s3.prefix | string | `""` | S3 key prefix for backup artifacts |
 | backup.storage.s3.region | string | `"us-east-1"` | S3 region |
 | backup.storage.s3.secretName | string | `""` | Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY |
