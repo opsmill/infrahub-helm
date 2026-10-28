@@ -18,18 +18,27 @@ changes. The end-to-end tests install the charts from `charts/` into a throwaway
 `tests/README.md` to run them locally. No CI job deploys the high-availability setup, see
 [Testing in the high-availability setup](#testing-in-the-high-availability-setup).
 
-## Infrahub releases publish these charts
+## When a chart is published
 
-Every final Infrahub release publishes the `infrahub` chart from `stable`, and every final Infrahub
-Enterprise release publishes the `infrahub-enterprise` chart from `stable`, so a change merged here
-ships with the next of these releases. Before an Infrahub release, its release process sets
-`appVersion`, the chart `version`, the Prefect server image tag (`prefectTag`) and the `infrahub`
-dependency of the `infrahub-enterprise` chart here on its own.
+A change merged to `stable` ships with the next release of its chart. Charts are published from
+`stable`:
+
+- By every final Infrahub release (the `infrahub` chart) and every final Infrahub Enterprise
+  release (the `infrahub-enterprise` chart).
+- When someone runs `.github/workflows/publish-helm-chart.yml` by hand to cut a release of one
+  chart at the `version` of its `Chart.yaml`.
+
+Before an Infrahub release, its release process sets `appVersion`, the chart `version`, the Prefect
+server image tag (`prefectTag`) and the `infrahub` dependency of the `infrahub-enterprise` chart
+here on its own.
 
 ## Changing a dependency chart
 
-When the version of a dependency chart changes, update the dependency table in the `README.md` of
-the chart, and add a changelog fragment in `charts/<name>/changelog/` for each chart that changes.
+When the version of a dependency chart changes, change its row in the Requirements table of the
+`README.md` of the chart. helm-docs generates this table from `Chart.yaml`, but no CI job runs
+helm-docs, so change the row by hand. Add a changelog fragment in `charts/<name>/changelog/` for
+each chart that changes, and in `charts/infrahub-enterprise/changelog/` when the change reaches the
+`infrahub-enterprise` chart through its `infrahub` dependency.
 
 ## Testing in the high-availability setup
 
