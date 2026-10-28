@@ -236,8 +236,9 @@ The chart offers the ability to configure persistence for the database and other
 | rabbitmq.auth.password | string | `"infrahub"` |  |
 | rabbitmq.auth.username | string | `"infrahub"` |  |
 | rabbitmq.enabled | bool | `true` |  |
-| rabbitmq.image.repository | string | `"bitnamilegacy/rabbitmq"` |  |
-| rabbitmq.image.tag | string | `"4.1.3-debian-12-r1"` |  |
+| rabbitmq.image.registry | string | `"registry.opsmill.io"` |  |
+| rabbitmq.image.repository | string | `"opsmill/rabbitmq"` |  |
+| rabbitmq.image.tag | string | `"4.1.3-debian-12-r1-opsmill.1"` |  |
 | rabbitmq.metrics.enabled | bool | `true` |  |
 | rabbitmq.nameOverride | string | `"message-queue"` |  |
 | rabbitmq.persistence.enabled | bool | `false` |  |
