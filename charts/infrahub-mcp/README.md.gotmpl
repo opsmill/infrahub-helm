@@ -11,24 +11,14 @@ production deployment, require each client to send its own Infrahub API token,
 block write operations, and serve the MCP server under `/mcp` on the Infrahub
 host.
 
-Create the Secret that holds the API token:
-
-```sh
-kubectl create secret generic infrahub-mcp-api-token -n infrahub \
-  --from-literal=INFRAHUB_API_TOKEN=<api-token>
-```
-
-Then install the chart with these values:
+In `token-passthrough` mode each client sends its own Infrahub API token, and the
+server calls Infrahub with that token. The chart needs no shared API token, so
+leave `infrahub.apiToken` unset. Install the chart with these values:
 
 ```yaml
 infrahub:
   # In-cluster URL of the Infrahub server: http://<infrahub-release>-infrahub-server:8000
   address: "http://infrahub-infrahub-server:8000"
-  apiToken:
-    # The server uses this token only when `mcp.authMode` is "none" or "oidc".
-    # In "token-passthrough" mode it calls Infrahub with each client's token.
-    existingSecret: infrahub-mcp-api-token
-    existingSecretKey: INFRAHUB_API_TOKEN
 
 mcp:
   # Each request must carry an Infrahub API token in the `Authorization` header.
