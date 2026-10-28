@@ -70,3 +70,11 @@ above it only after the pinned chart is released and the pin is updated.
   the Infrahub release process sets `appVersion`, the chart `version`, `prefectTag` and the
   `infrahub` dependency of `infrahub-enterprise` here. So a change to these two charts that is
   merged to `stable` ships with the next Infrahub release.
+- An infrahub-mcp release sends the `infrahub-mcp-released` event to this repository. The "Update
+  infrahub-mcp" workflow (`.github/workflows/update-infrahub-mcp.yml`) then opens a pull request
+  that sets `appVersion`, bumps the chart version and adds a fragment. Its body lists the server
+  settings the chart does not set yet, from `scripts/check_mcp_settings.py`. The CI job of the
+  chart runs the same check and fails until the settings are added. After the pull request is
+  merged, run "Publish Helm Chart" for `infrahub-mcp`. When the chart is in the registry, the
+  `repin` job of that workflow opens a second pull request that re-pins `infrahub-mcp` in
+  `infrahub`, with `scripts/bump_chart.py repin`.

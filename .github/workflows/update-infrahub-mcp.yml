@@ -1,0 +1,142 @@
+---
+# yamllint disable rule:truthy rule:line-length
+name: "Update infrahub-mcp"
+
+# Opens a pull request that moves charts/infrahub-mcp to a new infrahub-mcp
+# release: it sets appVersion, bumps the chart version and adds a news fragment
+# (scripts/bump_chart.py). The pull request body lists the server settings that
+# the chart does not set yet (scripts/check_mcp_settings.py); a person adds them
+# to the pull request before it is merged. The CI workflow runs the same check.
+#
+# opsmill/infrahub-mcp sends the `infrahub-mcp-released` repository_dispatch
+# event, with {"version": "<tag>"} as client_payload, after it publishes a
+# release and its container image. Run this workflow by hand for a release that
+# did not send the event.
+#
+# After the pull request is merged, run "Publish Helm Chart" for infrahub-mcp.
+# Its release then opens the pull request that re-pins infrahub-mcp in the
+# infrahub chart.
+#
+# A pull request opened with the default GITHUB_TOKEN does not trigger the CI
+# workflow (GitHub suppresses it to avoid loops). Set the RELEASE_PAT secret,
+# as for publish-helm-chart.yml, so that CI runs on the pull request.
+on:
+  repository_dispatch:
+    types: [infrahub-mcp-released]
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: "infrahub-mcp release tag, for example v1.2.1"
+        required: true
+
+concurrency:
+  group: update-infrahub-mcp
+  cancel-in-progress: false
+
+jobs:
+  open-pull-request:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      # Read from env, never interpolated into a script, because the dispatch
+      # payload is supplied by the caller.
+      VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      BRANCH: infrahub-mcp/${{ github.event.client_payload.version || inputs.version }}
+      GH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Validate the release
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$VERSION' is not a final infrahub-mcp release tag (vMAJOR.MINOR.PATCH)"; exit 1
+          fi
+          if [ "$(gh release view "$VERSION" -R opsmill/infrahub-mcp --json isPrerelease -q .isPrerelease)" != "false" ]; then
+            echo "::error::$VERSION is not a published, final release of opsmill/infrahub-mcp"; exit 1
+          fi
+          if ! docker manifest inspect "registry.opsmill.io/opsmill/infrahub-mcp:$VERSION" >/dev/null; then
+            echo "::error::The image registry.opsmill.io/opsmill/infrahub-mcp:$VERSION does not exist"; exit 1
+          fi
+
+      - name: Check out stable
+        uses: actions/checkout@v5
+        with:
+          ref: stable
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Check whether the update is already done or proposed
+        id: state
+        run: |
+          set -euo pipefail
+          if grep -qE "^appVersion: \"?${VERSION}\"?$" charts/infrahub-mcp/Chart.yaml; then
+            echo "::notice::charts/infrahub-mcp already has appVersion $VERSION"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "::notice::Branch $BRANCH already exists; its pull request proposes this update"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out infrahub-mcp ${{ env.VERSION }}
+        if: steps.state.outputs.skip == 'false'
+        uses: actions/checkout@v5
+        with:
+          repository: opsmill/infrahub-mcp
+          ref: ${{ env.VERSION }}
+          path: .infrahub-mcp
+
+      - name: Update the chart
+        id: update
+        if: steps.state.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          CHART_VERSION=$(python3 scripts/bump_chart.py app-version infrahub-mcp "$VERSION" \
+            --notes-url "https://github.com/opsmill/infrahub-mcp/releases/tag/$VERSION")
+          echo "chart_version=$CHART_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compare the server settings with the chart
+        if: steps.state.outputs.skip == 'false'
+        run: |
+          set -euo pipefail
+          python3 scripts/check_mcp_settings.py --source .infrahub-mcp --markdown > "$RUNNER_TEMP/settings.md" || true
+          rm -rf .infrahub-mcp
+          cat "$RUNNER_TEMP/settings.md"
+
+      - name: Open the pull request
+        if: steps.state.outputs.skip == 'false'
+        env:
+          CHART_VERSION: ${{ steps.update.outputs.chart_version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A charts/infrahub-mcp
+          git commit -m "chore(infrahub-mcp): update to infrahub-mcp $VERSION"
+          git push origin "$BRANCH"
+
+          {
+            echo "Updates \`charts/infrahub-mcp\` to [infrahub-mcp $VERSION](https://github.com/opsmill/infrahub-mcp/releases/tag/$VERSION):"
+            echo
+            echo "- \`appVersion\`: \`$VERSION\`"
+            echo "- chart \`version\`: \`$CHART_VERSION\`"
+            echo "- a news fragment in \`charts/infrahub-mcp/changelog/\`"
+            echo
+            echo "## Server settings"
+            echo
+            cat "$RUNNER_TEMP/settings.md"
+            echo
+            echo "## Before merging"
+            echo
+            echo "- Read the release notes for new settings, changed defaults and upgrade notes."
+            echo "- When you add values, update \`README.md\` with helm-docs and add an \`added\` news fragment."
+            echo "- After merging, run \"Publish Helm Chart\" for \`infrahub-mcp\`. Its release opens the pull request that re-pins \`infrahub-mcp\` in the \`infrahub\` chart."
+          } > "$RUNNER_TEMP/body.md"
+
+          gh pr create --base stable --head "$BRANCH" \
+            --title "chore(infrahub-mcp): update to infrahub-mcp $VERSION" \
+            --body-file "$RUNNER_TEMP/body.md"

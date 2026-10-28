@@ -213,3 +213,65 @@ jobs:
       ref: ${{ github.event.release.tag_name }}
       publish: true
     secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # After the chart is in the registry, open a pull request that re-pins it in
+  # the charts of this repository that depend on it (scripts/bump_chart.py
+  # repin). It waits for `publish` because `helm dependency update` in CI needs
+  # the new version in the registry. Only infrahub-mcp is re-pinned this way
+  # for now; add a chart to the condition to re-pin it too.
+  # ---------------------------------------------------------------------------
+  repin:
+    if: ${{ github.event_name == 'release' && !inputs.reusable_call && needs.parse-release.outputs.chart == 'infrahub-mcp' }}
+    needs: [parse-release, publish]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      CHART: ${{ needs.parse-release.outputs.chart }}
+      VERSION: ${{ needs.parse-release.outputs.version }}
+      BRANCH: repin/${{ needs.parse-release.outputs.chart }}-${{ needs.parse-release.outputs.version }}
+      # The default GITHUB_TOKEN would open a pull request that does not trigger CI.
+      GH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: stable
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Open the re-pin pull request
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "::notice::Branch $BRANCH already exists; its pull request re-pins $CHART $VERSION"
+            exit 0
+          fi
+          CHANGED=$(python3 scripts/bump_chart.py repin "$CHART" "$VERSION")
+          if git diff --quiet -- charts; then
+            echo "::notice::Every chart already pins $CHART $VERSION"
+            exit 0
+          fi
+          SCOPE=${CHANGED%% *}
+          LIST=""
+          for c in $CHANGED; do LIST="${LIST:+$LIST, }\`$c\`"; done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A charts
+          git commit -m "chore($SCOPE): re-pin $CHART $VERSION"
+          git push origin "$BRANCH"
+
+          {
+            echo "Re-pins \`$CHART\` to [\`$VERSION\`](https://github.com/opsmill/infrahub-helm/releases/tag/$CHART-$VERSION), now that it is in the registry."
+            echo
+            echo "Charts with a news fragment: $LIST."
+            echo
+            echo "The chart versions are not bumped: the change ships with the next release of each chart."
+          } > "$RUNNER_TEMP/body.md"
+
+          gh pr create --base stable --head "$BRANCH" \
+            --title "chore($SCOPE): re-pin $CHART $VERSION" \
+            --body-file "$RUNNER_TEMP/body.md"
