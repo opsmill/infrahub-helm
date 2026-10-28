@@ -3,6 +3,53 @@
 
 {{ template "chart.homepageLine" . }}
 
+## Production example
+
+The defaults (`mcp.authMode: none`, `mcp.readOnly: false`) give every client that
+reaches the MCP server read and write access through one shared API token. For a
+production deployment, require each client to send its own Infrahub API token,
+block write operations, and serve the MCP server under `/mcp` on the Infrahub
+host.
+
+Create the Secret that holds the API token:
+
+```sh
+kubectl create secret generic infrahub-mcp-api-token -n infrahub \
+  --from-literal=INFRAHUB_API_TOKEN=<api-token>
+```
+
+Then install the chart with these values:
+
+```yaml
+infrahub:
+  # In-cluster URL of the Infrahub server: http://<infrahub-release>-infrahub-server:8000
+  address: "http://infrahub-infrahub-server:8000"
+  apiToken:
+    # The server uses this token only when `mcp.authMode` is "none" or "oidc".
+    # In "token-passthrough" mode it calls Infrahub with each client's token.
+    existingSecret: infrahub-mcp-api-token
+    existingSecretKey: INFRAHUB_API_TOKEN
+
+mcp:
+  # Each request must carry an Infrahub API token in the `Authorization` header.
+  authMode: "token-passthrough"
+  # Hide write tools and block GraphQL mutations.
+  readOnly: true
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  # The Infrahub server's ingress hostname
+  hostname: infrahub.example.com
+  path: /mcp
+  pathType: Prefix
+  tls: true
+```
+
+When you install the MCP server with the `infrahub` or `infrahub-enterprise`
+chart, set `infrahub-mcp.enabled: true` and put these values under the
+`infrahub-mcp:` key (`infrahub.infrahub-mcp:` for `infrahub-enterprise`).
+
 {{ template "chart.maintainersSection" . }}
 
 {{ template "chart.requirementsSection" . }}

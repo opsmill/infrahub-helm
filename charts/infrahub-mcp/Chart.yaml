@@ -16,5 +16,5 @@ maintainers:
   - name: OpsMill
     url: https://github.com/opsmill
 type: application
-version: 0.1.0
-appVersion: "v1.1.6"
+version: 0.2.0
+appVersion: "v1.2.1"
