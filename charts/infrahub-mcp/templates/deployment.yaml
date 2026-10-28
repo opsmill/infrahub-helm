@@ -57,8 +57,60 @@ spec:
             - name: INFRAHUB_API_TOKEN
               value: {{ .Values.infrahub.apiToken.value | quote }}
             {{- end }}
+            {{- if .Values.infrahub.username }}
+            - name: INFRAHUB_USERNAME
+              value: {{ .Values.infrahub.username | quote }}
+            {{- end }}
+            {{- if .Values.infrahub.password.existingSecret }}
+            - name: INFRAHUB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.infrahub.password.existingSecret }}
+                  key: {{ .Values.infrahub.password.existingSecretKey }}
+            {{- else if .Values.infrahub.password.value }}
+            - name: INFRAHUB_PASSWORD
+              value: {{ .Values.infrahub.password.value | quote }}
+            {{- end }}
+            - name: MCP_HOST
+              value: {{ .Values.mcp.host | quote }}
+            - name: MCP_PORT
+              value: {{ .Values.service.targetPort | quote }}
             - name: INFRAHUB_MCP_AUTH_MODE
               value: {{ .Values.mcp.authMode | quote }}
+            - name: INFRAHUB_MCP_TOKEN_PASSTHROUGH_HEADER
+              value: {{ .Values.mcp.tokenPassthroughHeader | quote }}
+            - name: INFRAHUB_MCP_AUTH_SCOPES_WRITE
+              value: {{ .Values.mcp.authScopesWrite | quote }}
+            {{- with .Values.mcp.oidc }}
+            {{- if .configUrl }}
+            - name: INFRAHUB_MCP_OIDC_CONFIG_URL
+              value: {{ .configUrl | quote }}
+            {{- end }}
+            {{- if .clientId }}
+            - name: INFRAHUB_MCP_OIDC_CLIENT_ID
+              value: {{ .clientId | quote }}
+            {{- end }}
+            {{- if .clientSecret.existingSecret }}
+            - name: INFRAHUB_MCP_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .clientSecret.existingSecret }}
+                  key: {{ .clientSecret.existingSecretKey }}
+            {{- else if .clientSecret.value }}
+            - name: INFRAHUB_MCP_OIDC_CLIENT_SECRET
+              value: {{ .clientSecret.value | quote }}
+            {{- end }}
+            {{- if .baseUrl }}
+            - name: INFRAHUB_MCP_OIDC_BASE_URL
+              value: {{ .baseUrl | quote }}
+            {{- end }}
+            {{- if .audience }}
+            - name: INFRAHUB_MCP_OIDC_AUDIENCE
+              value: {{ .audience | quote }}
+            {{- end }}
+            - name: INFRAHUB_MCP_OIDC_USER_CLAIM
+              value: {{ .userClaim | quote }}
+            {{- end }}
             - name: INFRAHUB_MCP_READ_ONLY
               value: {{ .Values.mcp.readOnly | quote }}
             - name: INFRAHUB_MCP_LOG_LEVEL
@@ -89,6 +141,8 @@ spec:
               value: {{ .Values.mcp.observability.pingIntervalMs | quote }}
             - name: INFRAHUB_MCP_DEREFERENCE_SCHEMAS
               value: {{ .Values.mcp.dereferenceSchemas | quote }}
+            - name: INFRAHUB_MCP_SCHEMA_EXPAND_PEERS
+              value: {{ .Values.mcp.schemaExpandPeers | quote }}
             {{- range $key, $value := .Values.extraEnv }}
             - name: {{ $key }}
               value: {{ $value | quote }}
