@@ -426,18 +426,30 @@ prefect-server:
       # (`INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY`, default `30d`), the
       # events of the activity log (`INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG`,
       # default `7d`) and Prefect's own events
-      # (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`, default `7d`).
+      # (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`, default `2d`).
       # Each value is a number of days such as `30d` or an ISO 8601 duration
-      # such as `P30D`, from 1 to 36500 days; the task manager does not start
+      # such as `P30D`, from 1 to 365 days; the task manager does not start
       # with any other value. Infrahub reads these variables from 1.13 on.
       # Helm replaces a list as a whole, so to change one value, set all three.
+      # Enterprise availability and edition-specific restrictions remain undecided;
+      # the current implementation has no edition gate.
       env:
         - name: INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY
           value: "30d"
         - name: INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG
           value: "7d"
         - name: INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS
-          value: "7d"
+          value: "2d"
+  backgroundServices:
+    # -- Apply the Infrahub retention settings before starting separate background
+    # services. Requires an Infrahub 1.13 or newer image.
+    args:
+      - infrahub
+      - tasks
+      - background-services
+    env:
+      - name: PROMETHEUS_MULTIPROC_DIR
+        value: /tmp
   server:
     command:
       - /usr/bin/tini
