@@ -210,8 +210,12 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.services.neo4j.ports.bolt.targetPort | int | `7687` |  |
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
+| prefect-server.backgroundServices.args | list | `["infrahub","tasks","background-services"]` | Apply the Infrahub retention settings before starting separate background services. Requires an Infrahub 1.13 or newer image. |
+| prefect-server.backgroundServices.env[0].name | string | `"PROMETHEUS_MULTIPROC_DIR"` |  |
+| prefect-server.backgroundServices.env[0].value | string | `"/tmp"` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.11.4"` |  |
+| prefect-server.global.prefect.env | list | `[{"name":"INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY","value":"30d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG","value":"7d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS","value":"2d"}]` | Environment variables for the task manager container and, when `backgroundServices.runAsSeparateDeployment` is true, for the background services container. Unlike `server.env` and `backgroundServices.env`, which the Infrahub Enterprise config presets replace, this list reaches both containers. The three variables set how long the task manager keeps each kind of record: finished task runs with their logs and artifacts (`INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY`, default `30d`), the events of the activity log (`INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG`, default `7d`) and Prefect's own events (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`, default `2d`). Each value is a number of days such as `30d` or an ISO 8601 duration such as `P30D`, from 1 to 365 days; the task manager does not start with any other value. Infrahub reads these variables from 1.13 on. Helm replaces a list as a whole, so to change one value, set all three. Enterprise availability and edition-specific restrictions remain undecided; the current implementation has no edition gate. |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.11.9"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
