@@ -27,7 +27,7 @@ appVersion: "1.11.9"
 
 dependencies:
   - name: neo4j
-    version: "2026.5.0"
+    version: "2026.9.0"
     repository: "https://helm.neo4j.com/neo4j/"
     condition: neo4j.enabled
   - name: common
