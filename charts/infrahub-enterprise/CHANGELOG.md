@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.23.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.23.1) - 2026-10-29
+
+### Security
+
+- The `infrahub` dependency now runs RabbitMQ from `registry.opsmill.io/opsmill/rabbitmq:4.1.3-debian-12-r1-opsmill.1` instead of `bitnamilegacy/rabbitmq:4.1.3-debian-12-r1`, which Bitnami no longer updates. The new image is the same Bitnami RabbitMQ 4.1.3 image with every pending Debian 12 update installed, including `libbrotli1` 1.0.9-2+deb12u1, which fixes [CVE-2026-111497](https://security-tracker.debian.org/tracker/CVE-2026-111497) ([DLA-4855-1](https://security-tracker.debian.org/tracker/DLA-4855-1)). RabbitMQ and Erlang keep the versions of the Bitnami image. Clusters that pull images through a mirror or an allow-list must add `registry.opsmill.io/opsmill/rabbitmq` to it.
+
 ## [infrahub-enterprise-4.23.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.23.0) - 2026-10-26
 
 ### Changed
