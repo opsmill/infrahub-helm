@@ -1,0 +1,1 @@
+Bumped the bundled `infrahub` dependency to `4.36.0`, which bumps the `infrahub-mcp` subchart to `0.2.0` (image `v1.2.1`). See the [infrahub-mcp 1.2.1 release notes](https://github.com/opsmill/infrahub-mcp/releases/tag/v1.2.1).

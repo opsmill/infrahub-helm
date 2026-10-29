@@ -71,7 +71,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.35.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.36.0 |
 
 ## Values
 
