@@ -2,10 +2,14 @@
 # yamllint disable rule:truthy
 name: Build RabbitMQ image
 
-# Builds images/rabbitmq and publishes it as the image the infrahub chart sets
-# in rabbitmq.image (registry, repository and tag), so the chart and the
-# published image use the same reference. Pull requests only build the image;
-# a manual run with `push` publishes it.
+# Builds images/rabbitmq and publishes it under the repository and tag the
+# infrahub chart sets in rabbitmq.image, so the chart and the published image
+# use the same reference. Pull requests only build the image; a manual run with
+# `push` publishes it.
+#
+# The image is pushed to vars.HARBOR_HOST, not to rabbitmq.image.registry:
+# registry credentials are scoped to the host they log in to, and the chart's
+# registry is another name for the same registry.
 #
 # A tag that already exists is never overwritten: the chart pulls with
 # IfNotPresent, so nodes that already hold the tag would keep running the old
@@ -35,7 +39,7 @@ jobs:
         id: image
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
         with:
-          cmd: yq '.rabbitmq.image | .registry + "/" + .repository + ":" + .tag' charts/infrahub/values.yaml
+          cmd: yq '"${{ vars.HARBOR_HOST || 'registry.opsmill.io' }}/" + (.rabbitmq.image | .repository + ":" + .tag)' charts/infrahub/values.yaml
 
       - uses: docker/setup-qemu-action@v3
 
