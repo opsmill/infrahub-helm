@@ -101,6 +101,19 @@ jobs:
       - uses: "azure/setup-helm@v5.0.0"
       - name: "Linting: helm lint infrahub-mcp"
         run: "helm lint charts/infrahub-mcp"
+      - name: "Reading the infrahub-mcp appVersion"
+        id: app-version
+        run: |
+          echo "version=$(awk '/^appVersion:/ {print $2; exit}' charts/infrahub-mcp/Chart.yaml | tr -d '"')" >> "$GITHUB_OUTPUT"
+      - name: "Checking out infrahub-mcp ${{ steps.app-version.outputs.version }}"
+        uses: "actions/checkout@v5"
+        with:
+          repository: opsmill/infrahub-mcp
+          ref: ${{ steps.app-version.outputs.version }}
+          path: .infrahub-mcp
+      # Fails when the server of this appVersion reads a variable that the chart does not set.
+      - name: "Comparing the infrahub-mcp settings with the chart"
+        run: "python3 scripts/check_mcp_settings.py --source .infrahub-mcp"
 
   # ---------------------------------------------------------------------------
   # End-to-end tests. Each chart has its own job, deployed into a throwaway
