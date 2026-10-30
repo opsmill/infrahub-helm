@@ -39,7 +39,6 @@ BASE_SETS = {
     "neo4j.enabled": "false",
     "rabbitmq.enabled": "false",
     "redis.enabled": "false",
-    "nats.enabled": "false",
     "prefect-server.enabled": "false",
 }
 

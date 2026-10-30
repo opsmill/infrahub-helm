@@ -9,8 +9,7 @@ request against it.
 Each chart lives in `charts/<name>/`:
 
 - `infrahub`: the community chart. It holds the templates of the Infrahub server, the task workers
-  and the jobs, and installs Neo4j, Redis, RabbitMQ, NATS and the Prefect server from upstream
-  charts.
+  and the jobs, and installs Neo4j, Redis, RabbitMQ and the Prefect server from upstream charts.
 - `infrahub-enterprise`: wraps the `infrahub` chart and sets its values under the `infrahub:` key.
   Its own templates only check the values and print the install notes. It holds the size presets
   (`values.small.yaml`, `values.medium*.yaml`, `values.large*.yaml`) and `values.openshift.yaml`.

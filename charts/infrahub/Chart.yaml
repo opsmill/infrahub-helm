@@ -42,10 +42,6 @@ dependencies:
     version: "14.4.1"
     repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: rabbitmq.enabled
-  - name: nats
-    version: "1.1.12"
-    repository: "https://nats-io.github.io/k8s/helm/charts/"
-    condition: nats.enabled
   - name: prefect-server
     version: "2026.10.21032730"
     repository: "https://prefecthq.github.io/prefect-helm"
