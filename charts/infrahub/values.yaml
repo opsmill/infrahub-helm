@@ -403,13 +403,6 @@ rabbitmq:
   startupProbe:
     enabled: true
 
-# ----------- NATS Server -----------
-nats:
-  enabled: false
-  config:
-    jetstream:
-      enabled: true
-
 # ------------- Prefect -------------
 prefect-server:
   enabled: true
