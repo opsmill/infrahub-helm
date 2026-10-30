@@ -56,7 +56,6 @@ The chart offers the ability to configure persistence for the database and other
 | Repository | Name | Version |
 |------------|------|---------|
 | https://helm.neo4j.com/neo4j/ | neo4j | 2026.5.0 |
-| https://nats-io.github.io/k8s/helm/charts/ | nats | 1.1.12 |
 | https://prefecthq.github.io/prefect-helm | prefect-server | 2026.10.21032730 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
@@ -188,8 +187,6 @@ The chart offers the ability to configure persistence for the database and other
 | infrahubTaskWorker.revisionHistoryLimit | int | `10` | Revision history limit for the task worker Deployment |
 | infrahubTaskWorker.tolerations | list | `[]` | Tolerations for the task worker pods |
 | infrahubTaskWorker.topologySpreadConstraints | list | `[]` | Topology spread constraints for the task worker pods |
-| nats.config.jetstream.enabled | bool | `true` |  |
-| nats.enabled | bool | `false` |  |
 | neo4j.config."dbms.security.auth_minimum_password_length" | string | `"4"` |  |
 | neo4j.config."dbms.security.procedures.unrestricted" | string | `"apoc.*"` |  |
 | neo4j.enabled | bool | `true` |  |
