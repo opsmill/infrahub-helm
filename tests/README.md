@@ -103,3 +103,53 @@ build an image for another ref:
 ./scripts/build-infrahub-image.sh --help
 ./scripts/build-infrahub-image.sh --ref my-branch --tag my-tag
 ```
+
+## Neo4j HA increment
+
+```bash
+uv run pytest -v -s -m ha tests/e2e
+NEO4J_DOCKER_IMAGE=neo4j:2026.10.1-enterprise uv run pytest -v -s -m ha tests/e2e
+```
+
+The `ha` marker creates three Kubernetes nodes (one control plane, two workers)
+with vcluster's Docker driver. It installs the local Enterprise chart with two
+API servers, two task workers, two Prefect servers, and three separate Neo4j
+Enterprise releases spread across distinct nodes. Each database member uses a
+2 GiB persistent volume and requests 500m CPU / 2 GiB RAM. Allow additional
+capacity for Kubernetes, Infrahub, Prefect and the supporting services; the CI
+job uses `huge-runners` and has a 60-minute ceiling. This is a functional smoke
+topology with small memory settings, not a performance baseline.
+
+The test checks Neo4j's reported database topology (three online primaries and
+one writer), creates a branch through Prefect, and round-trips a tag. It scales
+the selected writer to zero, waits for its pod to disappear and for the two
+surviving primaries to report a replacement writer, then creates another branch
+and writes/reads data while that member remains absent. Three primaries require
+a majority of two; the chart setting of three is the initial formation minimum.
+After restoring the member it checks cluster recovery and both tags, verifies
+that the new pod uses the same PVC UID, and directly reads pre-failure and
+outage database markers from that member over Bolt to verify catch-up. This tests member loss and
+recovery; it does not simulate an abrupt node crash or a network partition.
+
+The database chart version comes from the staged local `infrahub` dependency,
+so a chart upgrade PR tests its own pin. `NEO4J_DOCKER_IMAGE` overrides all three
+members through `image.customImage`. `PREFECT_DOCKER_IMAGE` overrides the task
+manager's image repository and tag. **It must contain Infrahub's custom Prefect
+entrypoint** (for example, an Infrahub Enterprise build with the candidate
+Prefect dependency); a stock `prefecthq/prefect` image is not compatible with
+this chart. Omit either variable to test the chart's defaults. The test logs
+actual pod images and node placement.
+
+`.github/workflows/ha-e2e.yml` runs on relevant pull requests and exposes
+`neo4j_image` and `prefect_image` for manual or reusable workflow invocation.
+An empty input uses chart defaults. For candidate comparisons run the same
+chart commit once with defaults and once with the candidate image, keeping
+Prefect unchanged. Both runs use fresh stores: they do not validate an upgrade
+of a persisted store from 2026.05. A candidate
+image override does not itself validate a different Neo4j chart version.
+
+This increment leaves Redis, PostgreSQL and RabbitMQ at the existing smoke-test
+settings: it is **Neo4j HA coverage, not full-stack HA validation**. Schema
+changes, proposed-change review/merge, generators, backup/restore, rolling
+upgrades and performance regression remain separate increments for INBOX-407.
+It must not be used alone to enable automatic dependency upgrades.

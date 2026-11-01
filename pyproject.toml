@@ -27,6 +27,7 @@ markers = [
     "e2e: end-to-end tests",
     "k8s: tests requiring a Kubernetes (vcluster) deployment",
     "infrahub: tests for the infrahub chart",
+    "ha: multi-node Enterprise and Neo4j cluster tests",
     "enterprise: tests for the infrahub-enterprise chart",
     "backup: tests for the infrahub-backup chart",
     "observability: tests for the infrahub-observability chart",
