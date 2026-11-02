@@ -4,15 +4,14 @@ Infrahub MCP Server has been deployed.
 
 The MCP server is exposed via Ingress. Connect your MCP client to:
 {{- $scheme := ternary "https" "http" (or .Values.ingress.tls (gt (len .Values.ingress.extraTls) 0)) }}
-{{- $path := trimSuffix "/" .Values.ingress.path }}
-  {{ $scheme }}://{{ .Values.ingress.hostname }}{{ $path }}/mcp
+  {{ $scheme }}://{{ .Values.ingress.hostname }}/mcp
 {{- else if .Values.gatewayApi.enabled }}
 
 The MCP server is exposed via the Gateway API (HTTPRoute).
 {{- with .Values.gatewayApi.httpRoute.hostnames }}
 Connect your MCP client to (path prefix {{ $.Values.gatewayApi.httpRoute.path | default "/mcp" }}):
   {{- range . }}
-  http://{{ . }}{{ trimSuffix "/" ($.Values.gatewayApi.httpRoute.path | default "/mcp") }}/mcp
+  http://{{ . }}/mcp
   {{- end }}
 {{- end }}
 {{- else }}
