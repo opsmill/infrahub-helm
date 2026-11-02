@@ -4,9 +4,7 @@ name: "Update infrahub-mcp"
 
 # Opens a pull request that moves charts/infrahub-mcp to a new infrahub-mcp
 # release: it sets appVersion, bumps the chart version and adds a news fragment
-# (scripts/bump_chart.py). The pull request body lists the server settings that
-# the chart does not set yet (scripts/check_mcp_settings.py); a person adds them
-# to the pull request before it is merged. The CI workflow runs the same check.
+# (scripts/bump_chart.py).
 #
 # opsmill/infrahub-mcp sends the `infrahub-mcp-released` repository_dispatch
 # event, with {"version": "<tag>"} as client_payload, after it publishes a
@@ -14,8 +12,6 @@ name: "Update infrahub-mcp"
 # did not send the event.
 #
 # After the pull request is merged, run "Publish Helm Chart" for infrahub-mcp.
-# Its release then opens the pull request that re-pins infrahub-mcp in the
-# infrahub chart.
 #
 # A pull request opened with the default GITHUB_TOKEN does not trigger the CI
 # workflow (GitHub suppresses it to avoid loops). Set the RELEASE_PAT secret,
@@ -81,14 +77,6 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Check out infrahub-mcp ${{ env.VERSION }}
-        if: steps.state.outputs.skip == 'false'
-        uses: actions/checkout@v5
-        with:
-          repository: opsmill/infrahub-mcp
-          ref: ${{ env.VERSION }}
-          path: .infrahub-mcp
-
       - name: Update the chart
         id: update
         if: steps.state.outputs.skip == 'false'
@@ -97,14 +85,6 @@ jobs:
           CHART_VERSION=$(python3 scripts/bump_chart.py app-version infrahub-mcp "$VERSION" \
             --notes-url "https://github.com/opsmill/infrahub-mcp/releases/tag/$VERSION")
           echo "chart_version=$CHART_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Compare the server settings with the chart
-        if: steps.state.outputs.skip == 'false'
-        run: |
-          set -euo pipefail
-          python3 scripts/check_mcp_settings.py --source .infrahub-mcp --markdown > "$RUNNER_TEMP/settings.md" || true
-          rm -rf .infrahub-mcp
-          cat "$RUNNER_TEMP/settings.md"
 
       - name: Open the pull request
         if: steps.state.outputs.skip == 'false'
@@ -126,15 +106,11 @@ jobs:
             echo "- chart \`version\`: \`$CHART_VERSION\`"
             echo "- a news fragment in \`charts/infrahub-mcp/changelog/\`"
             echo
-            echo "## Server settings"
-            echo
-            cat "$RUNNER_TEMP/settings.md"
-            echo
             echo "## Before merging"
             echo
             echo "- Read the release notes for new settings, changed defaults and upgrade notes."
             echo "- When you add values, update \`README.md\` with helm-docs and add an \`added\` news fragment."
-            echo "- After merging, run \"Publish Helm Chart\" for \`infrahub-mcp\`. Its release opens the pull request that re-pins \`infrahub-mcp\` in the \`infrahub\` chart."
+            echo "- After merging, run \"Publish Helm Chart\" for \`infrahub-mcp\`."
           } > "$RUNNER_TEMP/body.md"
 
           gh pr create --base stable --head "$BRANCH" \
