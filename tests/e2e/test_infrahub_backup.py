@@ -4,6 +4,13 @@ restores correctly.
 Flow: seed a tag -> run the backup Job (S3, served by Garage) -> delete the tag ->
 run the restore Job -> assert the tag is back -> delete the tag again ->
 trigger the restore CronJob -> assert the tag is back again.
+
+The Jobs reach Garage over HTTPS, with a certificate issued by a private CA that
+the test generates. They trust it through the chart's `extraEnv`,
+`extraVolumes` and `extraVolumeMounts` values, which mount the CA from a
+ConfigMap and point `SSL_CERT_FILE` at it. A restore without these values must
+be rejected, which shows that certificate verification is on and that the CA,
+not the system trust store, let the other Jobs through.
 """
 
 import asyncio
@@ -22,6 +29,7 @@ from tests.helpers.utils import (
     seed_infrahub_data,
     verify_infrahub_data,
     wait_for_job,
+    wait_for_job_failure,
 )
 
 pytestmark = [pytest.mark.e2e, pytest.mark.k8s, pytest.mark.backup]
@@ -57,6 +65,7 @@ async def test_backup_restore(infrahub_k8s, s3_k8s):
     chart = CHARTS_DIR / "infrahub-backup"
 
     common_s3 = {"image.pullPolicy": "IfNotPresent"}
+    ca_values = [s3_k8s["ca_values"]]
 
     # 1. Seed a tag.
     async with portforward_service(
@@ -71,6 +80,7 @@ async def test_backup_restore(infrahub_k8s, s3_k8s):
         chart_path=chart,
         namespace=namespace,
         kubeconfig=kubeconfig,
+        values_files=ca_values,
         sets={
             **common_s3,
             "backup.enabled": "true",
@@ -106,6 +116,7 @@ async def test_backup_restore(infrahub_k8s, s3_k8s):
         chart_path=chart,
         namespace=namespace,
         kubeconfig=kubeconfig,
+        values_files=ca_values,
         sets={
             **common_s3,
             "restore.enabled": "true",
@@ -142,6 +153,7 @@ async def test_backup_restore(infrahub_k8s, s3_k8s):
         chart_path=chart,
         namespace=namespace,
         kubeconfig=kubeconfig,
+        values_files=ca_values,
         sets={
             **common_s3,
             "restore.enabled": "true",
@@ -171,3 +183,45 @@ async def test_backup_restore(infrahub_k8s, s3_k8s):
         label_selector=infrahub_k8s["server_label"], ready_path="/api/config",
     ) as url:
         await verify_infrahub_data(url, token, seed)
+
+
+async def test_restore_without_the_ca_is_rejected(infrahub_k8s, s3_k8s):
+    """A restore without the CA values fails on the S3 certificate.
+
+    `--latest` lists the bucket before it touches a database, so the run fails
+    at the TLS handshake and leaves Infrahub as it was.
+    """
+    kubeconfig = infrahub_k8s["kubeconfig_path"]
+    namespace = infrahub_k8s["namespace"]
+
+    helm_install(
+        release="ihb-restore-untrusted",
+        chart_path=CHARTS_DIR / "infrahub-backup",
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        sets={
+            "image.pullPolicy": "IfNotPresent",
+            "restore.enabled": "true",
+            "restore.mode": "cronjob",
+            "restore.storage.type": "s3",
+            "restore.storage.s3.bucket": s3_k8s["bucket"],
+            "restore.storage.s3.latest": "true",
+            "restore.storage.s3.endpoint": s3_k8s["endpoint"],
+            "restore.storage.s3.region": "us-east-1",
+            "restore.storage.s3.secretName": s3_k8s["secret_name"],
+        },
+        timeout="10m",
+    )
+    subprocess.run(
+        [
+            "kubectl", "-n", namespace, "--kubeconfig", kubeconfig,
+            "create", "job", "ihb-restore-untrusted-manual",
+            "--from=cronjob/ihb-restore-untrusted-infrahub-backup-restore",
+        ],
+        check=True,
+    )
+    logs = await wait_for_job_failure(kubeconfig, namespace, "ihb-restore-untrusted-manual")
+
+    assert "certificate signed by unknown authority" in logs, (
+        f"expected a certificate verification failure, got:\n{logs}"
+    )

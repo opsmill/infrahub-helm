@@ -1,0 +1,20 @@
+# Values for the infrahub-backup e2e test: trust the private CA that signed the
+# certificate of the S3 endpoint.
+#
+# infrahub-backup verifies the S3 certificate against the system trust store
+# plus the file named in SSL_CERT_FILE. The ConfigMap "s3-ca", created by the
+# s3_k8s fixture in tests/e2e/conftest.py, holds that CA as "ca.crt". The path
+# in SSL_CERT_FILE is not discovered from the mount, so the two have to agree.
+extraEnv:
+  - name: SSL_CERT_FILE
+    value: /etc/ssl/custom/ca.crt
+
+extraVolumes:
+  - name: s3-ca
+    configMap:
+      name: s3-ca
+
+extraVolumeMounts:
+  - name: s3-ca
+    mountPath: /etc/ssl/custom
+    readOnly: true
