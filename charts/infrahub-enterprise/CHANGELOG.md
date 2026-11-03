@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.24.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.24.0) - 2026-11-03
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.36.0`, which bumps the `infrahub-backup` subchart to `1.5.0` and the `infrahub-mcp` subchart to `0.1.1`. `infrahub-backup` 1.5.0 adds `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE`, and sets `job.backoffLimit` on the backup CronJob when it is `0`. The install notes of `infrahub-mcp` 0.1.1 print the MCP client URL as `<host>/mcp` instead of `<host>/mcp/mcp`.
+
 ## [infrahub-enterprise-4.23.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.23.1) - 2026-10-29
 
 ### Security
