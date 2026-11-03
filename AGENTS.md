@@ -43,7 +43,11 @@ above it only after the pinned chart is released and the pin is updated.
 
 ## Tests
 
-- `make lint` runs `helm lint` on every chart.
+- `make lint` runs `helm lint` on every chart. It resolves the dependencies of a chart from the
+  registry, so it fails on a chart that pins a version of another chart of this repository that is
+  not published yet. The `helm-lint-infrahub` CI job first runs
+  `./scripts/link-unpublished-chart-dependencies.sh charts/infrahub`, which resolves such a
+  dependency from its local chart, so a pull request can bump a chart and update its pin together.
 - `uv run pytest -v -m <marker> tests/e2e` installs the local charts into a throwaway vcluster and
   tests them. The markers are `infrahub`, `enterprise`, `backup`, `observability` and `mcp`. See
   `tests/README.md` for the tools it needs and for the manual tests.
