@@ -648,7 +648,7 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
     )
     await ca_configmap.create()
 
-    # nginx resolves the Garage Service when it starts, so the front comes after it.
+    # HAProxy resolves the Garage Service when it starts, so the front comes after it.
     tls_deployment = await _create_from_manifests(
         api, namespace, (FIXTURES_DIR / "garage-tls.yaml").read_text()
     )
