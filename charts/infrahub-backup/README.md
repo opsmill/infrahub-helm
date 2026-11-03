@@ -42,6 +42,9 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | cronJob.startingDeadlineSeconds | string | `nil` | Job deadline in seconds (optional) |
 | cronJob.successfulJobsHistoryLimit | int | `3` | Number of successful job history to keep |
 | cronJob.suspend | bool | `false` | Suspend the CronJob (useful for maintenance) |
+| extraEnv | list | `[]` | Extra environment variables for the backup and restore containers, appended after the ones the chart sets. For example, trust a private CA for an S3 endpoint with a self-signed or internal certificate: `[{name: SSL_CERT_FILE, value: /etc/ssl/custom/ca.crt}]` together with the volume below. |
+| extraVolumeMounts | list | `[]` | Extra volume mounts for the backup and restore containers: `[{name: s3-ca, mountPath: /etc/ssl/custom, readOnly: true}]` |
+| extraVolumes | list | `[]` | Extra volumes for the backup and restore pods, for example a ConfigMap holding a CA certificate: `[{name: s3-ca, configMap: {name: s3-ca}}]` |
 | image | object | `{"pullPolicy":"IfNotPresent","repository":"registry.opsmill.io/opsmill/infrahub-backup","tag":""}` | Container image configuration |
 | image.tag | string | `""` | Tag defaults to chart appVersion if not specified |
 | imagePullSecrets | list | `[]` | Image pull secrets for private registries |
