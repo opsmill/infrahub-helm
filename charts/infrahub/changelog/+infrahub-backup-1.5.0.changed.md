@@ -1,1 +1,0 @@
-Bumped the bundled `infrahub-backup` subchart to `1.5.0`. It adds `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE`, and sets `job.backoffLimit` on the backup CronJob when it is `0`, so Kubernetes no longer retries a failed scheduled backup up to 6 times.
