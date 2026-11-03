@@ -16,9 +16,7 @@ spec:
   suspend: {{ .Values.cronJob.suspend }}
   jobTemplate:
     spec:
-      {{- if .Values.job.backoffLimit }}
       backoffLimit: {{ .Values.job.backoffLimit }}
-      {{- end }}
       {{- if .Values.job.activeDeadlineSeconds }}
       activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
       {{- end }}
