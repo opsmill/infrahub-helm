@@ -1,1 +1,0 @@
-Fixed the backup CronJob leaving out `job.backoffLimit` when it was `0`, the default: Kubernetes then retried a failed scheduled backup up to 6 times, and in Community Edition every attempt stops and restarts the Infrahub services. The backup CronJob now sets the value like the other three Jobs.

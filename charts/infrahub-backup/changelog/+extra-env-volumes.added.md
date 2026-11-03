@@ -1,1 +1,0 @@
-Added `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE` instead of turning TLS verification off.
