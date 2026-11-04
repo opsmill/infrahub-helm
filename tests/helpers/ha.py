@@ -266,7 +266,9 @@ def pod_summary(kubeconfig: str) -> str:
 def neo4j_version(kubeconfig: str, member: str) -> str:
     """Ask one member for its Neo4j version over a direct Bolt connection.
 
-    The bolt:// scheme skips routing, so the answer cannot come from another member.
+    The bolt:// scheme skips routing, so the answer cannot come from another member,
+    and the query runs on the neo4j database because the system database rejects
+    procedure calls.
     """
     output = kubectl(
         kubeconfig,
@@ -281,7 +283,7 @@ def neo4j_version(kubeconfig: str, member: str) -> str:
         "-p",
         "admin",
         "-d",
-        "system",
+        "neo4j",
         "--access-mode",
         "read",
         "--format",
