@@ -51,6 +51,11 @@ above it only after the pinned chart is released and the pin is updated.
 - `uv run pytest -v -m <marker> tests/e2e` installs the local charts into a throwaway vcluster and
   tests them. The markers are `infrahub`, `enterprise`, `backup`, `observability` and `mcp`. See
   `tests/README.md` for the tools it needs and for the manual tests.
+- The Neo4j HA tests of `infrahub-enterprise` run in `.github/workflows/ha-e2e.yml` on a 3-node
+  vcluster: `-m "ha and not ha_upgrade"` for placement and writer loss, and `-m ha_upgrade` for
+  the rolling Neo4j upgrade, which runs only when `NEO4J_UPGRADE_FROM_CHART` is set. Both use the
+  `infrahub-ha` namespace, so select them in separate pytest runs. `uv run pytest tests/unit` runs
+  the unit tests of the test helpers, in the `unit` job of `ci.yml`.
 - The Grafana dashboards of `infrahub-observability` are not committed. Run
   `./scripts/sync-upstream.sh` before you test or package that chart.
 - CI (`.github/workflows/ci.yml`) runs the lint and end-to-end jobs only for the charts that a pull

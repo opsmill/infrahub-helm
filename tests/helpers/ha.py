@@ -1,5 +1,6 @@
 """Configuration and observations for the isolated Neo4j HA test deployment."""
 
+import asyncio
 import csv
 import io
 import json
@@ -7,6 +8,7 @@ import os
 import re
 import subprocess
 import tarfile
+import time
 from pathlib import Path
 from typing import NamedTuple
 
@@ -14,6 +16,11 @@ import yaml
 
 NAMESPACE = "infrahub-ha"
 MEMBERS = ("neo4j-ha-1", "neo4j-ha-2", "neo4j-ha-3")
+REPLICATED_SERVICES = (
+    "service=infrahub-server",
+    "service=infrahub-task-worker",
+    "infrahub/service=task-manager",
+)
 _VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:-(\d+))?")
 
 
@@ -408,3 +415,54 @@ def recovery_probe(
         timeout=CYPHER_TIMEOUT,
     )
     return list(csv.DictReader(io.StringIO(output), skipinitialspace=True))
+
+
+async def wait_for_topology(
+    kubeconfig, *, member=MEMBERS[0], online_members=3, absent=None, timeout=300
+):
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            last = database_topology(kubeconfig, member)
+            if topology_ready(last, online_members, absent):
+                return last
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
+        await asyncio.sleep(5)
+    raise AssertionError(
+        f"Expected {online_members} online primaries and one writer, absent={absent}: {last}"
+    )
+
+
+async def wait_for_recovered_data(kubeconfig, member, ids, timeout=180):
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            last = recovery_probe(kubeconfig, member, ids)
+            if last == [{"count": str(len(ids))}]:
+                return
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
+        await asyncio.sleep(5)
+    raise AssertionError(f"Recovered member {member} did not catch up: {last}")
+
+
+async def wait_for_marker_write(
+    kubeconfig, probe, *, member=MEMBERS[0], online_members=3, absent=None, timeout=180
+):
+    """Write through the member that is the writer now, since leadership can move."""
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            topology = database_topology(kubeconfig, member)
+            if topology_ready(topology, online_members, absent):
+                recovery_probe(kubeconfig, writer_member(topology), [probe], write=True)
+                return
+            last = topology
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
+        await asyncio.sleep(5)
+    raise AssertionError(f"Could not write marker {probe}: {last}")
