@@ -21,6 +21,10 @@ on:
         description: "Infrahub Enterprise repository:tag containing candidate Prefect; empty uses chart default"
         type: string
         default: ""
+      infrahub_image:
+        description: "Infrahub Enterprise registry/repository:tag for the API servers and task workers; empty uses chart default"
+        type: string
+        default: ""
   workflow_call:
     inputs:
       neo4j_image:
@@ -29,10 +33,13 @@ on:
       prefect_image:
         type: string
         default: ""
+      infrahub_image:
+        type: string
+        default: ""
 permissions:
   contents: read
 concurrency:
-  group: ha-e2e-${{ github.ref }}-${{ inputs.neo4j_image }}-${{ inputs.prefect_image }}
+  group: ha-e2e-${{ github.ref }}-${{ inputs.neo4j_image }}-${{ inputs.prefect_image }}-${{ inputs.infrahub_image }}
   cancel-in-progress: true
 jobs:
   ha:
@@ -50,6 +57,7 @@ jobs:
         env:
           NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
           PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
+          INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
         run: uv run pytest -v -s -m ha tests/e2e --junitxml=ha-results.xml
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}

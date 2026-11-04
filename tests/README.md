@@ -137,11 +137,17 @@ members through `image.customImage`. `PREFECT_DOCKER_IMAGE` overrides the task
 manager's image repository and tag. **It must contain Infrahub's custom Prefect
 entrypoint** (for example, an Infrahub Enterprise build with the candidate
 Prefect dependency); a stock `prefecthq/prefect` image is not compatible with
-this chart. Omit either variable to test the chart's defaults. The test logs
-actual pod images and node placement.
+this chart. `INFRAHUB_DOCKER_IMAGE` overrides the image of the API servers and
+task workers. It must start with the registry host, for example
+`registry.opsmill.io/opsmill/infrahub-enterprise:dev-1234567`, because the chart
+sets the registry, the repository and the tag apart. To test an Infrahub build,
+set `INFRAHUB_DOCKER_IMAGE` and `PREFECT_DOCKER_IMAGE` to the same image. Omit a
+variable to test the chart's default. The test logs actual pod images and node
+placement.
 
 `.github/workflows/ha-e2e.yml` runs on relevant pull requests and exposes
-`neo4j_image` and `prefect_image` for manual or reusable workflow invocation.
+`neo4j_image`, `prefect_image` and `infrahub_image` for manual or reusable
+workflow invocation.
 An empty input uses chart defaults. For candidate comparisons run the same
 chart commit once with defaults and once with the candidate image, keeping
 Prefect unchanged. Both runs use fresh stores: they do not validate an upgrade

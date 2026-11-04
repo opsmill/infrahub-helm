@@ -12,37 +12,74 @@ NAMESPACE = "infrahub-ha"
 MEMBERS = ("neo4j-ha-1", "neo4j-ha-2", "neo4j-ha-3")
 
 
+def _split_image(variable: str, image: str) -> tuple[str, str]:
+    repository, separator, tag = image.rpartition(":")
+    if not separator or not repository or not tag or "/" in tag or "@" in image:
+        raise ValueError(f"{variable} must be an explicit repository:tag (no digest)")
+    return repository, tag
+
+
+def _merge(base: dict, extra: dict) -> dict:
+    for key, value in extra.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
 def image_overrides(environ=None) -> tuple[dict, dict]:
     """Use YAML values to preserve image references without Helm --set parsing.
 
     Prefect runs Infrahub's custom entrypoint, so its override must be an
     Infrahub Enterprise image containing the candidate Prefect dependency.
+    The Infrahub override must name its registry host, because the chart sets
+    the registry apart from the repository and the tag.
     """
     environ = os.environ if environ is None else environ
     neo4j = {}
-    enterprise = {}
+    enterprise: dict = {}
     if image := environ.get("NEO4J_DOCKER_IMAGE"):
         neo4j = {"image": {"customImage": image}}
     if image := environ.get("PREFECT_DOCKER_IMAGE"):
-        repository, separator, tag = image.rpartition(":")
-        if not separator or not repository or not tag or "/" in tag or "@" in image:
-            raise ValueError(
-                "PREFECT_DOCKER_IMAGE must be an explicit repository:tag (no digest)"
-            )
-        enterprise = {
-            "infrahub": {
-                "prefect-server": {
-                    "global": {
-                        "prefect": {
-                            "image": {
-                                "repository": repository,
-                                "prefectTag": tag,
+        repository, tag = _split_image("PREFECT_DOCKER_IMAGE", image)
+        _merge(
+            enterprise,
+            {
+                "infrahub": {
+                    "prefect-server": {
+                        "global": {
+                            "prefect": {
+                                "image": {
+                                    "repository": repository,
+                                    "prefectTag": tag,
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
+            },
+        )
+    if image := environ.get("INFRAHUB_DOCKER_IMAGE"):
+        repository, tag = _split_image("INFRAHUB_DOCKER_IMAGE", image)
+        registry, _, path = repository.partition("/")
+        if not path or not ("." in registry or ":" in registry or registry == "localhost"):
+            raise ValueError(
+                "INFRAHUB_DOCKER_IMAGE must start with a registry host, "
+                "for example registry.opsmill.io/opsmill/infrahub-enterprise:<tag>"
+            )
+        _merge(
+            enterprise,
+            {
+                "infrahub": {
+                    "global": {"infrahubRepository": path, "infrahubTag": tag},
+                    "infrahubServer": {"infrahubServer": {"imageRegistry": registry}},
+                    "infrahubTaskWorker": {
+                        "infrahubTaskWorker": {"imageRegistry": registry}
+                    },
+                }
+            },
+        )
     return neo4j, enterprise
 
 
