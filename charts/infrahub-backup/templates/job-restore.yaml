@@ -24,6 +24,9 @@ spec:
     spec:
       serviceAccountName: {{ include "infrahub-backup.serviceAccountName" . }}
       restartPolicy: Never
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

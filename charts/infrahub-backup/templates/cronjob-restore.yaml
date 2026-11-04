@@ -8,6 +8,9 @@ metadata:
     {{- include "infrahub-backup.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.restore.schedule | quote }}
+  {{- with .Values.cronJob.timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
   concurrencyPolicy: {{ .Values.cronJob.concurrencyPolicy }}
   successfulJobsHistoryLimit: {{ .Values.cronJob.successfulJobsHistoryLimit }}
   failedJobsHistoryLimit: {{ .Values.cronJob.failedJobsHistoryLimit }}
@@ -28,6 +31,9 @@ spec:
         spec:
           serviceAccountName: {{ include "infrahub-backup.serviceAccountName" . }}
           restartPolicy: Never
+          {{- with .Values.priorityClassName }}
+          priorityClassName: {{ . }}
+          {{- end }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
