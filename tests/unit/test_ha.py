@@ -124,3 +124,95 @@ def test_topology_rejects_stale_removed_member_and_no_writer():
     assert topology_ready(rows, 2, "neo4j-ha-1")
     assert writer_member(rows) == "neo4j-ha-2"
     assert not topology_ready(rows, 2, "neo4j-ha-2")
+
+
+def test_upgrade_mode_is_off_without_a_chart_version():
+    from tests.helpers.ha import upgrade_from_chart
+
+    assert upgrade_from_chart({}) is None
+    assert upgrade_from_chart({"NEO4J_UPGRADE_FROM_CHART": " "}) is None
+
+
+@pytest.mark.parametrize("version", ["2026.5.0", " 2026.5.0 ", "2026.1.3-1"])
+def test_upgrade_mode_reads_the_chart_version(version):
+    from tests.helpers.ha import upgrade_from_chart
+
+    assert upgrade_from_chart({"NEO4J_UPGRADE_FROM_CHART": version}) == version.strip()
+
+
+@pytest.mark.parametrize(
+    "version", ["latest", "2026.5", "v2026.5.0", "2026.05.0-enterprise", "neo4j-2026.5.0"]
+)
+def test_upgrade_mode_rejects_a_value_that_is_not_a_chart_version(version):
+    from tests.helpers.ha import upgrade_from_chart
+
+    with pytest.raises(ValueError):
+        upgrade_from_chart({"NEO4J_UPGRADE_FROM_CHART": version})
+
+
+def test_upgrade_mode_rejects_a_neo4j_image_override():
+    from tests.helpers.ha import upgrade_from_chart
+
+    with pytest.raises(ValueError):
+        upgrade_from_chart(
+            {
+                "NEO4J_UPGRADE_FROM_CHART": "2026.5.0",
+                "NEO4J_DOCKER_IMAGE": "neo4j:2026.10.1-enterprise",
+            }
+        )
+
+
+def test_chart_and_neo4j_versions_compare_as_numbers():
+    from tests.helpers.ha import version_key
+
+    assert version_key("2026.5.0") == version_key("2026.05.0")
+    assert version_key("2026.10.1") > version_key("2026.9.0")
+    assert version_key("2026.1.3-1") > version_key("2026.1.3")
+    with pytest.raises(ValueError):
+        version_key("2026.10")
+
+
+def test_upgrade_is_required_only_for_a_newer_target():
+    from tests.helpers.ha import upgrade_required
+
+    assert upgrade_required("2026.05.0", "2026.10.1")
+    assert not upgrade_required("2026.10.1", "2026.10.1")
+    with pytest.raises(ValueError):
+        upgrade_required("2026.10.1", "2026.05.0")
+
+
+def test_writer_is_upgraded_last():
+    from tests.helpers.ha import next_upgrade
+
+    assert next_upgrade(["neo4j-ha-1", "neo4j-ha-2", "neo4j-ha-3"], "neo4j-ha-1") == "neo4j-ha-2"
+    assert next_upgrade(["neo4j-ha-1", "neo4j-ha-3"], "neo4j-ha-1") == "neo4j-ha-3"
+    assert next_upgrade(["neo4j-ha-1"], "neo4j-ha-1") == "neo4j-ha-1"
+    # The writer moved to a member that is already upgraded.
+    assert next_upgrade(["neo4j-ha-1", "neo4j-ha-3"], "neo4j-ha-2") == "neo4j-ha-1"
+    with pytest.raises(ValueError):
+        next_upgrade([], "neo4j-ha-1")
+
+
+def test_chart_metadata_reads_the_top_level_chart(tmp_path: Path):
+    import io
+    import tarfile
+
+    from tests.helpers.ha import chart_metadata
+
+    def add(archive, name, data):
+        content = yaml.safe_dump(data).encode()
+        info = tarfile.TarInfo(name)
+        info.size = len(content)
+        archive.addfile(info, io.BytesIO(content))
+
+    chart = tmp_path / "neo4j-2026.5.0.tgz"
+    with tarfile.open(chart, "w:gz") as archive:
+        add(archive, "neo4j/charts/sub/Chart.yaml", {"appVersion": "1.0.0"})
+        add(archive, "neo4j/Chart.yaml", {"version": "2026.5.0", "appVersion": "2026.05.0"})
+    assert chart_metadata(chart) == {"version": "2026.5.0", "appVersion": "2026.05.0"}
+
+    empty = tmp_path / "empty.tgz"
+    with tarfile.open(empty, "w:gz") as archive:
+        add(archive, "neo4j/values.yaml", {})
+    with pytest.raises(FileNotFoundError):
+        chart_metadata(empty)
