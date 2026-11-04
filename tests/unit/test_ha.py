@@ -35,6 +35,56 @@ def test_prefect_requires_explicit_tag(image):
         image_overrides({"PREFECT_DOCKER_IMAGE": image})
 
 
+def test_infrahub_image_sets_registry_repository_and_tag():
+    neo4j, enterprise = image_overrides(
+        {
+            "INFRAHUB_DOCKER_IMAGE": "registry.opsmill.io/opsmill/infrahub-enterprise:dev-1234567"
+        }
+    )
+    assert neo4j == {}
+    assert enterprise == {
+        "infrahub": {
+            "global": {
+                "infrahubRepository": "opsmill/infrahub-enterprise",
+                "infrahubTag": "dev-1234567",
+            },
+            "infrahubServer": {"infrahubServer": {"imageRegistry": "registry.opsmill.io"}},
+            "infrahubTaskWorker": {
+                "infrahubTaskWorker": {"imageRegistry": "registry.opsmill.io"}
+            },
+        }
+    }
+
+
+def test_infrahub_and_prefect_images_combine():
+    image = "localhost:5000/opsmill/infrahub-enterprise:candidate"
+    _, enterprise = image_overrides(
+        {"INFRAHUB_DOCKER_IMAGE": image, "PREFECT_DOCKER_IMAGE": image}
+    )
+    infrahub = enterprise["infrahub"]
+    assert infrahub["global"]["infrahubTag"] == "candidate"
+    assert infrahub["infrahubServer"]["infrahubServer"]["imageRegistry"] == "localhost:5000"
+    prefect = infrahub["prefect-server"]["global"]["prefect"]["image"]
+    assert prefect == {
+        "repository": "localhost:5000/opsmill/infrahub-enterprise",
+        "prefectTag": "candidate",
+    }
+
+
+@pytest.mark.parametrize(
+    "image",
+    [
+        "opsmill/infrahub-enterprise:dev-1234567",
+        "infrahub-enterprise:dev-1234567",
+        "registry.opsmill.io/opsmill/infrahub-enterprise",
+        "registry.opsmill.io/opsmill/infrahub-enterprise@sha256:abc",
+    ],
+)
+def test_infrahub_image_requires_registry_and_tag(image):
+    with pytest.raises(ValueError):
+        image_overrides({"INFRAHUB_DOCKER_IMAGE": image})
+
+
 def test_chart_selection_uses_pin_not_stale_archive(tmp_path: Path):
     (tmp_path / "charts").mkdir()
     (tmp_path / "Chart.yaml").write_text(
