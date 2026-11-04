@@ -1,3 +1,13 @@
+## [infrahub-backup-1.5.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.5.0) - 2026-11-03
+
+### Added
+
+- Added `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE` instead of turning TLS verification off.
+
+### Fixed
+
+- Fixed the backup CronJob leaving out `job.backoffLimit` when it was `0`, the default: Kubernetes then retried a failed scheduled backup up to 6 times, and in Community Edition every attempt stops and restarts the Infrahub services. The backup CronJob now sets the value like the other three Jobs.
+
 ## [infrahub-backup-1.4.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.4.0) - 2026-10-26
 
 ### Changed

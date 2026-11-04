@@ -1,3 +1,10 @@
+## [infrahub-4.36.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.36.0) - 2026-11-03
+
+### Changed
+
+- Bumped the bundled `infrahub-backup` subchart to `1.5.0`. It adds `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE`, and sets `job.backoffLimit` on the backup CronJob when it is `0`, so Kubernetes no longer retries a failed scheduled backup up to 6 times.
+- Bumped the bundled `infrahub-mcp` subchart to `0.1.1`. Its install notes print the MCP client URL as `<host>/mcp` instead of `<host>/mcp/mcp`, which returns 404.
+
 ## [infrahub-4.35.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.35.1) - 2026-10-29
 
 ### Security

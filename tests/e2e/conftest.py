@@ -505,7 +505,8 @@ async def observability_k8s(
 
 
 # ---------------------------------------------------------------------------
-# Fixture: s3_k8s (in-cluster S3 backend for the backup test, served by Garage)
+# Fixture: s3_k8s (in-cluster S3 backend for the backup test, served by Garage
+# behind an HTTPS front whose certificate a private CA issued)
 # ---------------------------------------------------------------------------
 GARAGE_ADMIN_TOKEN = "infrahub-helm-e2e-admin-token"
 GARAGE_RPC_SECRET = "a0b1c2d3e4f5061728394a5b6c7d8e9fa0b1c2d3e4f5061728394a5b6c7d8e9f"
@@ -515,6 +516,32 @@ GARAGE_ADMIN_PORT = 3903
 # characters, with a 64-character hex secret. Fixed test values, not secrets.
 S3_ACCESS_KEY = "GKdeadbeefdeadbeefdeadbeef"
 S3_SECRET_KEY = "deadbeef" * 8
+# garage-tls.yaml names its Service and TLS Secret after S3_TLS_SERVICE, which is
+# also the hostname in the S3 endpoint and in the certificate, and
+# infrahub-backup-s3-ca-values.yaml mounts S3_CA_CONFIGMAP, so the files have to
+# change together with these names.
+S3_TLS_SERVICE = "garage-tls"
+S3_CA_CONFIGMAP = "s3-ca"
+
+
+async def _create_from_manifests(api, namespace: str, text: str):
+    """Create every ConfigMap, Deployment and Service in a manifest file, and
+    return the Deployment."""
+    from kr8s.asyncio.objects import ConfigMap, Deployment, Service
+
+    kinds = {"ConfigMap": ConfigMap, "Deployment": Deployment, "Service": Service}
+    deployment = None
+    for manifest in yaml.safe_load_all(text):
+        if not manifest:
+            continue
+        manifest.setdefault("metadata", {})["namespace"] = namespace
+        obj = kinds[manifest["kind"]](manifest, namespace=namespace, api=api)
+        await obj.create()
+        if manifest["kind"] == "Deployment":
+            deployment = obj
+    if deployment is None:
+        raise AssertionError("the manifests declare no Deployment")
+    return deployment
 
 
 async def _bootstrap_garage(admin_url: str, bucket: str) -> None:
@@ -565,12 +592,16 @@ async def _bootstrap_garage(admin_url: str, bucket: str) -> None:
 
 @pytest.fixture(scope="session")
 async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
-    """Deploy a single-node Garage that serves the backup bucket into the namespace.
+    """Deploy a single-node Garage that serves the backup bucket into the namespace,
+    and an HTTPS front for it whose certificate a private CA issued.
 
-    Garage creates the bucket and the access key through its admin API, and the
-    credentials Secret consumed by the backup/restore Jobs is created here via kr8s.
+    Garage creates the bucket and the access key through its admin API. The
+    credentials Secret consumed by the backup/restore Jobs, the TLS Secret of the
+    HTTPS front and the ConfigMap that holds the CA are created here via kr8s.
+    The Jobs reach the bucket through the HTTPS front only; the test itself lists
+    the bucket over a port-forward to Garage's plain HTTP port.
     """
-    from kr8s.asyncio.objects import ConfigMap, Deployment, Secret, Service
+    from kr8s.asyncio.objects import ConfigMap, Secret
 
     kubeconfig = infrahub_k8s["kubeconfig_path"]
     namespace = infrahub_k8s["namespace"]
@@ -580,21 +611,47 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
 
     # Garage ConfigMap + Deployment + Service from the manifest fixture.
     template = Template((FIXTURES_DIR / "garage.yaml").read_text())
-    manifests = yaml.safe_load_all(
-        template.substitute(rpc_secret=GARAGE_RPC_SECRET, admin_token=GARAGE_ADMIN_TOKEN)
+    deployment = await _create_from_manifests(
+        api,
+        namespace,
+        template.substitute(rpc_secret=GARAGE_RPC_SECRET, admin_token=GARAGE_ADMIN_TOKEN),
     )
-    kinds = {"ConfigMap": ConfigMap, "Deployment": Deployment, "Service": Service}
-    deployment = None
-    for manifest in manifests:
-        if not manifest:
-            continue
-        manifest.setdefault("metadata", {})["namespace"] = namespace
-        obj = kinds[manifest["kind"]](manifest, namespace=namespace, api=api)
-        await obj.create()
-        if manifest["kind"] == "Deployment":
-            deployment = obj
 
-    assert deployment is not None, "garage.yaml declares no Deployment"
+    # A CA generated per session is in no trust store, so only the ConfigMap the
+    # Jobs mount can make them trust it.
+    authority = create_certificate_authority("Infrahub e2e S3 CA")
+    certificate = issue_server_certificate(
+        authority=authority,
+        common_name=S3_TLS_SERVICE,
+        dns_names=service_dns_names(S3_TLS_SERVICE, namespace),
+    )
+    tls_secret = Secret(
+        {
+            "metadata": {"name": S3_TLS_SERVICE, "namespace": namespace},
+            "type": "kubernetes.io/tls",
+            "stringData": {
+                "tls.crt": certificate.certificate_pem,
+                "tls.key": certificate.private_key_pem,
+            },
+        },
+        namespace=namespace,
+        api=api,
+    )
+    await tls_secret.create()
+    ca_configmap = ConfigMap(
+        {
+            "metadata": {"name": S3_CA_CONFIGMAP, "namespace": namespace},
+            "data": {"ca.crt": authority.pem},
+        },
+        namespace=namespace,
+        api=api,
+    )
+    await ca_configmap.create()
+
+    # HAProxy resolves the Garage Service when it starts, so the front comes after it.
+    tls_deployment = await _create_from_manifests(
+        api, namespace, (FIXTURES_DIR / "garage-tls.yaml").read_text()
+    )
 
     # Credentials Secret consumed by the backup/restore Jobs.
     secret = Secret(
@@ -611,6 +668,7 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
     await secret.create()
 
     await deployment.wait("condition=Available", timeout=300)
+    await tls_deployment.wait("condition=Available", timeout=300)
 
     async with portforward_service(
         kubeconfig, namespace, GARAGE_ADMIN_PORT, name="garage"
@@ -621,7 +679,9 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
         "namespace": namespace,
         "kubeconfig_path": kubeconfig,
         "bucket": bucket,
-        "endpoint": f"http://garage:{GARAGE_S3_PORT}",
+        "endpoint": f"https://{S3_TLS_SERVICE}",
+        # infrahub-backup values that make the Jobs trust the CA.
+        "ca_values": FIXTURES_DIR / "infrahub-backup-s3-ca-values.yaml",
         "port": GARAGE_S3_PORT,
         "access_key": S3_ACCESS_KEY,
         "secret_key": S3_SECRET_KEY,
