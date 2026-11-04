@@ -527,10 +527,13 @@ async def _job_pod_logs(api, namespace: str, job_name: str, tail: int = 200) -> 
     return "\n".join(chunks) or "(no job pods/logs)"
 
 
-async def wait_for_job(
-    kubeconfig: str, namespace: str, job_name: str, timeout: int = 600
-) -> None:
-    """Block until a Job reports Complete, or raise on failure/timeout."""
+async def _wait_for_job_to_finish(
+    kubeconfig: str, namespace: str, job_name: str, timeout: int
+):
+    """Block until a Job reports Complete or Failed, or raise on timeout.
+
+    Returns the kr8s API and whether the Job failed.
+    """
     import kr8s.asyncio
     from kr8s.asyncio.objects import Job
 
@@ -546,9 +549,30 @@ async def wait_for_job(
 
     await job.refresh()
     conditions = (job.raw.get("status") or {}).get("conditions") or []
-    if any(c.get("type") == "Failed" and str(c.get("status")) == "True" for c in conditions):
+    failed = any(c.get("type") == "Failed" and str(c.get("status")) == "True" for c in conditions)
+    return api, failed
+
+
+async def wait_for_job(
+    kubeconfig: str, namespace: str, job_name: str, timeout: int = 600
+) -> None:
+    """Block until a Job reports Complete, or raise on failure/timeout."""
+    api, failed = await _wait_for_job_to_finish(kubeconfig, namespace, job_name, timeout)
+    if failed:
         logs = await _job_pod_logs(api, namespace, job_name)
         raise AssertionError(f"Job '{job_name}' failed\n{logs}")
+
+
+async def wait_for_job_failure(
+    kubeconfig: str, namespace: str, job_name: str, timeout: int = 600
+) -> str:
+    """Block until a Job reports Failed and return its pods' logs, or raise when
+    it completes instead or times out."""
+    api, failed = await _wait_for_job_to_finish(kubeconfig, namespace, job_name, timeout)
+    logs = await _job_pod_logs(api, namespace, job_name)
+    if not failed:
+        raise AssertionError(f"Job '{job_name}' completed, expected it to fail\n{logs}")
+    return logs
 
 
 # ---------------------------------------------------------------------------

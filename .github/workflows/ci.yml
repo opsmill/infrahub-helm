@@ -56,6 +56,11 @@ jobs:
         with:
           submodules: true
       - uses: "azure/setup-helm@v5.0.0"
+      # A pull request that bumps a chart of this repository and re-pins it here
+      # runs before the new version is published, so that version comes from
+      # the local chart.
+      - name: "Resolving unpublished dependencies from the local charts"
+        run: "./scripts/link-unpublished-chart-dependencies.sh charts/infrahub"
       - name: "Updating dependencies"
         run: "helm dependency update charts/infrahub"
       - name: "Linting: helm lint infrahub"
