@@ -29,20 +29,6 @@ on:
         description: "Neo4j chart version (for example 2026.5.0) to install first and upgrade member by member to the pinned chart; empty skips the upgrade test; cannot be combined with neo4j_image"
         type: string
         default: ""
-  workflow_call:
-    inputs:
-      neo4j_image:
-        type: string
-        default: ""
-      prefect_image:
-        type: string
-        default: ""
-      infrahub_image:
-        type: string
-        default: ""
-      neo4j_upgrade_from_chart:
-        type: string
-        default: ""
 permissions:
   contents: read
 concurrency:
