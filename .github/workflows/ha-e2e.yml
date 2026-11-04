@@ -25,6 +25,10 @@ on:
         description: "Infrahub Enterprise registry/repository:tag for the API servers and task workers; empty uses chart default"
         type: string
         default: ""
+      neo4j_upgrade_from_chart:
+        description: "Neo4j chart version (for example 2026.5.0) to install first and upgrade member by member to the pinned chart; empty skips the upgrade test; cannot be combined with neo4j_image"
+        type: string
+        default: ""
   workflow_call:
     inputs:
       neo4j_image:
@@ -36,10 +40,13 @@ on:
       infrahub_image:
         type: string
         default: ""
+      neo4j_upgrade_from_chart:
+        type: string
+        default: ""
 permissions:
   contents: read
 concurrency:
-  group: ha-e2e-${{ github.ref }}-${{ inputs.neo4j_image }}-${{ inputs.prefect_image }}-${{ inputs.infrahub_image }}
+  group: ha-e2e-${{ github.ref }}-${{ inputs.neo4j_image }}-${{ inputs.prefect_image }}-${{ inputs.infrahub_image }}-${{ inputs.neo4j_upgrade_from_chart }}
   cancel-in-progress: true
 jobs:
   ha:
@@ -58,6 +65,7 @@ jobs:
           NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
           PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
           INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
+          NEO4J_UPGRADE_FROM_CHART: ${{ inputs.neo4j_upgrade_from_chart }}
         run: uv run pytest -v -s -m ha tests/e2e --junitxml=ha-results.xml
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}

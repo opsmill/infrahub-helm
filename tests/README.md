@@ -146,16 +146,53 @@ variable to test the chart's default. The test logs actual pod images and node
 placement.
 
 `.github/workflows/ha-e2e.yml` runs on relevant pull requests and exposes
-`neo4j_image`, `prefect_image` and `infrahub_image` for manual or reusable
-workflow invocation.
+`neo4j_image`, `prefect_image`, `infrahub_image` and `neo4j_upgrade_from_chart`
+for manual or reusable workflow invocation.
 An empty input uses chart defaults. For candidate comparisons run the same
 chart commit once with defaults and once with the candidate image, keeping
 Prefect unchanged. Both runs use fresh stores: they do not validate an upgrade
-of a persisted store from 2026.05. A candidate
-image override does not itself validate a different Neo4j chart version.
+of a persisted store from 2026.05 (the rolling upgrade mode below does). A
+candidate image override does not itself validate a different Neo4j chart
+version.
 
 This increment leaves Redis, PostgreSQL and RabbitMQ at the existing smoke-test
 settings: it is **Neo4j HA coverage, not full-stack HA validation**. Schema
 changes, proposed-change review/merge, generators, backup/restore, rolling
-upgrades and performance regression remain separate increments for INBOX-407.
-It must not be used alone to enable automatic dependency upgrades.
+upgrades other than the Neo4j one below and performance regression remain
+separate increments for INBOX-407. It must not be used alone to enable automatic
+dependency upgrades.
+
+### Rolling Neo4j upgrade
+
+```bash
+NEO4J_UPGRADE_FROM_CHART=2026.5.0 uv run pytest -v -s -m ha tests/e2e
+```
+
+`test_neo4j_rolling_upgrade` runs only when `NEO4J_UPGRADE_FROM_CHART` is set,
+and the workflow input `neo4j_upgrade_from_chart` sets it. The three members are
+then installed from that version of the Neo4j chart, pulled from the repository
+that `charts/infrahub/Chart.yaml` names, and Infrahub is installed as usual. The
+test writes a tag through Infrahub and a marker node over Bolt, then runs
+`helm upgrade` of one member release at a time to the pinned chart, with the
+same values. Before each step it picks a member that does not host the writer
+of the `neo4j` database, so the writer is upgraded last; it picks again before
+every step because the writer can move when a member restarts. After each step
+it waits until the member's pod is replaced and ready, then checks three online
+primaries and one writer, the member's Neo4j version (`dbms.components()` over a
+direct Bolt connection), the markers written so far on that member, and that
+Infrahub can still create a branch and write and read a tag. At the end every
+member must report the new version, serve every marker and keep the PVC (same
+UID) it had before the upgrade, and every tag must still be readable. The log
+shows both versions, the upgrade order with the writer at each step, and the
+images and restart counts of all pods. The test never restarts the Infrahub
+pods; the restart counts show whether they restarted on their own.
+
+The test is skipped when both charts run the same Neo4j version. Setup fails when
+the pinned chart runs an older Neo4j than the chart named, or when
+`NEO4J_DOCKER_IMAGE` is also set, since that image would run before and after the
+upgrade. In this mode `test_neo4j_writer_loss_and_recovery` runs after the
+upgrade, on the upgraded cluster.
+
+The upgrade runs on a small store, with checks between the steps rather than
+traffic during each restart. It does not test a rollback, a Neo4j image that the
+chart does not pin, or an upgrade of Infrahub, Prefect or the other services.
