@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -216,3 +217,16 @@ def test_chart_metadata_reads_the_top_level_chart(tmp_path: Path):
         add(archive, "neo4j/values.yaml", {})
     with pytest.raises(FileNotFoundError):
         chart_metadata(empty)
+
+
+def test_command_error_describes_failures_and_timeouts():
+    from tests.helpers.ha import RETRYABLE_ERRORS, command_error
+
+    failed = subprocess.CalledProcessError(1, ["kubectl"], stderr="connection refused")
+    assert command_error(failed) == "connection refused"
+    assert "returned non-zero exit status 1" in command_error(
+        subprocess.CalledProcessError(1, ["kubectl"])
+    )
+    timed_out = subprocess.TimeoutExpired(["kubectl"], 60, stderr=b"partial")
+    assert isinstance(timed_out, RETRYABLE_ERRORS)
+    assert "timed out after 60 seconds" in command_error(timed_out)

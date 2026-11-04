@@ -222,15 +222,29 @@ def neo4j_release(
     subprocess.run([*command, "--timeout", "15m"], check=True)
 
 
-def kubectl(kubeconfig: str, *args: str, input: str | None = None) -> str:
+# Lets a wait loop retry a cypher-shell call that hangs on a restarting member.
+CYPHER_TIMEOUT = 60
+RETRYABLE_ERRORS = (subprocess.CalledProcessError, subprocess.TimeoutExpired)
+
+
+def kubectl(
+    kubeconfig: str, *args: str, input: str | None = None, timeout: int = 360
+) -> str:
     return subprocess.run(
         ["kubectl", "--kubeconfig", kubeconfig, "-n", NAMESPACE, *args],
         input=input,
         capture_output=True,
         text=True,
         check=True,
-        timeout=360,
+        timeout=timeout,
     ).stdout
+
+
+def command_error(exc: subprocess.SubprocessError) -> str:
+    """Describe a failed or timed-out command for the message of a wait loop."""
+    if isinstance(exc, subprocess.CalledProcessError) and exc.stderr:
+        return exc.stderr
+    return str(exc)
 
 
 def member_pod(kubeconfig: str, member: str) -> dict:
@@ -290,6 +304,7 @@ def neo4j_version(kubeconfig: str, member: str) -> str:
         "plain",
         "CALL dbms.components() YIELD name, versions "
         "WHERE name = 'Neo4j Kernel' RETURN versions[0] AS version",
+        timeout=CYPHER_TIMEOUT,
     )
     rows = list(csv.DictReader(io.StringIO(output), skipinitialspace=True))
     assert len(rows) == 1, f"Expected one Neo4j Kernel component on {member}: {output}"
@@ -314,6 +329,7 @@ def database_topology(kubeconfig: str, member: str = MEMBERS[0]) -> list[dict]:
         "plain",
         "SHOW DATABASE neo4j YIELD address, role, currentStatus, writer "
         "RETURN address, role, currentStatus, writer",
+        timeout=CYPHER_TIMEOUT,
     )
     return list(csv.DictReader(io.StringIO(output), skipinitialspace=True))
 
@@ -389,5 +405,6 @@ def recovery_probe(
         "--format",
         "plain",
         query,
+        timeout=CYPHER_TIMEOUT,
     )
     return list(csv.DictReader(io.StringIO(output), skipinitialspace=True))
