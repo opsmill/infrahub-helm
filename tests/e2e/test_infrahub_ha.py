@@ -4,7 +4,6 @@ optional rolling upgrade of the members."""
 import asyncio
 import json
 import os
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -22,8 +21,10 @@ from tests.e2e.conftest import (
 from tests.helpers.ha import (
     MEMBERS,
     NAMESPACE,
+    RETRYABLE_ERRORS,
     Neo4jUpgrade,
     chart_metadata,
+    command_error,
     data_claim,
     database_topology,
     image_overrides,
@@ -62,8 +63,8 @@ async def wait_for_topology(
             last = database_topology(kubeconfig, member)
             if topology_ready(last, online_members, absent):
                 return last
-        except subprocess.CalledProcessError as exc:
-            last = exc.stderr
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
         await asyncio.sleep(5)
     raise AssertionError(
         f"Expected {online_members} online primaries and one writer, absent={absent}: {last}"
@@ -78,23 +79,27 @@ async def wait_for_recovered_data(kubeconfig, member, ids, timeout=180):
             last = recovery_probe(kubeconfig, member, ids)
             if last == [{"count": str(len(ids))}]:
                 return
-        except subprocess.CalledProcessError as exc:
-            last = exc.stderr
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
         await asyncio.sleep(5)
     raise AssertionError(f"Recovered member {member} did not catch up: {last}")
 
 
-async def wait_for_marker_write(kubeconfig, probe, timeout=180):
+async def wait_for_marker_write(
+    kubeconfig, probe, *, member=MEMBERS[0], online_members=3, absent=None, timeout=180
+):
     """Write through the member that is the writer now, since leadership can move."""
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
-        writer = writer_member(await wait_for_topology(kubeconfig))
         try:
-            recovery_probe(kubeconfig, writer, [probe], write=True)
-            return
-        except subprocess.CalledProcessError as exc:
-            last = exc.stderr
+            topology = database_topology(kubeconfig, member)
+            if topology_ready(topology, online_members, absent):
+                recovery_probe(kubeconfig, writer_member(topology), [probe], write=True)
+                return
+            last = topology
+        except RETRYABLE_ERRORS as exc:
+            last = command_error(exc)
         await asyncio.sleep(5)
     raise AssertionError(f"Could not write marker {probe}: {last}")
 
@@ -323,13 +328,14 @@ async def test_neo4j_writer_loss_and_recovery(infrahub_ha_k8s):
         await wait_for_infrahub_branch_ready(url, INFRAHUB_ADMIN_TOKEN)
         original = await seed_infrahub_data(url, INFRAHUB_ADMIN_TOKEN)
         await verify_infrahub_data(url, INFRAHUB_ADMIN_TOKEN, original)
-        topology = await wait_for_topology(kubeconfig)
-        writer = writer_member(topology)
-        survivor = next(member for member in MEMBERS if member != writer)
         original_probe, outage_probe = str(uuid.uuid4()), str(uuid.uuid4())
-        recovery_probe(kubeconfig, writer, [original_probe], write=True)
-        original_pod = member_pod(kubeconfig, writer)
-        original_claim = data_claim(kubeconfig, original_pod)
+        await wait_for_marker_write(kubeconfig, original_probe)
+        pods = {member: member_pod(kubeconfig, member) for member in MEMBERS}
+        claims = {member: data_claim(kubeconfig, pods[member]) for member in MEMBERS}
+        # Read the writer right before the scale, since leadership can move at any time.
+        writer = writer_member(await wait_for_topology(kubeconfig))
+        survivor = next(member for member in MEMBERS if member != writer)
+        original_pod, original_claim = pods[writer], claims[writer]
         try:
             kubectl(kubeconfig, "scale", "statefulset", writer, "--replicas=0")
             kubectl(
@@ -338,15 +344,19 @@ async def test_neo4j_writer_loss_and_recovery(infrahub_ha_k8s):
             surviving_topology = await wait_for_topology(
                 kubeconfig, member=survivor, online_members=2, absent=writer
             )
-            replacement = writer_member(surviving_topology)
-            assert replacement != writer
+            print(
+                f"Removed the writer {writer}; "
+                f"the new writer is {writer_member(surviving_topology)}"
+            )
             # The writer stays absent for these operations; its automatic pod restart
             # cannot hide an inability to elect a replacement and serve writes.
             await wait_for_infrahub_branch_ready(url, INFRAHUB_ADMIN_TOKEN)
             await verify_infrahub_data(url, INFRAHUB_ADMIN_TOKEN, original)
             during_outage = await seed_infrahub_data(url, INFRAHUB_ADMIN_TOKEN)
             await verify_infrahub_data(url, INFRAHUB_ADMIN_TOKEN, during_outage)
-            recovery_probe(kubeconfig, replacement, [outage_probe], write=True)
+            await wait_for_marker_write(
+                kubeconfig, outage_probe, member=survivor, online_members=2, absent=writer
+            )
             assert not kubectl(
                 kubeconfig,
                 "get",

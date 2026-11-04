@@ -147,7 +147,7 @@ placement.
 
 `.github/workflows/ha-e2e.yml` runs on relevant pull requests and exposes
 `neo4j_image`, `prefect_image`, `infrahub_image` and `neo4j_upgrade_from_chart`
-for manual or reusable workflow invocation.
+for a manual run.
 An empty input uses chart defaults. For candidate comparisons run the same
 chart commit once with defaults and once with the candidate image, keeping
 Prefect unchanged. Both runs use fresh stores: they do not validate an upgrade
