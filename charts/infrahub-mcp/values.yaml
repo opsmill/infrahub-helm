@@ -41,15 +41,57 @@ infrahub:
     existingSecret: ""
     # -- Key within the existing Secret that holds the API token
     existingSecretKey: "INFRAHUB_API_TOKEN"
+  # -- Infrahub username. Set it with `password` instead of `apiToken`; the
+  # server refuses to start when both are set.
+  username: ""
+  # -- Password for `username`
+  password:
+    # -- Password value, rendered as a plain-text env var. Prefer
+    # `existingSecret` for production deployments.
+    value: ""
+    # -- Name of an existing Secret containing the password. Takes precedence
+    # over `value` when set.
+    existingSecret: ""
+    # -- Key within the existing Secret that holds the password
+    existingSecretKey: "INFRAHUB_PASSWORD"
 
 # -- MCP server configuration
 mcp:
   # -- Authentication mode: "none", "token-passthrough", "basic-passthrough", "oidc"
   authMode: "none"
+  # -- HTTP header that carries the client's credential when `authMode` is
+  # "token-passthrough" or "basic-passthrough"
+  tokenPassthroughHeader: "Authorization"
+  # -- OAuth scopes (comma-separated) a client token must hold to call write tools
+  authScopesWrite: "write"
+  # -- OIDC configuration, used when `authMode` is "oidc"
+  oidc:
+    # -- OIDC discovery URL (required when `authMode` is "oidc")
+    configUrl: ""
+    # -- OAuth client ID registered with the identity provider (required when `authMode` is "oidc")
+    clientId: ""
+    # -- OAuth client secret. Leave empty to use PKCE.
+    clientSecret:
+      # -- Client secret value, rendered as a plain-text env var. Prefer
+      # `existingSecret` for production deployments.
+      value: ""
+      # -- Name of an existing Secret containing the client secret. Takes
+      # precedence over `value` when set.
+      existingSecret: ""
+      # -- Key within the existing Secret that holds the client secret
+      existingSecretKey: "INFRAHUB_MCP_OIDC_CLIENT_SECRET"
+    # -- Public URL where clients reach the MCP server (required when `authMode` is "oidc")
+    baseUrl: ""
+    # -- Expected token audience claim
+    audience: ""
+    # -- JWT claim used as the user identity
+    userClaim: "email"
   # -- Enable read-only mode (blocks all write operations)
   readOnly: false
   # -- Log level: "debug", "info", "warning", "error"
   logLevel: "info"
+  # -- Address the HTTP server binds to. The port is `service.targetPort`.
+  host: "0.0.0.0"
 
   # -- Branching configuration
   branching:
@@ -71,7 +113,7 @@ mcp:
   rateLimit:
     # -- Requests per second (0 = disabled)
     rps: 0
-    # -- Burst allowance (0 = disabled)
+    # -- Burst allowance (0 = twice `rps`)
     burst: 0
 
   # -- Retry configuration
@@ -92,6 +134,10 @@ mcp:
 
   # -- Enable JSON $ref dereferencing in schemas
   dereferenceSchemas: false
+
+  # -- Include one level of related peer schemas in schema detail responses.
+  # When false, relationships are returned as flat peer references.
+  schemaExpandPeers: true
 
 # -- Additional environment variables (key: value pairs)
 extraEnv: {}

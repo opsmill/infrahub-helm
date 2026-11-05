@@ -1,0 +1,1 @@
+Added values for the infrahub-mcp settings that the chart did not set: `infrahub.username` and `infrahub.password`, `mcp.host`, `mcp.tokenPassthroughHeader`, `mcp.authScopesWrite`, `mcp.oidc.*` and `mcp.schemaExpandPeers`. The chart now sets `MCP_PORT` from `service.targetPort`, so changing the port also changes the port the server listens on.
