@@ -55,7 +55,7 @@ The chart offers the ability to configure persistence for the database and other
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://helm.neo4j.com/neo4j/ | neo4j | 2026.5.0 |
+| https://helm.neo4j.com/neo4j/ | neo4j | 2026.10.1 |
 | https://prefecthq.github.io/prefect-helm | prefect-server | 2026.10.21032730 |
 | oci://registry-1.docker.io/bitnamicharts | common | 2.23.0 |
 | oci://registry-1.docker.io/bitnamicharts | rabbitmq | 14.4.1 |
