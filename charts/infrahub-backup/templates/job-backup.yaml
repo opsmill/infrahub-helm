@@ -52,6 +52,7 @@ spec:
             {{- if eq .Values.backup.storage.type "s3" }}
             {{- include "infrahub-backup.s3EnvVars" . | nindent 12 }}
             {{- end }}
+            {{- include "infrahub-backup.externalDatabaseEnvVars" (dict "root" $ "restore" false) | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -62,12 +63,14 @@ spec:
           volumeMounts:
             - name: backup-storage
               mountPath: {{ .Values.backup.storage.path }}
+            {{- include "infrahub-backup.scratchVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
         - name: backup-storage
           emptyDir: {}
+        {{- include "infrahub-backup.scratchVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
