@@ -107,8 +107,8 @@ build an image for another ref:
 ## Neo4j HA increment
 
 ```bash
-uv run pytest -v -s -m ha tests/e2e
-NEO4J_DOCKER_IMAGE=neo4j:2026.10.1-enterprise uv run pytest -v -s -m ha tests/e2e
+uv run pytest -v -s -m "ha and not ha_upgrade" tests/e2e
+NEO4J_DOCKER_IMAGE=neo4j:2026.10.1-enterprise uv run pytest -v -s -m "ha and not ha_upgrade" tests/e2e
 ```
 
 The `ha` marker creates three Kubernetes nodes (one control plane, two workers)
@@ -120,16 +120,23 @@ capacity for Kubernetes, Infrahub, Prefect and the supporting services; the CI
 job uses `huge-runners` and has a 60-minute ceiling. This is a functional smoke
 topology with small memory settings, not a performance baseline.
 
-The test checks Neo4j's reported database topology (three online primaries and
-one writer), creates a branch through Prefect, and round-trips a tag. It scales
-the selected writer to zero, waits for its pod to disappear and for the two
-surviving primaries to report a replacement writer, then creates another branch
-and writes/reads data while that member remains absent. Three primaries require
-a majority of two; the chart setting of three is the initial formation minimum.
-After restoring the member it checks cluster recovery and both tags, verifies
-that the new pod uses the same PVC UID, and directly reads pre-failure and
-outage database markers from that member over Bolt to verify catch-up. This tests member loss and
-recovery; it does not simulate an abrupt node crash or a network partition.
+The setup waits until Neo4j reports three online primaries and one writer.
+`test_infrahub_ha.py` installs the members from the Neo4j chart that
+`charts/infrahub/Chart.yaml` pins. Its placement tests check that the three
+members and the two replicas of each Infrahub service run on distinct nodes.
+`test_neo4j_writer_loss_and_recovery` creates a branch through Prefect,
+round-trips a tag and writes a marker node through the writer. It then reads
+the writer again and scales it to zero right away, since leadership can move in
+the meantime. It waits for the pod to disappear and for the two surviving
+primaries to report a replacement writer, then creates another branch, writes
+and reads data, and writes a second marker through the replacement writer while
+that member remains absent. Each marker write is retried through the member
+that is the writer at that moment. Three primaries require a majority of two;
+the chart setting of three is the initial formation minimum. After restoring
+the member it checks cluster recovery and both tags, verifies that the new pod
+uses the same PVC UID, and directly reads both markers from that member over
+Bolt to verify catch-up. This tests member loss and recovery; it does not
+simulate an abrupt node crash or a network partition.
 
 The database chart version comes from the staged local `infrahub` dependency,
 so a chart upgrade PR tests its own pin. `NEO4J_DOCKER_IMAGE` overrides all three
@@ -147,8 +154,11 @@ placement.
 
 `.github/workflows/ha-e2e.yml` runs on relevant pull requests and exposes
 `neo4j_image`, `prefect_image`, `infrahub_image` and `neo4j_upgrade_from_chart`
-for a manual run.
-An empty input uses chart defaults. For candidate comparisons run the same
+for a manual run. Its `ha` job runs `test_infrahub_ha.py` on every run. Its
+`ha-upgrade` job runs `test_infrahub_ha_upgrade.py`, only when
+`neo4j_upgrade_from_chart` is set. An empty input uses chart defaults. The unit
+tests of the HA helpers (`tests/unit`) run in the `unit` job of
+`.github/workflows/ci.yml`. For candidate comparisons run the same
 chart commit once with defaults and once with the candidate image, keeping
 Prefect unchanged. Both runs use fresh stores: they do not validate an upgrade
 of a persisted store from 2026.05 (the rolling upgrade mode below does). A
@@ -165,13 +175,17 @@ dependency upgrades.
 ### Rolling Neo4j upgrade
 
 ```bash
-NEO4J_UPGRADE_FROM_CHART=2026.5.0 uv run pytest -v -s -m ha tests/e2e
+NEO4J_UPGRADE_FROM_CHART=2026.5.0 uv run pytest -v -s -m ha_upgrade tests/e2e
 ```
 
-`test_neo4j_rolling_upgrade` runs only when `NEO4J_UPGRADE_FROM_CHART` is set,
-and the workflow input `neo4j_upgrade_from_chart` sets it. The three members are
-then installed from that version of the Neo4j chart, pulled from the repository
-that `charts/infrahub/Chart.yaml` names, and Infrahub is installed as usual. The
+The tests of `test_infrahub_ha_upgrade.py` run only when
+`NEO4J_UPGRADE_FROM_CHART` is set, and the workflow input
+`neo4j_upgrade_from_chart` sets it. They need a pytest run apart from the other
+`ha` tests, because both modules use the `infrahub-ha` namespace and the same
+release names: a run that selects both fails on the second deployment. In this
+module the three members are installed from that version of the Neo4j chart,
+pulled from the repository that `charts/infrahub/Chart.yaml` names, and Infrahub
+is installed as usual. `test_neo4j_rolling_upgrade` then upgrades them. The
 test writes a tag through Infrahub and a marker node over Bolt, then runs
 `helm upgrade` of one member release at a time to the pinned chart, with the
 same values. Before each step it picks a member that does not host the writer
@@ -187,11 +201,14 @@ shows both versions, the upgrade order with the writer at each step, and the
 images and restart counts of all pods. The test never restarts the Infrahub
 pods; the restart counts show whether they restarted on their own.
 
-The test is skipped when both charts run the same Neo4j version. Setup fails when
-the pinned chart runs an older Neo4j than the chart named, or when
-`NEO4J_DOCKER_IMAGE` is also set, since that image would run before and after the
-upgrade. In this mode `test_neo4j_writer_loss_and_recovery` runs after the
-upgrade, on the upgraded cluster.
+Both tests of the module are skipped, before any cluster is created, when both
+charts run the same Neo4j version. Setup fails when the pinned chart runs an
+older Neo4j than the chart named, or when `NEO4J_DOCKER_IMAGE` is also set, since
+that image would run before and after the upgrade. After the upgrade,
+`test_neo4j_writer_loss_after_the_upgrade` runs the writer loss and recovery
+checks described above on the upgraded cluster. It is skipped when the rolling
+upgrade test did not pass in the same run, since the members may then run
+different Neo4j versions.
 
 The upgrade runs on a small store, with checks between the steps rather than
 traffic during each restart. It does not test a rollback, a Neo4j image that the

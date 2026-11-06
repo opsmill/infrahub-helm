@@ -26,7 +26,7 @@ on:
         type: string
         default: ""
       neo4j_upgrade_from_chart:
-        description: "Neo4j chart version (for example 2026.5.0) to install first and upgrade member by member to the pinned chart; empty skips the upgrade test; cannot be combined with neo4j_image"
+        description: "Neo4j chart version (for example 2026.5.0) to install first and upgrade member by member to the pinned chart, in a job of its own; empty skips that job; cannot be combined with neo4j_image"
         type: string
         default: ""
 permissions:
@@ -44,18 +44,40 @@ jobs:
         with:
           submodules: true
       - uses: ./.github/actions/setup-e2e
-      - name: Check HA configuration helpers
-        run: uv run pytest -q tests/unit
-      - name: Test Neo4j HA topology, writer loss and recovery
+      - name: Test Neo4j HA placement, writer loss and recovery
         env:
           NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
           PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
           INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
-          NEO4J_UPGRADE_FROM_CHART: ${{ inputs.neo4j_upgrade_from_chart }}
-        run: uv run pytest -v -s -m ha tests/e2e --junitxml=ha-results.xml
+        run: uv run pytest -v -s -m "ha and not ha_upgrade" tests/e2e --junitxml=ha-results.xml
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
           name: ha-results
           path: ha-results.xml
+          if-no-files-found: ignore
+  # The upgrade starts from another Neo4j chart, so it needs a cluster of its own.
+  ha-upgrade:
+    if: ${{ inputs.neo4j_upgrade_from_chart }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup-e2e
+      - name: Test a rolling Neo4j upgrade, then writer loss and recovery
+        env:
+          # Passed so that the tests reject it together with the upgrade.
+          NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
+          PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
+          INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
+          NEO4J_UPGRADE_FROM_CHART: ${{ inputs.neo4j_upgrade_from_chart }}
+        run: uv run pytest -v -s -m ha_upgrade tests/e2e --junitxml=ha-upgrade-results.xml
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: ha-upgrade-results
+          path: ha-upgrade-results.xml
           if-no-files-found: ignore
