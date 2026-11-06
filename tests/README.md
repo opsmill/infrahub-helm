@@ -47,6 +47,7 @@ uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                  # t
 uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py   # OpenShift overlay
 uv run pytest -v -s -m manual tests/e2e/test_infrahub_upstream_playwright.py # upstream UI suite
 uv run pytest -v -m manual tests/e2e/test_git_custom_ca.py                   # git behind a private CA
+uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py  # backup of an external Neo4j
 ```
 
 `test_tracing_optout.py` checks that enabling `infrahub-observability` for only
@@ -102,4 +103,33 @@ build an image for another ref:
 ```bash
 ./scripts/build-infrahub-image.sh --help
 ./scripts/build-infrahub-image.sh --ref my-branch --tag my-tag
+```
+
+`test_infrahub_backup_external_neo4j.py` backs up and restores, through the
+`infrahub-backup` chart, an Infrahub whose Neo4j database runs in another
+namespace. It installs a Neo4j 2025.10.1 Enterprise server in the
+`neo4j-external` namespace and deploys Infrahub with `neo4j.enabled=false`
+pointed at it. The backup Job must capture the database with the tools in its
+own container and create no Job and no Secret. Both Jobs write their temporary
+files to `externalDatabase.scratchVolume`, an ephemeral PersistentVolumeClaim.
+The restore Job, with
+`externalDatabase.allowRestore`, copies the archive to the Garage bucket, the
+Neo4j server downloads it, and the data from before the backup must be back.
+
+It needs an `infrahub-backup` image carrying
+[opsmill/infrahub-backup#172](https://github.com/opsmill/infrahub-backup/pull/172),
+which no released `appVersion` points at. The fixture clones the pull request,
+builds the image and imports it into the vcluster:
+
+```bash
+# clones opsmill/infrahub-backup itself (needs `gh`)
+uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
+
+# build from a local checkout, as it is, instead of cloning
+INFRAHUB_BACKUP_SOURCE_DIR=~/code/infrahub-backup \
+  uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
+
+# skip the build and use an image that already exists locally (not `latest`)
+INFRAHUB_BACKUP_IMAGE=infrahub-backup:e2e-pr-172 \
+  uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
 ```

@@ -51,6 +51,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             {{- include "infrahub-backup.restoreS3EnvVars" . | nindent 12 }}
+            {{- include "infrahub-backup.externalDatabaseEnvVars" (dict "root" $ "restore" true) | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -61,12 +62,14 @@ spec:
           volumeMounts:
             - name: backup-storage
               mountPath: {{ .Values.restore.storage.path }}
+            {{- include "infrahub-backup.scratchVolumeMount" . | nindent 12 }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
         - name: backup-storage
           emptyDir: {}
+        {{- include "infrahub-backup.scratchVolume" . | nindent 8 }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
