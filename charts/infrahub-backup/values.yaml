@@ -84,7 +84,8 @@ restore:
       # -- S3 bucket containing the backup
       bucket: ""
       # -- S3 key prefix the backups live under (with latest, match the source's backup.storage.s3.prefix). A restore
-      # of an external Neo4j database also copies the artifact under `<prefix>/seed/`
+      # of an external Neo4j database also copies the artifact under `<prefix>/seed/`, so it needs write access to the
+      # bucket
       prefix: ""
       # -- S3 key (path) to the backup artifact (exactly one of key or latest must be set)
       key: ""
@@ -125,6 +126,8 @@ externalDatabase:
   # -- Allow a restore to overwrite an external database. Sets `INFRAHUB_ALLOW_EXTERNAL_RESTORE` on the restore
   # containers only. A restore of an external Neo4j database also needs `restore.storage.type: s3`: infrahub-backup
   # copies the artifact under `seed/` in `restore.storage.s3.bucket`, and the Neo4j servers download it from there.
+  # So the credentials in `restore.storage.s3.secretName` must be able to write to that bucket, also with
+  # `restore.storage.s3.key`, and the Neo4j servers must be able to read from it.
   allowRestore: false
   # -- Connect to an external database without verifying its certificate, and accept a connection with no
   # encryption when the deployment has TLS disabled. Sets `INFRAHUB_EXTERNAL_DB_INSECURE_TLS`. An external Neo4j

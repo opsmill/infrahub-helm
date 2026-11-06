@@ -1,0 +1,1 @@
+Bumped the `infrahub-backup` image to `2.4.1`, which `restore.options.neo4jClusterOnlineTimeout` needs. See the [infrahub-backup 2.4.1 release notes](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.1).
