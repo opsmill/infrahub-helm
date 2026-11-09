@@ -136,11 +136,6 @@ externalDatabase:
   # -- Time limit for each operation against an external database, with a unit such as "4h" or "90m". Sets
   # `INFRAHUB_EXTERNAL_DB_TIMEOUT`. Empty uses the infrahub-backup default, 2h.
   timeout: ""
-  # -- Free disk space that a capture of an external database needs, such as "20Gi". Sets
-  # `INFRAHUB_EXTERNAL_DB_SCRATCH_SIZE`. Empty derives it from the database size, which Neo4j 2025 does not report.
-  # infrahub-backup writes the capture under `TMPDIR` (`/tmp` when unset): to use a larger volume, add it with
-  # `extraVolumes` and `extraVolumeMounts`, and set `TMPDIR` to its mount path with `extraEnv`.
-  scratchSize: ""
   # -- Neo4j hosts to back up from, as "host[:port][,host[:port]...]". Sets `INFRAHUB_NEO4J_ADDRESS`. Empty uses the
   # address the Infrahub server is configured with. For a Neo4j cluster, list every member, so that the backup can
   # use another member when one is down.

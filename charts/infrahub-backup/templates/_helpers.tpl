@@ -155,10 +155,6 @@ namespace. Call with (dict "root" $ "restore" true) from a restore container.
 - name: INFRAHUB_EXTERNAL_DB_TIMEOUT
   value: {{ . | quote }}
 {{- end }}
-{{- with $ext.scratchSize }}
-- name: INFRAHUB_EXTERNAL_DB_SCRATCH_SIZE
-  value: {{ . | quote }}
-{{- end }}
 {{- with $ext.neo4jAddress }}
 - name: INFRAHUB_NEO4J_ADDRESS
   value: {{ . | quote }}

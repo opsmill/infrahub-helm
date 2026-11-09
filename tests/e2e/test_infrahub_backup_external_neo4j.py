@@ -25,8 +25,10 @@ What it proves:
 
 import asyncio
 import subprocess
+from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.conftest import CHARTS_DIR
 from tests.e2e.conftest import helm_install, portforward_service
@@ -45,8 +47,10 @@ pytestmark = pytest.mark.manual
 DIRECT_MODE_LINE = "Running the external database tools in this process, with no transient Job"
 # infrahub-backup labels every transient Job, Pod and Secret it creates with this key.
 TRANSIENT_LABEL = "infrahub-backup/transient"
-# Neo4j 2025 reports no store size, so a capture of an external server needs one.
-SCRATCH_SIZE = "2Gi"
+# Neo4j 2025 reports no store size, so infrahub-backup needs the free disk space
+# of a capture of an external server. The chart has no value for it: an operator
+# sets the variable with `extraEnv`, as this test does.
+SCRATCH_SIZE_ENV = {"name": "INFRAHUB_EXTERNAL_DB_SCRATCH_SIZE", "value": "2Gi"}
 JOB_TIMEOUT = 1200
 
 
@@ -74,7 +78,6 @@ def _common_sets(deployment: dict) -> dict[str, str]:
         "image.tag": deployment["backup_image_tag"],
         "image.pullPolicy": "IfNotPresent",
         "externalDatabase.insecureTLS": "true",
-        "externalDatabase.scratchSize": SCRATCH_SIZE,
     }
 
 
@@ -85,7 +88,20 @@ def _assert_direct_mode(deployment: dict, job: str) -> None:
     assert not transient.split(), f"Job '{job}' created transient objects: {transient}"
 
 
-async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
+def _values_file(ca_values: Path, tmp_path: Path) -> Path:
+    """Write the S3 CA values with the scratch size added to `extraEnv`.
+
+    A `--set extraEnv[...]` would replace the list of the CA values file and
+    drop `SSL_CERT_FILE`, so the test writes one file with both.
+    """
+    values = yaml.safe_load(ca_values.read_text())
+    values["extraEnv"] = [*values.get("extraEnv", []), SCRATCH_SIZE_ENV]
+    path = tmp_path / "infrahub-backup-external-neo4j-values.yaml"
+    path.write_text(yaml.safe_dump(values))
+    return path
+
+
+async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s, tmp_path):
     deployment = infrahub_external_neo4j_k8s
     kubeconfig = deployment["kubeconfig_path"]
     namespace = deployment["namespace"]
@@ -93,6 +109,7 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
     s3 = deployment["s3"]
     chart = CHARTS_DIR / "infrahub-backup"
     common = _common_sets(deployment)
+    values_file = _values_file(s3["ca_values"], tmp_path)
     s3_sets = {
         "storage.type": "s3",
         "storage.s3.bucket": s3["bucket"],
@@ -112,7 +129,7 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
         chart_path=chart,
         namespace=namespace,
         kubeconfig=kubeconfig,
-        values_files=[s3["ca_values"]],
+        values_files=[values_file],
         sets={
             **common,
             **{f"backup.{key}": value for key, value in s3_sets.items()},
@@ -140,7 +157,7 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
         chart_path=chart,
         namespace=namespace,
         kubeconfig=kubeconfig,
-        values_files=[s3["ca_values"]],
+        values_files=[values_file],
         sets={
             **common,
             **{f"restore.{key}": value for key, value in s3_sets.items()},
