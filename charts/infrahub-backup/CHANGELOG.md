@@ -1,3 +1,13 @@
+## [infrahub-backup-1.6.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.6.0) - 2026-11-06
+
+### Added
+
+- Added `cronJob.timeZone`, which sets the time zone of the backup and restore CronJob schedules, and `priorityClassName`, which sets the priority class of the backup and restore pods.
+
+### Changed
+
+- Bumped the `infrahub-backup` image to `2.4.1`. A restore into a Neo4j cluster now creates the database from the server that holds the restored data, and fails with the reason Neo4j gives when the database does not come online. A restore now empties Redis and RabbitMQ without deleting their files. See the [infrahub-backup 2.4.1 release notes](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.1).
+
 ## [infrahub-backup-1.5.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.5.0) - 2026-11-03
 
 ### Added

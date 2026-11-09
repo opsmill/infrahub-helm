@@ -403,13 +403,6 @@ rabbitmq:
   startupProbe:
     enabled: true
 
-# ----------- NATS Server -----------
-nats:
-  enabled: false
-  config:
-    jetstream:
-      enabled: true
-
 # ------------- Prefect -------------
 prefect-server:
   enabled: true
@@ -417,7 +410,7 @@ prefect-server:
     prefect:
       image:
         repository: registry.opsmill.io/opsmill/infrahub
-        prefectTag: 1.11.10
+        prefectTag: 1.11.11
   server:
     command:
       - /usr/bin/tini

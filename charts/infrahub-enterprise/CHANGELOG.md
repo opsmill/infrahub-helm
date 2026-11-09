@@ -1,3 +1,19 @@
+## [infrahub-enterprise-4.25.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.25.0) - 2026-11-06
+
+### Removed
+
+- The `infrahub` dependency no longer includes the `nats` subchart or the `infrahub.nats` values, because Infrahub no longer supports NATS for the message bus or the cache ([opsmill/infrahub#11210](https://github.com/opsmill/infrahub/pull/11210)). Infrahub used NATS only when `INFRAHUB_BROKER_DRIVER` or `INFRAHUB_CACHE_DRIVER` was set to `nats`. If your values set `infrahub.nats.enabled: true`, set the message bus to `rabbitmq` and the cache to `redis` before you upgrade the chart, because the upgrade removes the NATS server.
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.37.0`, which bumps the `infrahub-backup` subchart to `1.6.0`. `infrahub-backup` 1.6.0 runs the [infrahub-backup 2.4.1](https://github.com/opsmill/infrahub-backup/releases/tag/v2.4.1) image, in which a restore into a Neo4j cluster creates the database from the server that holds the restored data and fails with the reason Neo4j gives when the database does not come online, and a restore empties Redis and RabbitMQ without deleting their files. It also adds `cronJob.timeZone`, which sets the time zone of the backup and restore CronJob schedules, and `priorityClassName`, which sets the priority class of the backup and restore pods.
+
+## [infrahub-enterprise-4.24.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.24.0) - 2026-11-03
+
+### Changed
+
+- Bumped the bundled `infrahub` dependency to `4.36.0`, which bumps the `infrahub-backup` subchart to `1.5.0` and the `infrahub-mcp` subchart to `0.1.1`. `infrahub-backup` 1.5.0 adds `extraEnv`, `extraVolumes` and `extraVolumeMounts` to the backup and restore Jobs and CronJobs, for example to trust a private CA for an S3 endpoint through `SSL_CERT_FILE`, and sets `job.backoffLimit` on the backup CronJob when it is `0`. The install notes of `infrahub-mcp` 0.1.1 print the MCP client URL as `<host>/mcp` instead of `<host>/mcp/mcp`.
+
 ## [infrahub-enterprise-4.23.1](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.23.1) - 2026-10-29
 
 ### Security

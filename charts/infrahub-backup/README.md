@@ -36,12 +36,13 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | backup.storage.s3.region | string | `"us-east-1"` | S3 region |
 | backup.storage.s3.secretName | string | `""` | Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY |
 | backup.storage.type | string | `"s3"` | Storage type: "s3" or "local" |
-| cronJob | object | `{"concurrencyPolicy":"Forbid","failedJobsHistoryLimit":3,"startingDeadlineSeconds":null,"successfulJobsHistoryLimit":3,"suspend":false}` | CronJob specific settings |
+| cronJob | object | `{"concurrencyPolicy":"Forbid","failedJobsHistoryLimit":3,"startingDeadlineSeconds":null,"successfulJobsHistoryLimit":3,"suspend":false,"timeZone":""}` | CronJob specific settings |
 | cronJob.concurrencyPolicy | string | `"Forbid"` | Concurrency policy: "Forbid", "Replace", or "Allow" |
 | cronJob.failedJobsHistoryLimit | int | `3` | Number of failed job history to keep |
 | cronJob.startingDeadlineSeconds | string | `nil` | Job deadline in seconds (optional) |
 | cronJob.successfulJobsHistoryLimit | int | `3` | Number of successful job history to keep |
 | cronJob.suspend | bool | `false` | Suspend the CronJob (useful for maintenance) |
+| cronJob.timeZone | string | `""` | Time zone for `backup.schedule` and `restore.schedule`, as an IANA name such as "Europe/Zurich". Empty uses the time zone of the kube-controller-manager, usually UTC. |
 | extraEnv | list | `[]` | Extra environment variables for the backup and restore containers, appended after the ones the chart sets. For example, trust a private CA for an S3 endpoint with a self-signed or internal certificate: `[{name: SSL_CERT_FILE, value: /etc/ssl/custom/ca.crt}]` together with the volume below. |
 | extraVolumeMounts | list | `[]` | Extra volume mounts for the backup and restore containers: `[{name: s3-ca, mountPath: /etc/ssl/custom, readOnly: true}]` |
 | extraVolumes | list | `[]` | Extra volumes for the backup and restore pods, for example a ConfigMap holding a CA certificate: `[{name: s3-ca, configMap: {name: s3-ca}}]` |
@@ -54,6 +55,7 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | job.ttlSecondsAfterFinished | string | `nil` | Time to live after job completion (seconds, null to keep indefinitely) |
 | nodeSelector | object | `{}` | Node selector for pod scheduling |
 | podSecurityContext | object | `{"runAsNonRoot":true,"runAsUser":1000}` | Pod security context |
+| priorityClassName | string | `""` | Priority class for the backup and restore pods. A backup or restore stops Infrahub while it runs, so a pod that is preempted midway leaves Infrahub stopped. |
 | rbac | object | `{"create":true}` | RBAC configuration |
 | rbac.create | bool | `true` | Create Role and RoleBinding for pod exec permissions |
 | resources | object | `{"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource limits and requests |

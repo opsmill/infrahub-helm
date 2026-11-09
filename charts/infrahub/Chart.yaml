@@ -23,7 +23,7 @@ version: 4.37.0
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.11.10"
+appVersion: "1.11.11"
 
 dependencies:
   - name: neo4j
@@ -42,16 +42,12 @@ dependencies:
     version: "14.4.1"
     repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: rabbitmq.enabled
-  - name: nats
-    version: "1.1.12"
-    repository: "https://nats-io.github.io/k8s/helm/charts/"
-    condition: nats.enabled
   - name: prefect-server
     version: "2026.10.21032730"
     repository: "https://prefecthq.github.io/prefect-helm"
     condition: prefect-server.enabled
   - name: infrahub-backup
-    version: "1.5.0"
+    version: "1.6.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
     condition: infrahub-backup.enabled
   - name: infrahub-observability
