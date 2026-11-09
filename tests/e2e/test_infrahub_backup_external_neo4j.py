@@ -18,8 +18,6 @@ What it proves:
 - the backup Job captures the external Neo4j database with the tools in its
   own container: it logs the direct mode line, and creates no Job and no
   Secret, under the Role the chart creates;
-- both Jobs write their temporary files to ``externalDatabase.scratchVolume``,
-  an ephemeral PersistentVolumeClaim;
 - the restore Job, with ``externalDatabase.allowRestore``, copies the archive
   under ``seed/`` in the restore bucket, the Neo4j server downloads it from
   there, and the data from before the backup is back.
@@ -49,7 +47,6 @@ DIRECT_MODE_LINE = "Running the external database tools in this process, with no
 TRANSIENT_LABEL = "infrahub-backup/transient"
 # Neo4j 2025 reports no store size, so a capture of an external server needs one.
 SCRATCH_SIZE = "2Gi"
-SCRATCH_VOLUME_SIZE = "5Gi"
 JOB_TIMEOUT = 1200
 
 
@@ -70,8 +67,7 @@ def _common_sets(deployment: dict) -> dict[str, str]:
     The Neo4j server serves no TLS, which infrahub-backup accepts only with
     ``insecureTLS``. ``--external-db-image`` names the image under test, which
     a build that is not a release requires; the Job runs in direct mode, so no
-    pod runs it. The temporary files go to an ephemeral PersistentVolumeClaim,
-    which ``fsGroup`` makes writable for the container user.
+    pod runs it.
     """
     return {
         "image.repository": deployment["backup_image_repository"],
@@ -79,9 +75,6 @@ def _common_sets(deployment: dict) -> dict[str, str]:
         "image.pullPolicy": "IfNotPresent",
         "externalDatabase.insecureTLS": "true",
         "externalDatabase.scratchSize": SCRATCH_SIZE,
-        "externalDatabase.scratchVolume.ephemeral.volumeClaimTemplate.spec.accessModes[0]": "ReadWriteOnce",
-        "externalDatabase.scratchVolume.ephemeral.volumeClaimTemplate.spec.resources.requests.storage": SCRATCH_VOLUME_SIZE,
-        "podSecurityContext.fsGroup": "1000",
     }
 
 
@@ -90,10 +83,6 @@ def _assert_direct_mode(deployment: dict, job: str) -> None:
     assert DIRECT_MODE_LINE in logs, f"Job '{job}' did not run the tools in its own container:\n{logs}"
     transient = _kubectl(deployment, "get", "jobs,pods,secrets", "-l", TRANSIENT_LABEL, "-o", "name")
     assert not transient.split(), f"Job '{job}' created transient objects: {transient}"
-    # Kubernetes names the claim of an ephemeral volume `<pod>-<volume>`.
-    pod = _kubectl(deployment, "get", "pods", "-l", f"job-name={job}", "-o", "jsonpath={.items[0].metadata.name}")
-    phase = _kubectl(deployment, "get", "pvc", f"{pod}-scratch", "-o", "jsonpath={.status.phase}")
-    assert phase == "Bound", f"the scratch volume claim of Job '{job}' is {phase!r}, not Bound"
 
 
 async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):

@@ -70,14 +70,12 @@ spec:
               volumeMounts:
                 - name: backup-storage
                   mountPath: {{ .Values.backup.storage.path }}
-                {{- include "infrahub-backup.scratchVolumeMount" . | nindent 16 }}
                 {{- with .Values.extraVolumeMounts }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
           volumes:
             - name: backup-storage
               emptyDir: {}
-            {{- include "infrahub-backup.scratchVolume" . | nindent 12 }}
             {{- with .Values.extraVolumes }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

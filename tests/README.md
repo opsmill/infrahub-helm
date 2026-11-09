@@ -110,9 +110,7 @@ build an image for another ref:
 namespace. It installs a Neo4j 2025.10.1 Enterprise server in the
 `neo4j-external` namespace and deploys Infrahub with `neo4j.enabled=false`
 pointed at it. The backup Job must capture the database with the tools in its
-own container and create no Job and no Secret. Both Jobs write their temporary
-files to `externalDatabase.scratchVolume`, an ephemeral PersistentVolumeClaim.
-The restore Job, with
+own container and create no Job and no Secret. The restore Job, with
 `externalDatabase.allowRestore`, copies the archive to the Garage bucket, the
 Neo4j server downloads it, and the data from before the backup must be back.
 

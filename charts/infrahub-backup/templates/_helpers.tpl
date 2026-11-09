@@ -171,36 +171,6 @@ namespace. Call with (dict "root" $ "restore" true) from a restore container.
 - name: INFRAHUB_POSTGRES_ADDRESS
   value: {{ . | quote }}
 {{- end }}
-{{- if $ext.scratchVolume }}
-- name: TMPDIR
-  value: {{ include "infrahub-backup.scratchPath" .root }}
-{{- end }}
-{{- end }}
-
-{{/*
-Mount path of externalDatabase.scratchVolume. infrahub-backup accepts a TMPDIR
-made only of letters, digits and "/._-+".
-*/}}
-{{- define "infrahub-backup.scratchPath" -}}
-/scratch
-{{- end }}
-
-{{/*
-Volume and volume mount for externalDatabase.scratchVolume, each rendered as a
-list item, or nothing when it is empty.
-*/}}
-{{- define "infrahub-backup.scratchVolume" -}}
-{{- with .Values.externalDatabase.scratchVolume }}
-- name: scratch
-  {{- toYaml . | nindent 2 }}
-{{- end }}
-{{- end }}
-
-{{- define "infrahub-backup.scratchVolumeMount" -}}
-{{- if .Values.externalDatabase.scratchVolume }}
-- name: scratch
-  mountPath: {{ include "infrahub-backup.scratchPath" . }}
-{{- end }}
 {{- end }}
 
 {{/*
