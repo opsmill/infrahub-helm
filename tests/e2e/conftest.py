@@ -1034,8 +1034,19 @@ def install_external_neo4j(kubeconfig: str, namespace: str, s3_env: dict[str, st
 
 
 @pytest.fixture(scope="session")
+async def external_db_s3_k8s(vcluster: dict, request) -> AsyncGenerator[dict, None]:
+    """Create the namespace of the external database test and deploy Garage in it;
+    see `deploy_garage`."""
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = EXTERNAL_DB_NAMESPACE
+    _register_namespace(request, namespace)
+    subprocess.run(["kubectl", "--kubeconfig", kubeconfig, "create", "namespace", namespace], check=True)
+    yield await deploy_garage(kubeconfig, namespace)
+
+
+@pytest.fixture(scope="session")
 async def infrahub_external_neo4j_k8s(
-    vcluster: dict, staged_charts, request, tmp_path_factory
+    vcluster: dict, external_db_s3_k8s: dict, staged_charts, request, tmp_path_factory
 ) -> AsyncGenerator[dict, None]:
     """Deploy Infrahub without its own Neo4j, pointed at a Neo4j server in another
     namespace, next to a Garage that serves the backup bucket.
@@ -1046,17 +1057,14 @@ async def infrahub_external_neo4j_k8s(
     from kr8s.asyncio.objects import Service
 
     kubeconfig = vcluster["kubeconfig_path"]
-    namespace = EXTERNAL_DB_NAMESPACE
-    _register_namespace(request, namespace)
+    namespace = external_db_s3_k8s["namespace"]
+    s3 = external_db_s3_k8s
     _register_namespace(request, EXTERNAL_NEO4J_NAMESPACE)
     workdir = tmp_path_factory.mktemp("external-db")
 
     image = os.environ.get("INFRAHUB_BACKUP_IMAGE") or build_infrahub_backup_image(workdir)
     import_image_into_vcluster(image, vcluster["cluster_name"])
     repository, _, tag = image.rpartition(":")
-
-    subprocess.run(["kubectl", "--kubeconfig", kubeconfig, "create", "namespace", namespace], check=True)
-    s3 = await deploy_garage(kubeconfig, namespace)
 
     # The Neo4j server reaches Garage through the Service IP: with an IP
     # address, the AWS SDK puts the bucket in the path instead of the host
