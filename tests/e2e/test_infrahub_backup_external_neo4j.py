@@ -65,9 +65,9 @@ def _common_sets(deployment: dict) -> dict[str, str]:
     settings the topology needs.
 
     The Neo4j server serves no TLS, which infrahub-backup accepts only with
-    ``insecureTLS``. ``--external-db-image`` names the image under test, which
-    a build that is not a release requires; the Job runs in direct mode, so no
-    pod runs it.
+    ``insecureTLS``. The Jobs pass no ``--external-db-image``, as an operator
+    would not: in direct mode infrahub-backup creates no Job, so it does not
+    need an image for one.
     """
     return {
         "image.repository": deployment["backup_image_repository"],
@@ -93,7 +93,6 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
     s3 = deployment["s3"]
     chart = CHARTS_DIR / "infrahub-backup"
     common = _common_sets(deployment)
-    image_arg = f"--external-db-image={deployment['backup_image']}"
     s3_sets = {
         "storage.type": "s3",
         "storage.s3.bucket": s3["bucket"],
@@ -119,7 +118,6 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
             **{f"backup.{key}": value for key, value in s3_sets.items()},
             "backup.enabled": "true",
             "backup.options.force": "true",
-            "backup.options.extraArgs[0]": image_arg,
         },
         timeout="20m",
     )
@@ -148,7 +146,6 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s):
             **{f"restore.{key}": value for key, value in s3_sets.items()},
             "restore.enabled": "true",
             "restore.storage.s3.key": backup_key,
-            "restore.options.extraArgs[0]": image_arg,
             "externalDatabase.allowRestore": "true",
         },
         timeout="20m",

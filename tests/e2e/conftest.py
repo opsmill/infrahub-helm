@@ -1108,5 +1108,4 @@ async def infrahub_external_neo4j_k8s(
         "s3": s3,
         "backup_image_repository": repository,
         "backup_image_tag": tag,
-        "backup_image": image,
     }
