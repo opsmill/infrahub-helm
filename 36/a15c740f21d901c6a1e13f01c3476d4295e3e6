@@ -1,0 +1,34 @@
+charts/infrahub-mcp/changelog/+infrahub-mcp-settings.added.md
+  s_4b1219b7f18c82::t_9a585b81365bbb 1
+charts/infrahub-mcp/templates/deployment.yaml
+  s_4b1219b7f18c82::t_87273f01a1319a 103-112
+charts/infrahub-mcp/README.md
+  s_4b1219b7f18c82::t_9a585b81365bbb 98,115,119,124-127
+charts/infrahub-enterprise/changelog/+infrahub-mcp-0-2-0.changed.md
+  s_4b1219b7f18c82::t_9a585b81365bbb 1
+charts/infrahub-mcp/changelog/+infrahub-mcp-v1-3-0.changed.md
+  s_4b1219b7f18c82::t_9a585b81365bbb 1
+charts/infrahub-mcp/values.yaml
+  s_4b1219b7f18c82::t_ad45a58421376b 73-74
+  s_4b1219b7f18c82::t_7090a705944b50 84-96
+charts/infrahub/changelog/+infrahub-mcp-0-2-0.changed.md
+  s_4b1219b7f18c82::t_9a585b81365bbb 1
+charts/infrahub-mcp/Chart.yaml
+  s_4b1219b7f18c82::t_7c565c75589a5d 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "36a15c740f21d901c6a1e13f01c3476d4295e3e6",
+  "prompts": {},
+  "sessions": {
+    "s_4b1219b7f18c82": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb8c6f7a-a719-411a-b6ac-c89649ed07cd",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
