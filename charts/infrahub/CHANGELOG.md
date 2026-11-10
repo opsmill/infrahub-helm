@@ -1,3 +1,9 @@
+## [infrahub-4.38.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.38.0) - 2026-11-10
+
+### Changed
+
+- Bumped the bundled `infrahub-mcp` subchart to `0.2.0` (image `v1.3.0`), which adds values for the OIDC, passthrough header, write scope and schema settings of the MCP server. See the [infrahub-mcp 1.3.0 release notes](https://github.com/opsmill/infrahub-mcp/releases/tag/v1.3.0).
+
 ## [infrahub-4.37.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.37.0) - 2026-11-06
 
 ### Removed
