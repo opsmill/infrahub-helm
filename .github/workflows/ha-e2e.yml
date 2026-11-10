@@ -1,0 +1,83 @@
+---
+# yamllint disable rule:truthy rule:line-length
+name: "Enterprise Neo4j HA E2E"
+on:
+  pull_request:
+    paths:
+      - 'charts/infrahub/**'
+      - 'charts/infrahub-enterprise/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/actions/setup-e2e/**'
+      - '.github/workflows/ha-e2e.yml'
+  workflow_dispatch:
+    inputs:
+      neo4j_image:
+        description: "Neo4j Enterprise image; empty uses the pinned chart default"
+        type: string
+        default: ""
+      prefect_image:
+        description: "Infrahub Enterprise repository:tag containing candidate Prefect; empty uses chart default"
+        type: string
+        default: ""
+      infrahub_image:
+        description: "Infrahub Enterprise registry/repository:tag for the API servers and task workers; empty uses chart default"
+        type: string
+        default: ""
+      neo4j_upgrade_from_chart:
+        description: "Neo4j chart version (for example 2026.5.0) to install first and upgrade member by member to the pinned chart, in a job of its own; empty skips that job; cannot be combined with neo4j_image"
+        type: string
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: ha-e2e-${{ github.ref }}-${{ inputs.neo4j_image }}-${{ inputs.prefect_image }}-${{ inputs.infrahub_image }}-${{ inputs.neo4j_upgrade_from_chart }}
+  cancel-in-progress: true
+jobs:
+  ha:
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup-e2e
+      - name: Test Neo4j HA placement, writer loss and recovery
+        env:
+          NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
+          PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
+          INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
+        run: uv run pytest -v -s -m "ha and not ha_upgrade" tests/e2e --junitxml=ha-results.xml
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: ha-results
+          path: ha-results.xml
+          if-no-files-found: ignore
+  # The upgrade starts from another Neo4j chart, so it needs a cluster of its own.
+  ha-upgrade:
+    if: ${{ inputs.neo4j_upgrade_from_chart }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup-e2e
+      - name: Test a rolling Neo4j upgrade, then writer loss and recovery
+        env:
+          # Passed so that the tests reject it together with the upgrade.
+          NEO4J_DOCKER_IMAGE: ${{ inputs.neo4j_image }}
+          PREFECT_DOCKER_IMAGE: ${{ inputs.prefect_image }}
+          INFRAHUB_DOCKER_IMAGE: ${{ inputs.infrahub_image }}
+          NEO4J_UPGRADE_FROM_CHART: ${{ inputs.neo4j_upgrade_from_chart }}
+        run: uv run pytest -v -s -m ha_upgrade tests/e2e --junitxml=ha-upgrade-results.xml
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: ha-upgrade-results
+          path: ha-upgrade-results.xml
+          if-no-files-found: ignore

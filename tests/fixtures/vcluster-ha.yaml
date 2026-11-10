@@ -1,0 +1,6 @@
+# One control-plane node and two additional workers, all on the CI runner.
+experimental:
+  docker:
+    nodes:
+      - name: worker-1
+      - name: worker-2
