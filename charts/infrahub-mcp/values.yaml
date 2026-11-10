@@ -70,7 +70,8 @@ mcp:
     configUrl: ""
     # -- OAuth client ID registered with the identity provider (required when `authMode` is "oidc")
     clientId: ""
-    # -- OAuth client secret. Leave empty to use PKCE.
+    # -- OAuth client secret of a confidential client. For a public client, leave it
+    # empty and set `jwtSigningKey`: the server does not start in OIDC mode without one of them.
     clientSecret:
       # -- Client secret value, rendered as a plain-text env var. Prefer
       # `existingSecret` for production deployments.
@@ -80,6 +81,19 @@ mcp:
       existingSecret: ""
       # -- Key within the existing Secret that holds the client secret
       existingSecretKey: "INFRAHUB_MCP_OIDC_CLIENT_SECRET"
+    # -- Key that signs the tokens the server issues to MCP clients and encrypts its
+    # stored OAuth state. Required when `clientSecret` is empty; when set, it replaces
+    # the key derived from the client secret. Keep it the same across restarts, or
+    # the tokens already issued stop working.
+    jwtSigningKey:
+      # -- Signing key value, rendered as a plain-text env var. Prefer
+      # `existingSecret` for production deployments.
+      value: ""
+      # -- Name of an existing Secret containing the signing key. Takes
+      # precedence over `value` when set.
+      existingSecret: ""
+      # -- Key within the existing Secret that holds the signing key
+      existingSecretKey: "INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY"
     # -- Public URL where clients reach the MCP server (required when `authMode` is "oidc")
     baseUrl: ""
     # -- Expected token audience claim

@@ -100,6 +100,16 @@ spec:
             - name: INFRAHUB_MCP_OIDC_CLIENT_SECRET
               value: {{ .clientSecret.value | quote }}
             {{- end }}
+            {{- if .jwtSigningKey.existingSecret }}
+            - name: INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .jwtSigningKey.existingSecret }}
+                  key: {{ .jwtSigningKey.existingSecretKey }}
+            {{- else if .jwtSigningKey.value }}
+            - name: INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY
+              value: {{ .jwtSigningKey.value | quote }}
+            {{- end }}
             {{- if .baseUrl }}
             - name: INFRAHUB_MCP_OIDC_BASE_URL
               value: {{ .baseUrl | quote }}

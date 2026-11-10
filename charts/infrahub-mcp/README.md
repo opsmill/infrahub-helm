@@ -95,7 +95,7 @@ chart, set `infrahub-mcp.enabled: true` and put these values under the
 | ingress.pathType | string | `"Prefix"` | PathType for the ingress rule |
 | ingress.tls | bool | `false` | Enable TLS for `hostname` using the secret "<fullname>-tls" |
 | livenessProbe | object | `{"failureThreshold":3,"httpGet":{"path":"/health","port":"http"},"initialDelaySeconds":5,"periodSeconds":10,"timeoutSeconds":5}` | Liveness probe configuration |
-| mcp | object | `{"authMode":"none","authScopesWrite":"write","branching":{"maxRetries":5,"pattern":"mcp/session-{date}-{hex}"},"cache":{"enabled":false,"listTtl":300,"readTtl":3600},"dereferenceSchemas":false,"host":"0.0.0.0","logLevel":"info","observability":{"otelEnabled":false,"pingIntervalMs":0,"prometheusEnabled":false},"oidc":{"audience":"","baseUrl":"","clientId":"","clientSecret":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""},"configUrl":"","userClaim":"email"},"rateLimit":{"burst":0,"rps":0},"readOnly":false,"retry":{"baseDelay":1,"maxAttempts":0},"schemaExpandPeers":true,"tokenPassthroughHeader":"Authorization"}` | MCP server configuration |
+| mcp | object | `{"authMode":"none","authScopesWrite":"write","branching":{"maxRetries":5,"pattern":"mcp/session-{date}-{hex}"},"cache":{"enabled":false,"listTtl":300,"readTtl":3600},"dereferenceSchemas":false,"host":"0.0.0.0","logLevel":"info","observability":{"otelEnabled":false,"pingIntervalMs":0,"prometheusEnabled":false},"oidc":{"audience":"","baseUrl":"","clientId":"","clientSecret":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""},"configUrl":"","jwtSigningKey":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY","value":""},"userClaim":"email"},"rateLimit":{"burst":0,"rps":0},"readOnly":false,"retry":{"baseDelay":1,"maxAttempts":0},"schemaExpandPeers":true,"tokenPassthroughHeader":"Authorization"}` | MCP server configuration |
 | mcp.authMode | string | `"none"` | Authentication mode: "none", "token-passthrough", "basic-passthrough", "oidc" |
 | mcp.authScopesWrite | string | `"write"` | OAuth scopes (comma-separated) a client token must hold to call write tools |
 | mcp.branching | object | `{"maxRetries":5,"pattern":"mcp/session-{date}-{hex}"}` | Branching configuration |
@@ -112,15 +112,19 @@ chart, set `infrahub-mcp.enabled: true` and put these values under the
 | mcp.observability.otelEnabled | bool | `false` | Enable OpenTelemetry tracing |
 | mcp.observability.pingIntervalMs | int | `0` | Ping keepalive interval in milliseconds (0 = disabled) |
 | mcp.observability.prometheusEnabled | bool | `false` | Enable Prometheus metrics endpoint |
-| mcp.oidc | object | `{"audience":"","baseUrl":"","clientId":"","clientSecret":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""},"configUrl":"","userClaim":"email"}` | OIDC configuration, used when `authMode` is "oidc" |
+| mcp.oidc | object | `{"audience":"","baseUrl":"","clientId":"","clientSecret":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""},"configUrl":"","jwtSigningKey":{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY","value":""},"userClaim":"email"}` | OIDC configuration, used when `authMode` is "oidc" |
 | mcp.oidc.audience | string | `""` | Expected token audience claim |
 | mcp.oidc.baseUrl | string | `""` | Public URL where clients reach the MCP server (required when `authMode` is "oidc") |
 | mcp.oidc.clientId | string | `""` | OAuth client ID registered with the identity provider (required when `authMode` is "oidc") |
-| mcp.oidc.clientSecret | object | `{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""}` | OAuth client secret. Leave empty to use PKCE. |
+| mcp.oidc.clientSecret | object | `{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_CLIENT_SECRET","value":""}` | OAuth client secret of a confidential client. For a public client, leave it empty and set `jwtSigningKey`: the server does not start in OIDC mode without one of them. |
 | mcp.oidc.clientSecret.existingSecret | string | `""` | Name of an existing Secret containing the client secret. Takes precedence over `value` when set. |
 | mcp.oidc.clientSecret.existingSecretKey | string | `"INFRAHUB_MCP_OIDC_CLIENT_SECRET"` | Key within the existing Secret that holds the client secret |
 | mcp.oidc.clientSecret.value | string | `""` | Client secret value, rendered as a plain-text env var. Prefer `existingSecret` for production deployments. |
 | mcp.oidc.configUrl | string | `""` | OIDC discovery URL (required when `authMode` is "oidc") |
+| mcp.oidc.jwtSigningKey | object | `{"existingSecret":"","existingSecretKey":"INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY","value":""}` | Key that signs the tokens the server issues to MCP clients and encrypts its stored OAuth state. Required when `clientSecret` is empty; when set, it replaces the key derived from the client secret. Keep it the same across restarts, or the tokens already issued stop working. |
+| mcp.oidc.jwtSigningKey.existingSecret | string | `""` | Name of an existing Secret containing the signing key. Takes precedence over `value` when set. |
+| mcp.oidc.jwtSigningKey.existingSecretKey | string | `"INFRAHUB_MCP_OIDC_JWT_SIGNING_KEY"` | Key within the existing Secret that holds the signing key |
+| mcp.oidc.jwtSigningKey.value | string | `""` | Signing key value, rendered as a plain-text env var. Prefer `existingSecret` for production deployments. |
 | mcp.oidc.userClaim | string | `"email"` | JWT claim used as the user identity |
 | mcp.rateLimit | object | `{"burst":0,"rps":0}` | Rate limiting configuration |
 | mcp.rateLimit.burst | int | `0` | Burst allowance (0 = twice `rps`) |
