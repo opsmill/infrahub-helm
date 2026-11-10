@@ -1,0 +1,1 @@
+Bumped the `infrahub-mcp` image to `v1.3.0`. See the [infrahub-mcp 1.2.1](https://github.com/opsmill/infrahub-mcp/releases/tag/v1.2.1) and [infrahub-mcp 1.3.0](https://github.com/opsmill/infrahub-mcp/releases/tag/v1.3.0) release notes.
