@@ -83,7 +83,9 @@ restore:
     s3:
       # -- S3 bucket containing the backup
       bucket: ""
-      # -- S3 key prefix the backups live under (only used with latest; match the source's backup.storage.s3.prefix)
+      # -- S3 key prefix the backups live under (with latest, match the source's backup.storage.s3.prefix). A restore
+      # of an external Neo4j database also copies the artifact under `<prefix>/seed/`, so it needs write access to the
+      # bucket
       prefix: ""
       # -- S3 key (path) to the backup artifact (exactly one of key or latest must be set)
       key: ""
@@ -107,10 +109,43 @@ restore:
     excludeTaskmanager: false
     # -- Migrate backup format from older versions
     migrateFormat: false
+    # -- With a Neo4j cluster, how long the restore waits for the database to come online on every server, such as
+    # "15m". Passes `--neo4j-cluster-online-timeout`, which needs infrahub-backup 2.4.1 or later. Empty uses the
+    # infrahub-backup default.
+    neo4jClusterOnlineTimeout: ""
     # -- Sleep duration before restore when using local storage (allows time to copy files)
     sleep: "3m" # default should be lower than Helm's default install timeout of 5m
     # -- Extra arguments to pass to the restore command
     extraArgs: []
+
+# -- Settings for a Neo4j or PostgreSQL database that runs outside the Infrahub namespace. They have no effect on a
+# database that runs in the namespace. The backup and restore pods run in the Infrahub namespace, so infrahub-backup
+# runs `neo4j-admin`, `cypher-shell` and the PostgreSQL client in its own container, and creates no Job and no Secret.
+# Needs an infrahub-backup image with external database support.
+externalDatabase:
+  # -- Allow a restore to overwrite an external database. Sets `INFRAHUB_ALLOW_EXTERNAL_RESTORE` on the restore
+  # containers only. A restore of an external Neo4j database also needs `restore.storage.type: s3`: infrahub-backup
+  # copies the artifact under `seed/` in `restore.storage.s3.bucket`, and the Neo4j servers download it from there.
+  # So the credentials in `restore.storage.s3.secretName` must be able to write to that bucket, also with
+  # `restore.storage.s3.key`, and the Neo4j servers must be able to read from it.
+  allowRestore: false
+  # -- Connect to an external database without verifying its certificate, and accept a connection with no
+  # encryption when the deployment has TLS disabled. Sets `INFRAHUB_EXTERNAL_DB_INSECURE_TLS`. An external Neo4j
+  # server with TLS disabled needs it.
+  insecureTLS: false
+  # -- Time limit for each operation against an external database, with a unit such as "4h" or "90m". Sets
+  # `INFRAHUB_EXTERNAL_DB_TIMEOUT`. Empty uses the infrahub-backup default, 2h.
+  timeout: ""
+  # -- Neo4j hosts to back up from, as "host[:port][,host[:port]...]". Sets `INFRAHUB_NEO4J_ADDRESS`. Empty uses the
+  # address the Infrahub server is configured with. For a Neo4j cluster, list every member, so that the backup can
+  # use another member when one is down.
+  neo4jAddress: ""
+  # -- Port of the Neo4j backup service on every host, not the Bolt port. Sets `INFRAHUB_NEO4J_BACKUP_PORT`. Empty
+  # uses the infrahub-backup default, 6362.
+  neo4jBackupPort: ""
+  # -- PostgreSQL endpoint of the task manager database, as "host[:port]". Sets `INFRAHUB_POSTGRES_ADDRESS`. Empty
+  # uses the address the task manager is configured with.
+  postgresAddress: ""
 
 # -- Container image configuration
 image:

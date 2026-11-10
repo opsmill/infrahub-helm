@@ -43,6 +43,13 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | cronJob.successfulJobsHistoryLimit | int | `3` | Number of successful job history to keep |
 | cronJob.suspend | bool | `false` | Suspend the CronJob (useful for maintenance) |
 | cronJob.timeZone | string | `""` | Time zone for `backup.schedule` and `restore.schedule`, as an IANA name such as "Europe/Zurich". Empty uses the time zone of the kube-controller-manager, usually UTC. |
+| externalDatabase | object | `{"allowRestore":false,"insecureTLS":false,"neo4jAddress":"","neo4jBackupPort":"","postgresAddress":"","timeout":""}` | Settings for a Neo4j or PostgreSQL database that runs outside the Infrahub namespace. They have no effect on a database that runs in the namespace. The backup and restore pods run in the Infrahub namespace, so infrahub-backup runs `neo4j-admin`, `cypher-shell` and the PostgreSQL client in its own container, and creates no Job and no Secret. Needs an infrahub-backup image with external database support. |
+| externalDatabase.allowRestore | bool | `false` | Allow a restore to overwrite an external database. Sets `INFRAHUB_ALLOW_EXTERNAL_RESTORE` on the restore containers only. A restore of an external Neo4j database also needs `restore.storage.type: s3`: infrahub-backup copies the artifact under `seed/` in `restore.storage.s3.bucket`, and the Neo4j servers download it from there. So the credentials in `restore.storage.s3.secretName` must be able to write to that bucket, also with `restore.storage.s3.key`, and the Neo4j servers must be able to read from it. |
+| externalDatabase.insecureTLS | bool | `false` | Connect to an external database without verifying its certificate, and accept a connection with no encryption when the deployment has TLS disabled. Sets `INFRAHUB_EXTERNAL_DB_INSECURE_TLS`. An external Neo4j server with TLS disabled needs it. |
+| externalDatabase.neo4jAddress | string | `""` | Neo4j hosts to back up from, as "host[:port][,host[:port]...]". Sets `INFRAHUB_NEO4J_ADDRESS`. Empty uses the address the Infrahub server is configured with. For a Neo4j cluster, list every member, so that the backup can use another member when one is down. |
+| externalDatabase.neo4jBackupPort | string | `""` | Port of the Neo4j backup service on every host, not the Bolt port. Sets `INFRAHUB_NEO4J_BACKUP_PORT`. Empty uses the infrahub-backup default, 6362. |
+| externalDatabase.postgresAddress | string | `""` | PostgreSQL endpoint of the task manager database, as "host[:port]". Sets `INFRAHUB_POSTGRES_ADDRESS`. Empty uses the address the task manager is configured with. |
+| externalDatabase.timeout | string | `""` | Time limit for each operation against an external database, with a unit such as "4h" or "90m". Sets `INFRAHUB_EXTERNAL_DB_TIMEOUT`. Empty uses the infrahub-backup default, 2h. |
 | extraEnv | list | `[]` | Extra environment variables for the backup and restore containers, appended after the ones the chart sets. For example, trust a private CA for an S3 endpoint with a self-signed or internal certificate: `[{name: SSL_CERT_FILE, value: /etc/ssl/custom/ca.crt}]` together with the volume below. |
 | extraVolumeMounts | list | `[]` | Extra volume mounts for the backup and restore containers: `[{name: s3-ca, mountPath: /etc/ssl/custom, readOnly: true}]` |
 | extraVolumes | list | `[]` | Extra volumes for the backup and restore pods, for example a ConfigMap holding a CA certificate: `[{name: s3-ca, configMap: {name: s3-ca}}]` |
@@ -59,13 +66,14 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | rbac | object | `{"create":true}` | RBAC configuration |
 | rbac.create | bool | `true` | Create Role and RoleBinding for pod exec permissions |
 | resources | object | `{"requests":{"cpu":"100m","memory":"256Mi"}}` | Resource limits and requests |
-| restore | object | `{"enabled":false,"mode":"job","options":{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"sleep":"3m"},"schedule":"0 4 * * *","storage":{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Restore configuration |
+| restore | object | `{"enabled":false,"mode":"job","options":{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"neo4jClusterOnlineTimeout":"","sleep":"3m"},"schedule":"0 4 * * *","storage":{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""},"type":"s3"}}` | Restore configuration |
 | restore.enabled | bool | `false` | Enable restore functionality (mutually exclusive with backup) |
 | restore.mode | string | `"job"` | Restore mode: "job" for one-shot, "cronjob" for scheduled (e.g. a nightly prod -> staging sync) |
-| restore.options | object | `{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"sleep":"3m"}` | Restore options |
+| restore.options | object | `{"excludeTaskmanager":false,"extraArgs":[],"migrateFormat":false,"neo4jClusterOnlineTimeout":"","sleep":"3m"}` | Restore options |
 | restore.options.excludeTaskmanager | bool | `false` | Exclude task-manager database from restore |
 | restore.options.extraArgs | list | `[]` | Extra arguments to pass to the restore command |
 | restore.options.migrateFormat | bool | `false` | Migrate backup format from older versions |
+| restore.options.neo4jClusterOnlineTimeout | string | `""` | With a Neo4j cluster, how long the restore waits for the database to come online on every server, such as "15m". Passes `--neo4j-cluster-online-timeout`, which needs infrahub-backup 2.4.1 or later. Empty uses the infrahub-backup default. |
 | restore.options.sleep | string | `"3m"` | Sleep duration before restore when using local storage (allows time to copy files) |
 | restore.schedule | string | `"0 4 * * *"` | Schedule for CronJob mode (cron expression) |
 | restore.storage | object | `{"local":{"filename":"infrahub_backup_latest.tar.gz"},"path":"/infrahub_backups","s3":{"bucket":"","endpoint":"","key":"","latest":false,"prefix":"","region":"us-east-1","secretName":""},"type":"s3"}` | Storage configuration |
@@ -77,7 +85,7 @@ Backup and restore Helm chart for Infrahub on Kubernetes
 | restore.storage.s3.endpoint | string | `""` | S3 endpoint URL (for non-AWS S3-compatible storage) |
 | restore.storage.s3.key | string | `""` | S3 key (path) to the backup artifact (exactly one of key or latest must be set) |
 | restore.storage.s3.latest | bool | `false` | Restore the newest backup under bucket/prefix instead of naming one (exactly one of key or latest must be set) |
-| restore.storage.s3.prefix | string | `""` | S3 key prefix the backups live under (only used with latest; match the source's backup.storage.s3.prefix) |
+| restore.storage.s3.prefix | string | `""` | S3 key prefix the backups live under (with latest, match the source's backup.storage.s3.prefix). A restore of an external Neo4j database also copies the artifact under `<prefix>/seed/`, so it needs write access to the bucket |
 | restore.storage.s3.region | string | `"us-east-1"` | S3 region |
 | restore.storage.s3.secretName | string | `""` | Name of Kubernetes Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY |
 | restore.storage.type | string | `"s3"` | Storage type: "s3" or "local" ("cronjob" mode requires "s3") |

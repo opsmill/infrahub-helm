@@ -52,6 +52,7 @@ spec:
             {{- if eq .Values.backup.storage.type "s3" }}
             {{- include "infrahub-backup.s3EnvVars" . | nindent 12 }}
             {{- end }}
+            {{- include "infrahub-backup.externalDatabaseEnvVars" (dict "root" $ "restore" false) | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

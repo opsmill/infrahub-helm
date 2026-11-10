@@ -1,0 +1,1 @@
+A restore Job or CronJob with `restore.storage.s3.key` now also sets `INFRAHUB_S3_BUCKET`, `INFRAHUB_S3_PREFIX` and `INFRAHUB_S3_ENDPOINT`. A restore of an external Neo4j database copies the archive into this bucket, under `seed/`, for the Neo4j servers to download, so its credentials need write access to the bucket. The archive download does not change.

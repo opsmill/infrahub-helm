@@ -1,0 +1,1 @@
+Added `externalDatabase` values for a Neo4j or PostgreSQL database that runs outside the Infrahub namespace: `allowRestore`, `insecureTLS`, `timeout`, `neo4jAddress`, `neo4jBackupPort` and `postgresAddress`. Each one sets the matching infrahub-backup environment variable. These values need an infrahub-backup image with external database support.

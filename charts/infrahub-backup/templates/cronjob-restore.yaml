@@ -58,6 +58,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.namespace
                 {{- include "infrahub-backup.restoreS3EnvVars" . | nindent 16 }}
+                {{- include "infrahub-backup.externalDatabaseEnvVars" (dict "root" $ "restore" true) | nindent 16 }}
                 {{- with .Values.extraEnv }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
