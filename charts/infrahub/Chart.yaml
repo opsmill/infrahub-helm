@@ -18,12 +18,12 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 4.36.0
+version: 4.38.0
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.11.10"
+appVersion: "1.12.0"
 
 dependencies:
   - name: neo4j
@@ -47,7 +47,7 @@ dependencies:
     repository: "https://prefecthq.github.io/prefect-helm"
     condition: prefect-server.enabled
   - name: infrahub-backup
-    version: "1.5.0"
+    version: "1.6.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
     condition: infrahub-backup.enabled
   - name: infrahub-observability
@@ -55,6 +55,6 @@ dependencies:
     repository: "oci://registry.opsmill.io/opsmill/chart"
     condition: infrahub-observability.enabled
   - name: infrahub-mcp
-    version: "0.1.1"
+    version: "0.2.0"
     repository: "oci://registry.opsmill.io/opsmill/chart"
     condition: infrahub-mcp.enabled

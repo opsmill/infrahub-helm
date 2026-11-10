@@ -141,6 +141,10 @@ extraVolumes: []
 # `[{name: s3-ca, mountPath: /etc/ssl/custom, readOnly: true}]`
 extraVolumeMounts: []
 
+# -- Priority class for the backup and restore pods. A backup or restore stops Infrahub while it runs, so a pod
+# that is preempted midway leaves Infrahub stopped.
+priorityClassName: ""
+
 # -- Node selector for pod scheduling
 nodeSelector: {}
 
@@ -175,6 +179,9 @@ cronJob:
   startingDeadlineSeconds: null
   # -- Suspend the CronJob (useful for maintenance)
   suspend: false
+  # -- Time zone for `backup.schedule` and `restore.schedule`, as an IANA name such as "Europe/Zurich". Empty uses
+  # the time zone of the kube-controller-manager, usually UTC.
+  timeZone: ""
 
 # -- Job specific settings
 job:
