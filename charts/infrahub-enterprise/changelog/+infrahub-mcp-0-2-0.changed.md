@@ -1,1 +1,0 @@
-The bundled `infrahub` chart installs the `infrahub-mcp` subchart `0.2.0` (image `v1.3.0`), which adds values for the OIDC, passthrough header, write scope and schema settings of the MCP server. See the [infrahub-mcp 1.3.0 release notes](https://github.com/opsmill/infrahub-mcp/releases/tag/v1.3.0).
