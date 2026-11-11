@@ -346,9 +346,9 @@ infrahubServer:
 
 # ----------- Infrahub Upgrade -----------
 upgrade:
-  # -- Whether to run infrahub upgrade as a post-install/pre-upgrade hook job
+  # -- Whether to run `infrahub upgrade` as a post-install/pre-upgrade hook job. With an Infrahub 1.13 or later image, the job passes `--no-task-history-cleanup`, because Helm waits at most 5 minutes for a hook by default and the cleanup of a large task history can take longer. To clean up the task history, run `infrahub tasks flush flow-runs --rewrite` after the upgrade.
   enabled: false
-  # -- Additional arguments passed to the `infrahub upgrade` command, e.g. ["--rebase-branches"] to rebase open branches after migrations that require it
+  # -- Additional arguments passed to the `infrahub upgrade` command, after the arguments the chart sets, e.g. ["--rebase-branches"] to rebase open branches after migrations that require it
   extraArgs: []
 
 infrahubDemoData:
@@ -426,8 +426,8 @@ prefect-server:
       # such as `P30D`, from 1 to 365 days; the task manager does not start
       # with any other value. Infrahub reads these variables from 1.13 on.
       # Helm replaces a list as a whole, so to change one value, set all three.
-      # Enterprise availability and edition-specific restrictions remain undecided;
-      # the current implementation has no edition gate.
+      # The Infrahub Enterprise chart sets this list with `30d` for the events of
+      # the activity log.
       env:
         - name: INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY
           value: "30d"

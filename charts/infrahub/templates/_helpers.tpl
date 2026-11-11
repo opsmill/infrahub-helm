@@ -81,6 +81,29 @@ version still tracks the chart appVersion.
 {{- end }}
 
 {{/*
+Arguments of the `infrahub upgrade` hook Job, as a YAML list.
+The Job skips the task history cleanup, because Helm waits at most 5 minutes
+for a hook by default and the cleanup can take longer. `infrahub upgrade` has
+the option from Infrahub 1.13 on, so the list leaves it out when
+`global.infrahubTag` or the chart appVersion is an earlier version. A tag that
+is not a version number, such as a branch name, gets the option.
+*/}}
+{{- define "infrahub-helm.upgradeArgs" -}}
+{{- $tag := .Values.global.infrahubTag | default .Chart.AppVersion | toString -}}
+{{- $hasOption := true -}}
+{{- if regexMatch "^v?[0-9]+\\.[0-9]+(\\.[0-9]+)?(-[0-9A-Za-z.-]+)?$" $tag -}}
+{{- if semverCompare "<1.13.0-0" $tag -}}
+{{- $hasOption = false -}}
+{{- end -}}
+{{- end -}}
+{{- $args := list -}}
+{{- if $hasOption -}}
+{{- $args = append $args "--no-task-history-cleanup" -}}
+{{- end -}}
+{{- concat $args (.Values.upgrade.extraArgs | default list) | toYaml -}}
+{{- end }}
+
+{{/*
 Create the name of the service account to use.
 Returns an empty string when no ServiceAccount is created nor named, so that
 the serviceAccountName field can be omitted from pod specs.
