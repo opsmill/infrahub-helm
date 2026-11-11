@@ -1,0 +1,1 @@
+The chart no longer accepts the Neo4j Enterprise license terms for you. Read https://neo4j.com/terms/licensing/, then set `infrahub.neo4j.neo4j.acceptLicenseAgreement: "yes"` to accept them. Until you set it, Helm refuses to install, upgrade or render the chart with the bundled Neo4j database, so also add it to the values you pass to `helm upgrade`.

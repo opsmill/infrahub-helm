@@ -63,7 +63,8 @@ infrahub:
   neo4j:
     neo4j:
       edition: "enterprise"
-      acceptLicenseAgreement: "yes"
+      # -- Set to "yes" to accept the Neo4j Enterprise license terms at https://neo4j.com/terms/licensing/. When `infrahub.neo4j.enabled` is true, the Neo4j chart refuses to install, upgrade or render until you set it. Its error message names this value `neo4j.acceptLicenseAgreement`.
+      acceptLicenseAgreement: ""
   prefect-server:
     global:
       prefect:

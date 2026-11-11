@@ -28,18 +28,22 @@ The `envFromExistingSecret` parameter is available to pass environment variables
 
 ## Installing the Chart
 
+Unless `infrahub.neo4j.enabled` is false, the chart installs a Neo4j Enterprise database. Before you install it, read the Neo4j Enterprise license terms at https://neo4j.com/terms/licensing/. To confirm that you accept them, set `infrahub.neo4j.neo4j.acceptLicenseAgreement` to `"yes"`. Helm refuses to install, upgrade or render the chart until you set it.
+
 To install the chart with the release name `infrahub`:
 
 ```sh
-helm install infrahub path/to/infrahub/chart
+helm install infrahub path/to/infrahub/chart \
+  --set infrahub.neo4j.neo4j.acceptLicenseAgreement=yes
 ```
 
 ## Upgrading the Chart
 
-To upgrade the chart to a new version:
+To upgrade the chart to a new version, pass the same values as for the install, including the Neo4j license value:
 
 ```sh
-helm upgrade infrahub path/to/infrahub/chart
+helm upgrade infrahub path/to/infrahub/chart \
+  --set infrahub.neo4j.neo4j.acceptLicenseAgreement=yes
 ```
 
 ## Uninstalling the Chart
@@ -60,7 +64,8 @@ The chart pins a uid/gid on most pods (1000 for Infrahub and Prefect, 7474 for N
 
 ```sh
 helm install infrahub-enterprise path/to/infrahub-enterprise/chart \
-  -f values.medium.yaml -f values.openshift.yaml
+  -f values.medium.yaml -f values.openshift.yaml \
+  --set infrahub.neo4j.neo4j.acceptLicenseAgreement=yes
 ```
 
 Pass it as a values file. `--set <key>=null` is ignored by Helm 3, which keeps the chart default, and overriding a security context with `{}` never works on either Helm version because Helm merges maps. Helm 3 also prints a `cannot overwrite table with non table` warning for each cleared block; it is cosmetic, the block is still dropped.
@@ -122,7 +127,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 | infrahub.infrahubTaskWorker.podSecurityContext.runAsGroup | int | `1000` |  |
 | infrahub.infrahubTaskWorker.podSecurityContext.runAsNonRoot | bool | `true` |  |
 | infrahub.infrahubTaskWorker.podSecurityContext.runAsUser | int | `1000` |  |
-| infrahub.neo4j.neo4j.acceptLicenseAgreement | string | `"yes"` |  |
+| infrahub.neo4j.neo4j.acceptLicenseAgreement | string | `""` | Set to "yes" to accept the Neo4j Enterprise license terms at https://neo4j.com/terms/licensing/. When `infrahub.neo4j.enabled` is true, the Neo4j chart refuses to install, upgrade or render until you set it. Its error message names this value `neo4j.acceptLicenseAgreement`. |
 | infrahub.neo4j.neo4j.edition | string | `"enterprise"` |  |
 | infrahub.prefect-server.backgroundServices.command[0] | string | `"/usr/bin/tini"` |  |
 | infrahub.prefect-server.backgroundServices.command[1] | string | `"-g"` |  |

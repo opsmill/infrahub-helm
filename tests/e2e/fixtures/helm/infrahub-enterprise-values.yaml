@@ -5,6 +5,10 @@ infrahub:
   global:
     imagePullPolicy: IfNotPresent
 
+  neo4j:
+    neo4j:
+      acceptLicenseAgreement: "yes"
+
   infrahub-backup:
     enabled: false
   infrahub-observability:
