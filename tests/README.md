@@ -68,6 +68,18 @@ the UI and `stable` runs ahead of the released image between releases.
 narrows the run to a subset. It needs `uv` and enough disk for the checkout and
 browser.
 
+`INFRAHUB_E2E_SUPPORTING_SERVICES=redhat` runs the same suite with the chart's
+bundled Bitnami Redis, RabbitMQ and PostgreSQL turned off, against Redis and
+PostgreSQL from `registry.redhat.io` and RabbitMQ from the official image
+(`fixtures/helm/redhat-supporting-services*.yaml`). It needs a
+`docker login registry.redhat.io` on the machine running the test; a registry
+service account works.
+
+```bash
+INFRAHUB_E2E_SUPPORTING_SERVICES=redhat \
+  uv run pytest -v -s -m manual tests/e2e/test_infrahub_upstream_playwright.py
+```
+
 `test_git_custom_ca.py` checks that Infrahub imports a git repository served
 over HTTPS by a private CA, using the Helm form of the
 [Trust a private CA](https://docs.infrahub.app/deploy-manage/install-configure/production-deployment/private-ca)
