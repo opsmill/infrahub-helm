@@ -71,7 +71,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 
 | Repository | Name | Version |
 |------------|------|---------|
-| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.37.0 |
+| oci://registry.opsmill.io/opsmill/chart | infrahub | 4.38.1 |
 
 ## Values
 
@@ -129,7 +129,7 @@ Use the overlay only on a cluster that assigns a uid of its own. Plain Kubernete
 | infrahub.prefect-server.backgroundServices.command[2] | string | `"--"` |  |
 | infrahub.prefect-server.backgroundServices.podLabels.infrahub/service | string | `"task-manager-background-svc"` |  |
 | infrahub.prefect-server.backgroundServices.runAsSeparateDeployment | bool | `false` |  |
-| infrahub.prefect-server.global.prefect.env | list | `[{"name":"INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY","value":"30d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG","value":"30d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS","value":"2d"}]` | How long the task manager keeps each kind of record: finished task runs with their logs and artifacts (`INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY`), the events of the activity log (`INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG`) and Prefect's own events (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`). This list replaces the list of the infrahub chart, which sets `7d` for the events of the activity log. Each value is a number of days such as `30d` or an ISO 8601 duration such as `P30D`, from 1 to 365 days. Infrahub reads these variables from 1.13 on. Helm replaces a list as a whole, so to change one value, set all three. |
+| infrahub.prefect-server.global.prefect.env | list | `[{"name":"INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY","value":"30d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG","value":"30d"},{"name":"INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS","value":"2d"}]` | How long the task manager keeps each kind of record: finished task runs with their logs and artifacts (`INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY`), the events of the activity log (`INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG`) and Prefect's own events (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`). This list replaces the list of the infrahub chart, which sets `7d` for the events of the activity log. Each value is a number of days such as `30d` or an ISO 8601 duration such as `P30D`, from 1 to 365 days, and the value for Prefect's own events cannot be longer than the value for the events of the activity log; the task manager does not start with any other value. Infrahub reads these variables from 1.13 on. Helm replaces a list as a whole, so to change one value, set all three. |
 | infrahub.prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub-enterprise"` |  |
 | infrahub.prefect-server.migrations.enabled | bool | `false` |  |
 | infrahub.prefect-server.server.args[0] | string | `"sh"` |  |
