@@ -62,7 +62,7 @@ infrahub:
       args:
         - sh
         - -c
-        - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; prefect server services start"
+        - "while true; do if curl -s -o /dev/null http://prefect-server:4200; then break; fi; sleep 10; echo try; done; infrahub tasks background-services"
       env:
         # The image bakes PROMETHEUS_MULTIPROC_DIR to a path that is read-only here; blank it so prometheus_client's multiprocess metric files land in the writable workdir instead of failing.
         - name: PROMETHEUS_MULTIPROC_DIR

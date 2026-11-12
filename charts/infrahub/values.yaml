@@ -346,9 +346,9 @@ infrahubServer:
 
 # ----------- Infrahub Upgrade -----------
 upgrade:
-  # -- Whether to run infrahub upgrade as a post-install/pre-upgrade hook job
+  # -- Whether to run `infrahub upgrade` as a post-install/pre-upgrade hook job. With an Infrahub 1.13 or later image, the job passes `--no-task-history-cleanup`, because Helm waits at most 5 minutes for a hook by default and the cleanup of a large task history can take longer. To clean up the task history after the upgrade, run `infrahub tasks flush flow-runs` with its `--rewrite` option.
   enabled: false
-  # -- Additional arguments passed to the `infrahub upgrade` command, e.g. ["--rebase-branches"] to rebase open branches after migrations that require it
+  # -- Additional arguments passed to the `infrahub upgrade` command, after the arguments the chart sets, e.g. ["--rebase-branches"] to rebase open branches after migrations that require it
   extraArgs: []
 
 infrahubDemoData:
@@ -411,6 +411,42 @@ prefect-server:
       image:
         repository: registry.opsmill.io/opsmill/infrahub
         prefectTag: 1.12.1
+      # -- Environment variables for the task manager container and, when
+      # `backgroundServices.runAsSeparateDeployment` is true, for the background
+      # services container. Unlike `server.env` and `backgroundServices.env`,
+      # which the Infrahub Enterprise config presets replace, this list reaches
+      # both containers.
+      # The three variables set how long the task manager keeps each kind of
+      # record: finished task runs with their logs and artifacts
+      # (`INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY`, default `30d`), the
+      # events of the activity log (`INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG`,
+      # default `7d`) and Prefect's own events
+      # (`INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS`, default `2d`).
+      # Each value is a number of days such as `30d` or an ISO 8601 duration
+      # such as `P30D`, from 1 to 365 days, and the value for Prefect's own
+      # events cannot be longer than the value for the events of the activity
+      # log; the task manager does not start with any other value. Infrahub
+      # reads these variables from 1.13 on.
+      # Helm replaces a list as a whole, so to change one value, set all three.
+      # The Infrahub Enterprise chart sets this list with `30d` for the events of
+      # the activity log.
+      env:
+        - name: INFRAHUB_TASK_MANAGER_RETENTION_TASK_HISTORY
+          value: "30d"
+        - name: INFRAHUB_TASK_MANAGER_RETENTION_ACTIVITY_LOG
+          value: "7d"
+        - name: INFRAHUB_TASK_MANAGER_RETENTION_PREFECT_OWN_EVENTS
+          value: "2d"
+  backgroundServices:
+    # -- Apply the Infrahub retention settings before starting separate background
+    # services. Requires an Infrahub 1.13 or newer image.
+    args:
+      - infrahub
+      - tasks
+      - background-services
+    env:
+      - name: PROMETHEUS_MULTIPROC_DIR
+        value: /tmp
   server:
     command:
       - /usr/bin/tini

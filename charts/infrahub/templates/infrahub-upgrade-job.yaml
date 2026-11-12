@@ -53,7 +53,7 @@ spec:
           image: {{ default .Values.global.imageRegistry .Values.infrahubServer.infrahubServer.imageRegistry }}/{{ .Values.global.infrahubRepository }}:{{ include "infrahub-helm.infrahubImageTag" . }}
           imagePullPolicy: {{ default .Values.global.imagePullPolicy .Values.infrahubServer.infrahubServer.imagePullPolicy }}
           command: ["infrahub", "upgrade"]
-          {{- with .Values.upgrade.extraArgs }}
+          {{- with include "infrahub-helm.upgradeArgs" . | fromYamlArray }}
           args: {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
