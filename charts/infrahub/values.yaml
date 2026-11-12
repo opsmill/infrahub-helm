@@ -410,7 +410,7 @@ prefect-server:
     prefect:
       image:
         repository: registry.opsmill.io/opsmill/infrahub
-        prefectTag: 1.12.0
+        prefectTag: 1.12.1
       # -- Environment variables for the task manager container and, when
       # `backgroundServices.runAsSeparateDeployment` is true, for the background
       # services container. Unlike `server.env` and `backgroundServices.env`,
