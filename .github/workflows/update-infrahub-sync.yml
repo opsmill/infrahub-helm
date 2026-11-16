@@ -12,6 +12,9 @@ name: "Update infrahub-sync"
 # did not send the event. An infrahub-sync release tag has no `v` prefix
 # (`3.0.0`), and the image tag is the release tag.
 #
+# scripts/bump_chart.py refuses to move appVersion from a pre-release such as
+# `3.0.0a5`, so until appVersion is a final release, a maintainer sets it by hand.
+#
 # After the pull request is merged, run "Publish Helm Chart" for infrahub-sync.
 #
 # A pull request opened with the default GITHUB_TOKEN does not trigger the CI

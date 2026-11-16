@@ -24,5 +24,9 @@ lint:
 	@for chart in charts/*/; do \
 	    echo "==> linting $$chart"; \
 	    helm dependency update "$$chart" >/dev/null; \
-	    helm lint "$$chart"; \
+	    if [ -f "$$chart/ci/lint-values.yaml" ]; then \
+	        helm lint "$$chart" -f "$$chart/ci/lint-values.yaml"; \
+	    else \
+	        helm lint "$$chart"; \
+	    fi; \
 	done

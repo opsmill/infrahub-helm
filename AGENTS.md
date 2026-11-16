@@ -44,7 +44,8 @@ above it only after the pinned chart is released and the pin is updated.
 
 ## Tests
 
-- `make lint` runs `helm lint` on every chart. It resolves the dependencies of a chart from the
+- `make lint` runs `helm lint` on every chart, with `ci/lint-values.yaml` when the chart has that
+  file. It resolves the dependencies of a chart from the
   registry, so it fails on a chart that pins a version of another chart of this repository that is
   not published yet. The `helm-lint-infrahub` CI job first runs
   `./scripts/link-unpublished-chart-dependencies.sh charts/infrahub`, which resolves such a
@@ -56,12 +57,14 @@ above it only after the pinned chart is released and the pin is updated.
   vcluster: `-m "ha and not ha_upgrade"` for placement and writer loss, and `-m ha_upgrade` for
   the rolling Neo4j upgrade, which runs only when `NEO4J_UPGRADE_FROM_CHART` is set. Both use the
   `infrahub-ha` namespace, so select them in separate pytest runs. `uv run pytest tests/unit` runs
-  the unit tests of the test helpers, in the `unit` job of `ci.yml`.
+  the unit tests of the test helpers and the render tests of the `infrahub-sync` chart, which call
+  `helm template`, in the `unit` job of `ci.yml`.
 - The Grafana dashboards of `infrahub-observability` are not committed. Run
   `./scripts/sync-upstream.sh` before you test or package that chart.
 - CI (`.github/workflows/ci.yml`) runs the lint and end-to-end jobs only for the charts that a pull
   request changes. A change to `charts/infrahub/` also runs the `infrahub-enterprise` and
-  `infrahub-mcp` jobs, and a change to `tests/` runs all end-to-end jobs.
+  `infrahub-mcp` jobs, and a change to `tests/` runs all end-to-end jobs, `e2e-infrahub-sync`
+  included. A change to `charts/infrahub-sync/` runs only the `infrahub-sync` jobs.
 - No CI job deploys the size presets. To test one, install the local `infrahub-enterprise` chart
   with `-f charts/infrahub-enterprise/values.<preset>.yaml`, and point its `infrahub` dependency at
   the local `charts/infrahub` the way `tests/e2e/conftest.py` does.
