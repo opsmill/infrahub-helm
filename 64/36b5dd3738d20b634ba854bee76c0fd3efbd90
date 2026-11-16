@@ -1,0 +1,38 @@
+charts/infrahub-sync/templates/_validation.tpl
+  s_d989f93fc3b8fb::t_a0da55a1726ecc 1-46
+charts/infrahub-sync/values.yaml
+  s_d989f93fc3b8fb::t_3a35c676d221b0 1-352
+charts/infrahub-sync/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_d7205d647a4e76 1-402,405,440-441,443-447,449-453,455-483
+  s_d989f93fc3b8fb::t_c824231a4278d3 403-404,406-439,442,448,454
+tests/unit/test_infrahub_sync_chart.py
+  s_d989f93fc3b8fb::t_10ee335290f7ac 1-6,8-58,62-150
+  s_d989f93fc3b8fb::t_582ed95d3f3b9c 7
+  s_d989f93fc3b8fb::t_dda9d1ff350e15 59-61
+charts/infrahub-sync/ci/lint-values.yaml
+  s_d989f93fc3b8fb::t_609293e4623b08 1-4
+charts/infrahub-sync/templates/ca-configmap.yaml
+  s_d989f93fc3b8fb::t_1e4628599438fe 1-13
+charts/infrahub-sync/templates/secret.yaml
+  s_d989f93fc3b8fb::t_00baf395625f9c 1-12
+charts/infrahub-sync/templates/serviceaccount.yaml
+  s_d989f93fc3b8fb::t_55a31e2685ed00 1-14
+charts/infrahub-sync/templates/worker-credentials-secret.yaml
+  s_d989f93fc3b8fb::t_30103ef9fa7cf8 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6436b5dd3738d20b634ba854bee76c0fd3efbd90",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
