@@ -1,0 +1,35 @@
+charts/infrahub-sync/templates/object-store.yaml
+  s_d989f93fc3b8fb::t_d91d9ca5dd48ee 1-125
+charts/infrahub-sync/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_e0a55d06600eb4 472-477,484-490,496-536
+charts/infrahub-sync/templates/bootstrap-job.yaml
+  s_d989f93fc3b8fb::t_4766d05c8ce72e 12-13
+  s_d989f93fc3b8fb::t_2cc6407cb198f6 1-11,14-61
+charts/infrahub-sync/templates/worker.yaml
+  s_d989f93fc3b8fb::t_6ecbffdf4c794f 1-82
+charts/infrahub-sync/templates/NOTES.txt
+  s_d989f93fc3b8fb::t_b2caf4c5328b43 1-15,17-29
+  s_d989f93fc3b8fb::t_74ecb37303da2a 16
+charts/infrahub-sync/templates/postgresql.yaml
+  s_d989f93fc3b8fb::t_cf3aaa42845c4f 1-207
+charts/infrahub-sync/templates/prefect-server.yaml
+  s_d989f93fc3b8fb::t_4b7c3f72ff7209 1-123
+charts/infrahub-sync/templates/api.yaml
+  s_d989f93fc3b8fb::t_54d04b2bb59f8d 1-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a0e4588826414b2a1d90d4c168dc84274e766a6",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
