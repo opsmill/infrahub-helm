@@ -40,6 +40,14 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- if and .Values.ingress.enabled .Values.gatewayApi.enabled }}
 {{- fail "ingress.enabled and gatewayApi.enabled are mutually exclusive: turn one of them off" }}
 {{- end }}
+{{- if .Values.gatewayApi.enabled }}
+{{- if and (not .Values.gatewayApi.httpRoute.parentRefs) (not .Values.gatewayApi.gateway.enabled) }}
+{{- fail "gatewayApi.httpRoute.parentRefs is required when gatewayApi.enabled is true and gatewayApi.gateway.enabled is false" }}
+{{- end }}
+{{- if and .Values.gatewayApi.gateway.enabled (not .Values.gatewayApi.gateway.className) }}
+{{- fail "gatewayApi.gateway.className is required when gatewayApi.gateway.enabled is true" }}
+{{- end }}
+{{- end }}
 {{- if and .Values.caCertificates.existingConfigMap .Values.caCertificates.certificates }}
 {{- fail "caCertificates.existingConfigMap and caCertificates.certificates are mutually exclusive: set one of them" }}
 {{- end }}

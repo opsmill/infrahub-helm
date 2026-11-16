@@ -32,6 +32,28 @@ Argument: (dict "context" $ "component" "api")
 {{- end }}
 
 {{/*
+Name of the HTTPRoute that routes to the Sync API.
+*/}}
+{{- define "infrahub-sync.httproute.name" -}}
+{{- if .Values.gatewayApi.httpRoute.name -}}
+  {{- .Values.gatewayApi.httpRoute.name -}}
+{{- else -}}
+  {{- printf "%s-httproute" (include "infrahub-sync.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name of the Gateway the chart creates when gatewayApi.gateway.enabled is true.
+*/}}
+{{- define "infrahub-sync.gateway.name" -}}
+{{- if .Values.gatewayApi.gateway.name -}}
+  {{- .Values.gatewayApi.gateway.name -}}
+{{- else -}}
+  {{- printf "%s-gateway" (include "infrahub-sync.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "infrahub-sync.chart" -}}
