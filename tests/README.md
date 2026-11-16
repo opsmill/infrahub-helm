@@ -13,7 +13,7 @@ chart changed (see `.github/workflows/ci.yml`):
 | `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. The Jobs reach Garage over HTTPS with a certificate issued by a private CA that the test generates, and trust it through `extraEnv`, `extraVolumes` and `extraVolumeMounts`. A restore without these values must fail certificate verification. |
 | `infrahub-observability` | `observability` | Deploys Infrahub + the stack together (tracing → Tempo, Alloy scraping Infrahub), drives API traffic, then asserts via Grafana that Infrahub metrics (Prometheus) and Infrahub traces (Tempo) are queryable. |
 | `infrahub-mcp`           | `mcp`           | Deploys Infrahub with the MCP sub-chart behind a shared ingress and drives it over the streamable-HTTP transport. |
-| `infrahub-sync`          | `sync`          | Installs the standalone Sync chart and waits for its bootstrap Job. Checks `/version`, `/whoami` with the API token, and that `/status` reports a ready worker. Repeats the checks after an upgrade that changes `s3.prefix`. |
+| `infrahub-sync`          | `sync`          | Installs the standalone Sync chart and waits until its bootstrap Job completes. Checks that `/version` returns a server version, that `/me` refuses a request without a token and returns the `operator` administrator with the API token, and that `/status` reports a ready worker within 3 minutes. Then upgrades with a changed `s3.prefix`, checks that a bootstrap Job with a new name replaces the first one and completes, waits for the Sync API and worker Deployments to roll out, and runs the Sync API checks again. |
 
 Charts are installed from the local `charts/` directory (cross-chart
 dependencies are rewritten to local `file://` paths), so the tests reflect the
@@ -27,7 +27,13 @@ working tree rather than the published OCI charts.
   from upstream via `scripts/sync-upstream.sh`)
 
 All images and charts are pulled anonymously from `registry.opsmill.io`, so no
-registry credentials are required.
+registry credentials are required, except for the Sync image. Before Infrahub
+Sync 3.0.0, the registry serves that image only to invited testers. The `sync`
+test uses the image in `INFRAHUB_SYNC_E2E_IMAGE` when it is set, otherwise the
+registry image of the chart's `appVersion`. An image in the local Docker store
+is imported into the vcluster. To pull from the registry with a login, set
+`INFRAHUB_SYNC_REGISTRY_USERNAME` and `INFRAHUB_SYNC_REGISTRY_PASSWORD`. When
+the image is in neither place and no login is set, the test is skipped.
 
 ## Running
 

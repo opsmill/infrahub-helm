@@ -1,0 +1,100 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## What the chart deploys
+
+The chart deploys the same services as the Infrahub Sync `docker-compose.yml`:
+
+- the Sync API, which receives the requests of the `infrahub-sync` command-line client
+- one worker, which executes the runs
+- the Prefect server, which hands the runs to the worker
+- a bootstrap Job, which creates the database schema, the object store bucket, the Prefect work
+  pool and the Prefect deployment before the Sync API and the worker start
+- a PostgreSQL server, which holds the Sync database and the Prefect database
+- a Silo object store, which holds the artifacts of the runs
+
+The Sync API, the worker, the Prefect server and the bootstrap Job all run the Sync image.
+PostgreSQL and the object store are optional: set `postgresql.enabled: false` to use an existing
+PostgreSQL server, and `objectStore.enabled: false` with `s3.endpointUrl` to use an existing
+S3-compatible object store.
+
+For the full procedure, read the
+[Kubernetes deployment](https://docs.infrahub.app/sync/kubernetes-deployment) page of the
+Infrahub Sync documentation. Until Infrahub Sync 3.0.0 is released, that page is in the
+[documentation preview](https://feature-v3-develop.infrahub-sync.pages.dev/kubernetes-deployment)
+built from the `feature/v3-develop` branch.
+
+## The chart is not published yet
+
+The chart is not in the registry until an Infrahub Sync release whose image holds the Prefect
+server is published. Until then, install the chart from a checkout of this repository:
+replace `oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in
+the commands below.
+
+## Access to the Sync image
+
+Before Infrahub Sync 3.0.0, the registry serves the Sync image only to invited testers. Create an
+image pull Secret with the registry login you received, and name it in `imagePullSecrets`:
+
+```bash
+kubectl create namespace infrahub-sync
+kubectl -n infrahub-sync create secret docker-registry opsmill-registry \
+  --docker-server=registry.opsmill.io \
+  --docker-username=<username> \
+  --docker-password=<password>
+```
+
+## The credentials Secret
+
+The chart refuses to render without credentials. Create a Secret that holds them, and name it in
+`credentials.existingSecret`. Each key is the variable name of the Compose `.env` file, so
+`kubectl create secret generic <name> --from-env-file=.env` creates the Secret from that file.
+
+| Key | Required | Read by |
+| --- | --- | --- |
+| `INFRAHUB_SYNC_SERVICE_BEARER_TOKENS` | always | Sync API |
+| `INFRAHUB_SYNC_PREFECT_AUTH_STRING` | always | Prefect server, Sync API, worker, bootstrap |
+| `INFRAHUB_SYNC_S3_ACCESS_KEY` | always | Sync API, worker, bootstrap, bundled object store |
+| `INFRAHUB_SYNC_S3_SECRET_KEY` | always | Sync API, worker, bootstrap, bundled object store |
+| `INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD` | bundled PostgreSQL | PostgreSQL |
+| `INFRAHUB_SYNC_PRODUCT_PASSWORD` | bundled PostgreSQL | PostgreSQL, Sync API, worker, bootstrap |
+| `INFRAHUB_SYNC_PREFECT_PASSWORD` | bundled PostgreSQL | PostgreSQL, Prefect server |
+| `INFRAHUB_SYNC_DATABASE_URL` | external PostgreSQL | Sync API, worker, bootstrap |
+| `INFRAHUB_SYNC_PREFECT_DATABASE_URL` | external PostgreSQL | Prefect server |
+| `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` | never | Sync API, worker |
+
+`INFRAHUB_SYNC_PRODUCT_PASSWORD` and `INFRAHUB_SYNC_PREFECT_PASSWORD` are used in connection
+strings, so they must be URL-safe.
+
+## Install example
+
+```bash
+kubectl -n infrahub-sync create secret generic infrahub-sync --from-env-file=.env
+
+helm install infrahub-sync oci://registry.opsmill.io/opsmill/chart/infrahub-sync \
+  --namespace infrahub-sync \
+  --set credentials.existingSecret=infrahub-sync \
+  --set "imagePullSecrets[0].name=opsmill-registry" \
+  --wait --wait-for-jobs --timeout 10m
+```
+
+With Helm 4, `--wait` alone does not wait for the bootstrap Job to complete. `--wait-for-jobs`
+makes `helm install` return only after the Job is complete.
+
+To send requests to the Sync API from your workstation, forward its port:
+
+```bash
+kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
+```
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}
+
+For more detailed configuration and additional parameters, refer to the `values.yaml` file.
