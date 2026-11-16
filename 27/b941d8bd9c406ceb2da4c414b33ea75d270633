@@ -1,0 +1,30 @@
+AGENTS.md
+  s_d989f93fc3b8fb::t_48f7845e015390 47-48
+  s_d989f93fc3b8fb::t_7533928d745ce2 60-61
+  s_d989f93fc3b8fb::t_ef42c8a35f65f0 66-67
+Makefile
+  s_d989f93fc3b8fb::t_dc2823dba02741 27-31
+.github/workflows/update-infrahub-sync.yml
+  s_d989f93fc3b8fb::t_ba065dd1763a89 15-17
+.github/workflows/ci.yml
+  s_d989f93fc3b8fb::t_a6f566c65be4aa 233-249
+  s_d989f93fc3b8fb::t_bd44de7935db7f 26
+  s_d989f93fc3b8fb::t_f075033c819e94 46-47
+  s_d989f93fc3b8fb::t_0ba15a371ec792 113-127,133-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "27b941d8bd9c406ceb2da4c414b33ea75d270633",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
