@@ -34,7 +34,15 @@ def render(
         values_file = Path(handle.name)
     try:
         result = subprocess.run(
-            ["helm", "template", "sync", str(CHART), "-f", str(values_file), *extra_args],
+            [
+                "helm",
+                "template",
+                "sync",
+                str(CHART),
+                "-f",
+                str(values_file),
+                *extra_args,
+            ],
             capture_output=True,
             text=True,
             check=False,
@@ -148,7 +156,7 @@ def test_bad_addressing_style_is_refused(existing_secret_values):
     assert "s3.addressingStyle" in error
 
 
-def test_endpoint_with_bundled_object_store_is_refused(existing_secret_values):
+def test_rr41_endpoint_with_bundled_object_store_is_refused(existing_secret_values):
     existing_secret_values["s3"] = {"endpointUrl": "https://s3.example.com"}
     error = render(existing_secret_values, expect_failure=True)
     assert "s3.endpointUrl" in error
@@ -699,6 +707,142 @@ def test_rr26_referenced_variables_are_defined_earlier(
     assert references > 0 or not postgresql
 
 
+# External PostgreSQL and object store (RR-30 to RR-32)
+
+EXTERNAL_ENDPOINT = "https://s3.example.com"
+DATABASE_URL_KEYS = {
+    "INFRAHUB_SYNC_DATABASE_URL",
+    "INFRAHUB_SYNC_PREFECT_DATABASE_URL",
+}
+POSTGRESQL_PASSWORD_KEYS = {
+    "INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD",
+    "INFRAHUB_SYNC_PRODUCT_PASSWORD",
+    "INFRAHUB_SYNC_PREFECT_PASSWORD",
+}
+
+
+@pytest.fixture
+def external_postgresql_values(valid_values) -> dict:
+    """Valid values for an external PostgreSQL: the two connection strings, no passwords."""
+    credentials = valid_values["credentials"]
+    for key in ("postgresAdminPassword", "productPassword", "prefectPassword"):
+        del credentials[key]
+    credentials["databaseUrl"] = (
+        f"postgresql://sync:{TEST_CREDENTIAL}@db.example.com/sync"
+    )
+    credentials["prefectDatabaseUrl"] = (
+        f"postgresql+asyncpg://prefect:{TEST_CREDENTIAL}@db.example.com/prefect"
+    )
+    valid_values["postgresql"] = {"enabled": False}
+    return valid_values
+
+
+def documents_of(documents: list[dict], component: str) -> list[dict]:
+    """Return every document labelled with this component."""
+    return [
+        document
+        for document in documents
+        if document["metadata"].get("labels", {}).get("app.kubernetes.io/component")
+        == component
+    ]
+
+
+def test_rr30_external_postgresql_renders_no_postgresql(external_postgresql_values):
+    documents = render(external_postgresql_values)
+    assert documents_of(documents, "postgresql") == []
+    assert not any(
+        "postgresql" in document["metadata"]["name"] for document in documents
+    )
+    secret = find(documents, "Secret", FULLNAME)
+    assert DATABASE_URL_KEYS <= set(secret["data"])
+    assert not POSTGRESQL_PASSWORD_KEYS & set(secret["data"])
+
+
+@pytest.mark.parametrize("existing_secret", [False, True])
+def test_rr30_connection_strings_come_from_the_secret(
+    external_postgresql_values, existing_secret
+):
+    if existing_secret:
+        external_postgresql_values["credentials"] = {"existingSecret": "infrahub-sync"}
+    documents = render(external_postgresql_values)
+    secret_name = "infrahub-sync" if existing_secret else FULLNAME
+    for component in ("api", "worker", "bootstrap"):
+        container = main_container(workload(documents, component))
+        reference = env_value(container, "INFRAHUB_SYNC_DATABASE_URL")["valueFrom"][
+            "secretKeyRef"
+        ]
+        assert reference == {"name": secret_name, "key": "INFRAHUB_SYNC_DATABASE_URL"}
+    prefect = main_container(workload(documents, "prefect-server"))
+    reference = env_value(prefect, "PREFECT_SERVER_DATABASE_CONNECTION_URL")[
+        "valueFrom"
+    ]["secretKeyRef"]
+    assert reference == {
+        "name": secret_name,
+        "key": "INFRAHUB_SYNC_PREFECT_DATABASE_URL",
+    }
+    for document in workloads(documents):
+        assert not secret_keys(document) & POSTGRESQL_PASSWORD_KEYS, component_of(
+            document
+        )
+        assert "wait-for-postgresql" not in json.dumps(pod_spec(document))
+
+
+@pytest.mark.parametrize(
+    ("addressing_style", "expected"),
+    [("", None), ("path", "path"), ("virtual", "virtual")],
+)
+def test_rr31_external_object_store_uses_the_values_given(
+    existing_secret_values, addressing_style, expected
+):
+    existing_secret_values["objectStore"] = {"enabled": False}
+    existing_secret_values["s3"] = {
+        "endpointUrl": EXTERNAL_ENDPOINT,
+        "addressingStyle": addressing_style,
+    }
+    documents = render(existing_secret_values)
+    assert documents_of(documents, "object-store") == []
+    assert not any(
+        "object-store" in document["metadata"]["name"] for document in documents
+    )
+    for component in ("api", "worker", "bootstrap"):
+        container = main_container(workload(documents, component))
+        assert env_value(container, "INFRAHUB_SYNC_S3_ENDPOINT_URL")["value"] == (
+            EXTERNAL_ENDPOINT
+        )
+        style = env_value(container, "INFRAHUB_SYNC_S3_ADDRESSING_STYLE")
+        assert (style and style["value"]) == expected
+
+
+def test_rr32_both_external_claim_no_volume(existing_secret_values):
+    existing_secret_values["postgresql"] = {"enabled": False}
+    existing_secret_values["objectStore"] = {"enabled": False}
+    existing_secret_values["s3"] = {"endpointUrl": EXTERNAL_ENDPOINT}
+    documents = render(existing_secret_values)
+    assert {component_of(document) for document in workloads(documents)} == set(
+        SYNC_COMPONENTS
+    )
+    for document in workloads(documents):
+        assert not document["spec"].get("volumeClaimTemplates"), component_of(document)
+    assert all(document["kind"] != "PersistentVolumeClaim" for document in documents)
+
+
+def test_rr42_external_object_store_without_endpoint_is_refused(existing_secret_values):
+    existing_secret_values["objectStore"] = {"enabled": False}
+    error = render(existing_secret_values, expect_failure=True)
+    assert "s3.endpointUrl" in error
+    assert "objectStore.enabled" in error
+
+
+@pytest.mark.parametrize("value", ["databaseUrl", "prefectDatabaseUrl"])
+def test_rr44_external_postgresql_without_connection_string_is_refused(
+    external_postgresql_values, value
+):
+    del external_postgresql_values["credentials"][value]
+    error = render(external_postgresql_values, expect_failure=True)
+    assert f"credentials.{value}" in error
+    assert "postgresql.enabled" in error
+
+
 def test_manifest_field_types(valid_values):
     """Stand-in for a schema check: env values are strings and ports are integers."""
     documents = render(valid_values)
@@ -762,7 +906,9 @@ def test_postgresql_wait_names_a_role(valid_values):
 
 def bootstrap_job_name(values: dict, extra_args: tuple[str, ...] = ()) -> str:
     """Return the name of the bootstrap Job that the chart renders for `values`."""
-    return workload(render(values, extra_args=extra_args), "bootstrap")["metadata"]["name"]
+    return workload(render(values, extra_args=extra_args), "bootstrap")["metadata"][
+        "name"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -791,7 +937,9 @@ def test_rr34_job_name_changes_with_what_the_bootstrap_reads(valid_values, path,
     ],
     ids=["api.resources", "settings.runAdmissionTtlSeconds"],
 )
-def test_rr34_job_name_ignores_what_the_bootstrap_does_not_read(valid_values, path, value):
+def test_rr34_job_name_ignores_what_the_bootstrap_does_not_read(
+    valid_values, path, value
+):
     before = bootstrap_job_name(valid_values)
     changed = json.loads(json.dumps(valid_values))
     changed.setdefault(path[0], {})[path[1]] = value
