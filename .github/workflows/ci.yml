@@ -107,6 +107,22 @@ jobs:
       - name: "Linting: helm lint infrahub-mcp"
         run: "helm lint charts/infrahub-mcp"
 
+  unit:
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 10
+    steps:
+      - uses: "actions/checkout@v5"
+      - uses: "actions/setup-python@v6"
+        with:
+          python-version: "3.14"
+      - uses: "astral-sh/setup-uv@v7"
+        with:
+          python-version: "3.14"
+      - name: "Install Python dependencies"
+        run: "uv sync"
+      - name: "Run unit tests"
+        run: "uv run pytest -v tests/unit"
+
   # ---------------------------------------------------------------------------
   # End-to-end tests. Each chart has its own job, deployed into a throwaway
   # vcluster and exercised with pytest. Jobs are skipped unless the chart (or

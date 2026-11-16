@@ -1,0 +1,32 @@
+# Installed three times using the Neo4j dependency pinned by the local chart.
+neo4j:
+  name: infrahub-ha
+  edition: enterprise
+  acceptLicenseAgreement: "yes"
+  passwordFromSecret: ha-neo4j-auth
+  minimumClusterSize: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 2Gi
+config:
+  dbms.security.auth_minimum_password_length: "4"
+  dbms.security.procedures.unrestricted: apoc.*
+  server.memory.heap.initial_size: 512m
+  server.memory.heap.max_size: 512m
+  server.memory.pagecache.size: 256m
+volumes:
+  data:
+    mode: defaultStorageClass
+    defaultStorageClass:
+      accessModes: [ReadWriteOnce]
+      requests:
+        storage: 2Gi
+services:
+  neo4j:
+    enabled: false
+  admin:
+    enabled: false
+podSpec:
+  podAntiAffinity: true
+logInitialPassword: false

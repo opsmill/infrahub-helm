@@ -7,6 +7,7 @@ reflects the working-tree changes.
 """
 
 import asyncio
+import json
 import os
 import shutil
 import subprocess
@@ -23,6 +24,16 @@ import yaml
 from kr8s.asyncio.objects import Service as AsyncService
 
 from tests.conftest import CHARTS_DIR, REPO_ROOT
+from tests.helpers.ha import (
+    MEMBERS,
+    REPLICATED_SERVICES,
+    image_overrides,
+    kubectl,
+    neo4j_dependency,
+    neo4j_release,
+    wait_for_topology,
+)
+from tests.helpers.ha import NAMESPACE as HA_NAMESPACE
 from tests.helpers.tls import (
     create_certificate_authority,
     issue_server_certificate,
@@ -424,6 +435,119 @@ async def infrahub_enterprise_k8s(
         "token": INFRAHUB_ADMIN_TOKEN,
         "server_label": "service=infrahub-server",
     }
+
+
+# ---------------------------------------------------------------------------
+# Fixture: infrahub_ha_k8s (enterprise chart on three Neo4j primaries)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def neo4j_values(tmp_path_factory) -> list[Path]:
+    """Values files of every member release, reused unchanged by the rolling upgrade."""
+    neo4j_overrides, _ = image_overrides()
+    override_file = tmp_path_factory.mktemp("neo4j-values") / "neo4j.yaml"
+    override_file.write_text(yaml.safe_dump(neo4j_overrides))
+    return [FIXTURES_DIR / "neo4j-ha-values.yaml", override_file]
+
+
+@pytest.fixture(scope="session")
+def install_infrahub_ha(vcluster, staged_charts, neo4j_values, request, tmp_path_factory):
+    """Return a coroutine that installs the HA deployment from a given Neo4j chart.
+
+    The namespace and the release names are fixed, so a pytest run can hold only
+    one HA deployment.
+    """
+
+    async def install(neo4j_chart: Path) -> str:
+        kubeconfig = vcluster["kubeconfig_path"]
+        if kubectl(
+            kubeconfig, "get", "namespace", HA_NAMESPACE, "--ignore-not-found", "-o", "name"
+        ).strip():
+            pytest.fail(
+                "Another HA deployment already runs in this pytest run: select the rolling "
+                "upgrade tests with -m ha_upgrade and the other HA tests with "
+                "-m 'ha and not ha_upgrade', in separate runs",
+                pytrace=False,
+            )
+        _register_namespace(request, HA_NAMESPACE)
+        _, enterprise_overrides = image_overrides()
+        enterprise_override_file = tmp_path_factory.mktemp("ha-values") / "enterprise.yaml"
+        enterprise_override_file.write_text(yaml.safe_dump(enterprise_overrides))
+
+        kubectl(
+            kubeconfig, "wait", "node", "--all", "--for=condition=Ready", "--timeout=180s"
+        )
+        nodes = json.loads(kubectl(kubeconfig, "get", "nodes", "-o", "json"))["items"]
+        assert len(nodes) == 3, f"Expected three Kubernetes nodes, got {len(nodes)}"
+        kubectl(kubeconfig, "create", "namespace", HA_NAMESPACE)
+        kubectl(
+            kubeconfig,
+            "apply",
+            "-f",
+            "-",
+            input=yaml.safe_dump_all(
+                [
+                    {
+                        "apiVersion": "v1",
+                        "kind": "Secret",
+                        "metadata": {"name": "ha-neo4j-auth"},
+                        "stringData": {"NEO4J_AUTH": "neo4j/admin"},
+                    },
+                    {
+                        "apiVersion": "v1",
+                        "kind": "Service",
+                        "metadata": {"name": "infrahub-ha-headless"},
+                        "spec": {
+                            "clusterIP": "None",
+                            "selector": {
+                                "app": "infrahub-ha",
+                                "helm.neo4j.com/pod_category": "neo4j-instance",
+                            },
+                            "ports": [{"name": "bolt", "port": 7687, "targetPort": 7687}],
+                        },
+                    },
+                ]
+            ),
+        )
+
+        print(f"Installing the Neo4j members from {neo4j_chart.name}")
+        # All members must be installed before waiting: each needs a quorum to start.
+        for member in MEMBERS:
+            neo4j_release(kubeconfig, member, neo4j_chart, neo4j_values)
+        wait_for_workloads(namespace=HA_NAMESPACE, kubeconfig=kubeconfig)
+        await wait_for_topology(kubeconfig)
+
+        helm_install(
+            release="infrahub-ha",
+            chart_path=staged_charts["infrahub-enterprise"],
+            namespace=HA_NAMESPACE,
+            kubeconfig=kubeconfig,
+            values_files=[
+                FIXTURES_DIR / "infrahub-enterprise-values.yaml",
+                FIXTURES_DIR / "infrahub-ha-values.yaml",
+                enterprise_override_file,
+            ],
+        )
+        for selector in REPLICATED_SERVICES:
+            kubectl(
+                kubeconfig,
+                "wait",
+                "pod",
+                "-l",
+                selector,
+                "--for=condition=Ready",
+                "--timeout=300s",
+            )
+        print(kubectl(kubeconfig, "get", "pods", "-o", "wide"))
+        print(kubectl(kubeconfig, "get", "pods", "-o", "jsonpath={..image}"))
+        return kubeconfig
+
+    return install
+
+
+@pytest.fixture(scope="session")
+async def infrahub_ha_k8s(staged_charts, install_infrahub_ha) -> str:
+    """Deploy the HA cluster with Neo4j members from the chart that `infrahub` pins."""
+    return await install_infrahub_ha(neo4j_dependency(staged_charts["infrahub"]))
 
 
 # ---------------------------------------------------------------------------

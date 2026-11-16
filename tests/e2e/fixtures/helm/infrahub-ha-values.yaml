@@ -1,0 +1,43 @@
+# Overlay on infrahub-enterprise-values.yaml. Database members are separate releases.
+# This increment covers Neo4j HA, not Redis/PostgreSQL/RabbitMQ failover.
+infrahub:
+  neo4j:
+    enabled: false
+  infrahubServer:
+    replicas: 2
+    persistence:
+      enabled: false
+    infrahubServer:
+      env:
+        INFRAHUB_DB_ADDRESS: infrahub-ha-headless.infrahub-ha.svc.cluster.local
+        INFRAHUB_DB_PROTOCOL: neo4j
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                service: infrahub-server
+            topologyKey: kubernetes.io/hostname
+  infrahubTaskWorker:
+    replicas: 2
+    infrahubTaskWorker:
+      env:
+        INFRAHUB_DB_ADDRESS: infrahub-ha-headless.infrahub-ha.svc.cluster.local
+        INFRAHUB_DB_PROTOCOL: neo4j
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                service: infrahub-task-worker
+            topologyKey: kubernetes.io/hostname
+  prefect-server:
+    server:
+      replicaCount: 2
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  infrahub/service: task-manager
+              topologyKey: kubernetes.io/hostname

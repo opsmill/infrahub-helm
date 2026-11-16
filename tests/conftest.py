@@ -46,36 +46,39 @@ async def vcluster(tmp_path_factory, request) -> AsyncGenerator[dict, None]:
     vcluster_dir = os.environ.get("VCLUSTER_DIR")
 
     create_cmd = ["vcluster", "create", cluster_name, "--connect=false", "--driver=docker"]
+    if any(item.get_closest_marker("ha") for item in request.session.items):
+        create_cmd.extend(["--values", str(REPO_ROOT / "tests/fixtures/vcluster-ha.yaml")])
     if vcluster_dir:
         create_cmd.extend(["--config", vcluster_dir])
-    subprocess.run(create_cmd, check=True)
+    try:
+        subprocess.run(create_cmd, check=True)
 
-    connect_cmd = ["vcluster", "connect", cluster_name, "--print", "--driver=docker"]
-    if vcluster_dir:
-        connect_cmd.extend(["--config", vcluster_dir])
-    result = subprocess.run(connect_cmd, capture_output=True, text=True, check=True)
-    Path(kubeconfig_path).write_text(result.stdout)
+        connect_cmd = ["vcluster", "connect", cluster_name, "--print", "--driver=docker"]
+        if vcluster_dir:
+            connect_cmd.extend(["--config", vcluster_dir])
+        result = subprocess.run(connect_cmd, capture_output=True, text=True, check=True)
+        Path(kubeconfig_path).write_text(result.stdout)
 
-    # Stash the kubeconfig on the session so the failure-diagnostics hook can
-    # dump namespaces even when a *chart* fixture fails during setup (that
-    # session-scoped fixture never runs its own teardown, so a fixture-based
-    # dump would be skipped entirely — which is exactly why a failed helm
-    # install in CI produced no pod/event/log output).
-    request.session._e2e_kubeconfig = kubeconfig_path
+        # Stash the kubeconfig on the session so the failure-diagnostics hook can
+        # dump namespaces even when a *chart* fixture fails during setup (that
+        # session-scoped fixture never runs its own teardown, so a fixture-based
+        # dump would be skipped entirely — which is exactly why a failed helm
+        # install in CI produced no pod/event/log output).
+        request.session._e2e_kubeconfig = kubeconfig_path
 
-    await kubeconfig.load_kube_config(config_file=kubeconfig_path)
-    async with kubeclient.ApiClient() as api:
-        yield {
-            "api": api,
-            "cluster_name": cluster_name,
-            "kubeconfig_path": kubeconfig_path,
-        }
-
-    # Teardown happens after all dependent (chart) fixtures have torn down.
-    delete_cmd = ["vcluster", "delete", cluster_name, "--driver=docker"]
-    if vcluster_dir:
-        delete_cmd.extend(["--config", vcluster_dir])
-    subprocess.run(delete_cmd, check=False)
+        await kubeconfig.load_kube_config(config_file=kubeconfig_path)
+        async with kubeclient.ApiClient() as api:
+            yield {
+                "api": api,
+                "cluster_name": cluster_name,
+                "kubeconfig_path": kubeconfig_path,
+            }
+    finally:
+        # Teardown happens after all dependent (chart) fixtures have torn down.
+        delete_cmd = ["vcluster", "delete", cluster_name, "--driver=docker"]
+        if vcluster_dir:
+            delete_cmd.extend(["--config", vcluster_dir])
+        subprocess.run(delete_cmd, check=False)
 
 
 # ---------------------------------------------------------------------------
