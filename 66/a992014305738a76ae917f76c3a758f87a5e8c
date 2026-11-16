@@ -1,0 +1,27 @@
+charts/infrahub-sync/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_857832eb48097b 34-55
+charts/infrahub-sync/templates/_validation.tpl
+  s_d989f93fc3b8fb::t_43eee7b60831ea 43-50
+charts/infrahub-sync/templates/ingress.yaml
+  s_d989f93fc3b8fb::t_2ce12cb7a61dd8 1-59
+charts/infrahub-sync/templates/httproute.yaml
+  s_d989f93fc3b8fb::t_16a57a26880890 1-52
+charts/infrahub-sync/templates/gateway.yaml
+  s_d989f93fc3b8fb::t_234c6382bea408 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66a992014305738a76ae917f76c3a758f87a5e8c",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
