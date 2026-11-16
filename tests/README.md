@@ -13,6 +13,7 @@ chart changed (see `.github/workflows/ci.yml`):
 | `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. The Jobs reach Garage over HTTPS with a certificate issued by a private CA that the test generates, and trust it through `extraEnv`, `extraVolumes` and `extraVolumeMounts`. A restore without these values must fail certificate verification. |
 | `infrahub-observability` | `observability` | Deploys Infrahub + the stack together (tracing → Tempo, Alloy scraping Infrahub), drives API traffic, then asserts via Grafana that Infrahub metrics (Prometheus) and Infrahub traces (Tempo) are queryable. |
 | `infrahub-mcp`           | `mcp`           | Deploys Infrahub with the MCP sub-chart behind a shared ingress and drives it over the streamable-HTTP transport. |
+| `infrahub-sync`          | `sync`          | Installs the standalone Sync chart and waits for its bootstrap Job. Checks `/version`, `/whoami` with the API token, and that `/status` reports a ready worker. Repeats the checks after an upgrade that changes `s3.prefix`. |
 
 Charts are installed from the local `charts/` directory (cross-chart
 dependencies are rewritten to local `file://` paths), so the tests reflect the

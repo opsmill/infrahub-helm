@@ -15,6 +15,8 @@ Each chart lives in `charts/<name>/`:
   (`values.small.yaml`, `values.medium*.yaml`, `values.large*.yaml`) and `values.openshift.yaml`.
 - `infrahub-backup`, `infrahub-observability`, `infrahub-mcp`: optional charts that the `infrahub`
   chart installs when `<name>.enabled` is set.
+- `infrahub-sync`: a standalone chart that deploys Infrahub Sync. No other chart depends on it, and
+  it depends on no other chart of this repository.
 
 The charts depend on each other through the registry, not through local paths: `infrahub` pins a
 version of `infrahub-backup`, `infrahub-observability` and `infrahub-mcp`, and
@@ -48,7 +50,7 @@ above it only after the pinned chart is released and the pin is updated.
   `./scripts/link-unpublished-chart-dependencies.sh charts/infrahub`, which resolves such a
   dependency from its local chart, so a pull request can bump a chart and update its pin together.
 - `uv run pytest -v -m <marker> tests/e2e` installs the local charts into a throwaway vcluster and
-  tests them. The markers are `infrahub`, `enterprise`, `backup`, `observability` and `mcp`. See
+  tests them. The markers are `infrahub`, `enterprise`, `backup`, `observability`, `mcp` and `sync`. See
   `tests/README.md` for the tools it needs and for the manual tests.
 - The Neo4j HA tests of `infrahub-enterprise` run in `.github/workflows/ha-e2e.yml` on a 3-node
   vcluster: `-m "ha and not ha_upgrade"` for placement and writer loss, and `-m ha_upgrade` for
