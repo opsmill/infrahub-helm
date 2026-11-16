@@ -960,3 +960,135 @@ def test_rr34_job_name_ignores_the_release_revision(valid_values):
     assert bootstrap_job_name(valid_values, ("--is-upgrade",)) == bootstrap_job_name(
         valid_values
     )
+
+
+# Routes to the Sync API (User Story 4)
+
+ROUTE_KINDS = {"Ingress", "Gateway", "HTTPRoute"}
+API_SERVICE = f"{FULLNAME}-api"
+
+
+def api_service_port(documents: list[dict]) -> int:
+    """Return the port of the rendered Sync API Service."""
+    service = find(documents, "Service", API_SERVICE)
+    assert service is not None
+    return service["spec"]["ports"][0]["port"]
+
+
+def ingress_backends(ingress: dict) -> set[tuple[str, int]]:
+    """Return every (Service name, port) that the Ingress routes to."""
+    backends = set()
+    for rule in ingress["spec"]["rules"]:
+        for path in rule["http"]["paths"]:
+            service = path["backend"]["service"]
+            backends.add((service["name"], service["port"]["number"]))
+    return backends
+
+
+def route_backends(route: dict) -> set[tuple[str, int]]:
+    """Return every (Service name, port) that the HTTPRoute routes to."""
+    return {
+        (backend["name"], backend["port"])
+        for rule in route["spec"]["rules"]
+        for backend in rule["backendRefs"]
+    }
+
+
+def of_kind(documents: list[dict], kind: str) -> list[dict]:
+    """Return every document of this kind."""
+    return [document for document in documents if document["kind"] == kind]
+
+
+def test_rr18_services_are_cluster_ip_and_no_route_by_default(valid_values):
+    documents = render(valid_values)
+    services = of_kind(documents, "Service")
+    assert services
+    assert {service["spec"].get("type") for service in services} == {"ClusterIP"}
+    assert [d["kind"] for d in documents if d["kind"] in ROUTE_KINDS] == []
+
+
+@pytest.mark.parametrize("api_port", [None, 9000])
+def test_rr33_ingress_routes_only_to_the_api(valid_values, api_port):
+    valid_values["ingress"] = {
+        "enabled": True,
+        "hostname": "sync.example.com",
+        "extraHosts": [{"hostname": "sync.example.org", "path": "/sync"}],
+    }
+    if api_port is not None:
+        valid_values["api"] = {"service": {"port": api_port}}
+    documents = render(valid_values)
+    ingresses = of_kind(documents, "Ingress")
+    assert len(ingresses) == 1
+    expected = {(API_SERVICE, api_service_port(documents))}
+    assert ingress_backends(ingresses[0]) == expected
+    assert of_kind(documents, "HTTPRoute") == []
+    assert of_kind(documents, "Gateway") == []
+
+
+@pytest.mark.parametrize("api_port", [None, 9000])
+def test_rr33_httproute_routes_only_to_the_api(valid_values, api_port):
+    valid_values["gatewayApi"] = {
+        "enabled": True,
+        "httpRoute": {"parentRefs": [{"name": "shared-gateway", "namespace": "net"}]},
+    }
+    if api_port is not None:
+        valid_values["api"] = {"service": {"port": api_port}}
+    documents = render(valid_values)
+    routes = of_kind(documents, "HTTPRoute")
+    assert len(routes) == 1
+    assert route_backends(routes[0]) == {(API_SERVICE, api_service_port(documents))}
+    assert routes[0]["spec"]["parentRefs"] == [
+        {"name": "shared-gateway", "namespace": "net"}
+    ]
+    assert routes[0]["spec"]["rules"][0]["matches"][0]["path"]["value"] == "/"
+    assert of_kind(documents, "Gateway") == []
+    assert of_kind(documents, "Ingress") == []
+
+
+def test_rr33_created_gateway_is_the_route_parent(valid_values):
+    valid_values["gatewayApi"] = {
+        "enabled": True,
+        "gateway": {
+            "enabled": True,
+            "className": "example",
+            "listeners": [{"name": "http", "port": 80, "protocol": "HTTP"}],
+        },
+    }
+    documents = render(valid_values)
+    gateways = of_kind(documents, "Gateway")
+    routes = of_kind(documents, "HTTPRoute")
+    assert len(gateways) == 1
+    assert len(routes) == 1
+    assert gateways[0]["spec"]["gatewayClassName"] == "example"
+    assert routes[0]["spec"]["parentRefs"] == [
+        {"name": gateways[0]["metadata"]["name"]}
+    ]
+    assert route_backends(routes[0]) == {(API_SERVICE, api_service_port(documents))}
+
+
+@pytest.mark.parametrize(
+    ("values", "names"),
+    [
+        (
+            {
+                "ingress": {"enabled": True},
+                "gatewayApi": {
+                    "enabled": True,
+                    "httpRoute": {"parentRefs": [{"name": "shared-gateway"}]},
+                },
+            },
+            ("ingress.enabled", "gatewayApi.enabled"),
+        ),
+        ({"gatewayApi": {"enabled": True}}, ("gatewayApi.httpRoute.parentRefs",)),
+        (
+            {"gatewayApi": {"enabled": True, "gateway": {"enabled": True}}},
+            ("gatewayApi.gateway.className",),
+        ),
+    ],
+    ids=["ingress-and-gateway-api", "no-parent", "gateway-without-class"],
+)
+def test_bad_route_values_are_refused(existing_secret_values, values, names):
+    existing_secret_values.update(values)
+    error = render(existing_secret_values, expect_failure=True)
+    for name in names:
+        assert name in error
