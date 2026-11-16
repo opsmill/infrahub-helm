@@ -38,6 +38,12 @@ the `e2e-infrahub-sync` job reads the login from the repository secrets of the
 same names. When either secret is not set, the job writes a warning annotation
 and a job summary line that say the test did not run and why.
 
+Add those secrets only once the chart's `appVersion` names a Sync image that the
+registry serves and that contains the bootstrap record check. With a login set,
+the test fails when the registry does not serve the `appVersion` image, and it
+also fails on an image without the check, because the upgrade step asserts that
+the Sync API stays not ready until the bootstrap has run.
+
 ## Running
 
 ```bash
