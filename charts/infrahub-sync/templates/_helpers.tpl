@@ -101,7 +101,7 @@ The Sync image: "repository:tag", the tag defaulting to the chart's appVersion.
 */}}
 {{- define "infrahub-sync.image" -}}
 {{- $tag := .Values.image.tag | default .Chart.AppVersion }}
-{{- printf "%s:%s" .Values.image.repository $tag }}
+{{- printf "%s:%s" (toString .Values.image.repository) (toString $tag) }}
 {{- end }}
 
 {{/*
@@ -109,7 +109,7 @@ An image pinned by digest: "repository:tag@digest".
 Argument: an image block, for example .Values.postgresql.image
 */}}
 {{- define "infrahub-sync.digestImage" -}}
-{{- printf "%s:%s@%s" .repository .tag .digest }}
+{{- printf "%s:%s@%s" (toString .repository) (toString .tag) (toString .digest) }}
 {{- end }}
 
 {{/*

@@ -8,7 +8,7 @@
 image:
   # -- Image repository
   repository: registry.opsmill.io/opsmill/infrahub-sync
-  # -- Image tag. Empty means the chart's `appVersion`
+  # -- Image tag, as a string: quote a numeric tag. Empty means the chart's `appVersion`
   tag: ""
   # -- Image pull policy
   pullPolicy: IfNotPresent
@@ -80,7 +80,7 @@ objectStore:
   image:
     # -- Image repository
     repository: pgsty/silo
-    # -- Image tag
+    # -- Image tag, as a string: quote a numeric tag
     tag: RELEASE.2026-10-18T00-00-00Z
     # -- Image digest
     digest: sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7
@@ -126,7 +126,7 @@ postgresql:
   image:
     # -- Image repository
     repository: postgres
-    # -- Image tag
+    # -- Image tag, as a string: quote a numeric tag
     tag: 16-alpine
     # -- Image digest
     digest: sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
@@ -290,7 +290,7 @@ ingress:
   enabled: false
   # -- IngressClass name to use
   ingressClassName: ""
-  # -- Hostname to configure for the ingress
+  # -- Hostname to configure for the ingress. Required when `ingress.enabled` is true
   hostname: ""
   # -- Path prefix under which the Sync API is exposed
   path: /

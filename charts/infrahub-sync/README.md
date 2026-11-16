@@ -13,8 +13,10 @@ The chart deploys the same services as the Infrahub Sync `docker-compose.yml`:
 - the Prefect server, which hands the runs to the worker
 - a bootstrap Job, which creates the database schema, the object store bucket, the Prefect work
   pool and the Prefect deployment, then records the Sync version and the work pool it set up.
-  The Sync API and the worker exit at start until that record matches their version and work
-  pool, and Kubernetes restarts them, so they restart a few times before the Job completes
+  With a Sync image that contains the start check, the Sync API and the worker exit at start
+  until that record matches their version and work pool, and Kubernetes restarts them, so they
+  restart a few times before the Job completes. The Sync 3.0.0a5 image does not contain the
+  start check: with it, nothing makes the Sync API and the worker wait for the Job
 - a PostgreSQL server, which holds the Sync database and the Prefect database
 - a Silo object store, which holds the artifacts of the runs
 
@@ -32,7 +34,7 @@ built from the `feature/v3-develop` branch.
 ## The chart is not published yet
 
 The chart is not in the registry until an Infrahub Sync release whose image holds the Prefect
-server is published. Until then, install the chart from a checkout of this repository:
+server and the start check is published. Until then, install the chart from a checkout of this repository:
 replace `oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in
 the commands below.
 
@@ -157,14 +159,14 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | image | object | `{"pullPolicy":"IfNotPresent","repository":"registry.opsmill.io/opsmill/infrahub-sync","tag":""}` | Sync image, used by the Sync API, the worker, the Prefect server and the bootstrap Job |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"registry.opsmill.io/opsmill/infrahub-sync"` | Image repository |
-| image.tag | string | `""` | Image tag. Empty means the chart's `appVersion` |
+| image.tag | string | `""` | Image tag, as a string: quote a numeric tag. Empty means the chart's `appVersion` |
 | imagePullSecrets | list | `[]` | Image pull secrets, applied to every pod of the release |
 | ingress | object | `{"annotations":{},"enabled":false,"extraHosts":[],"extraTls":[],"hostname":"","ingressClassName":"","path":"/","pathType":"Prefix","tls":false}` | Ingress for the Sync API. Mutually exclusive with `gatewayApi` |
 | ingress.annotations | object | `{}` | Annotations to configure on the ingress |
 | ingress.enabled | bool | `false` | Whether to enable Ingress for the Sync API |
 | ingress.extraHosts | list | `[]` | Additional hosts to expose (each entry: hostname, path, pathType) |
 | ingress.extraTls | list | `[]` | Additional TLS configuration entries (raw `tls` list items) |
-| ingress.hostname | string | `""` | Hostname to configure for the ingress |
+| ingress.hostname | string | `""` | Hostname to configure for the ingress. Required when `ingress.enabled` is true |
 | ingress.ingressClassName | string | `""` | IngressClass name to use |
 | ingress.path | string | `"/"` | Path prefix under which the Sync API is exposed |
 | ingress.pathType | string | `"Prefix"` | PathType for the ingress rule |
@@ -176,7 +178,7 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | objectStore.image | object | `{"digest":"sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7","repository":"pgsty/silo","tag":"RELEASE.2026-10-18T00-00-00Z"}` | Object store image, pinned by digest as in `docker-compose.yml` |
 | objectStore.image.digest | string | `"sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7"` | Image digest |
 | objectStore.image.repository | string | `"pgsty/silo"` | Image repository |
-| objectStore.image.tag | string | `"RELEASE.2026-10-18T00-00-00Z"` | Image tag |
+| objectStore.image.tag | string | `"RELEASE.2026-10-18T00-00-00Z"` | Image tag, as a string: quote a numeric tag |
 | objectStore.nodeSelector | object | `{}` | Node selector |
 | objectStore.persistence | object | `{"size":"10Gi","storageClass":""}` | Persistent volume of the object store |
 | objectStore.persistence.size | string | `"10Gi"` | Size of the volume claim |
@@ -193,7 +195,7 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | postgresql.image | object | `{"digest":"sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685","repository":"postgres","tag":"16-alpine"}` | PostgreSQL image, pinned by digest as in `docker-compose.yml` |
 | postgresql.image.digest | string | `"sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685"` | Image digest |
 | postgresql.image.repository | string | `"postgres"` | Image repository |
-| postgresql.image.tag | string | `"16-alpine"` | Image tag |
+| postgresql.image.tag | string | `"16-alpine"` | Image tag, as a string: quote a numeric tag |
 | postgresql.nodeSelector | object | `{}` | Node selector |
 | postgresql.persistence | object | `{"size":"10Gi","storageClass":""}` | Persistent volume of PostgreSQL |
 | postgresql.persistence.size | string | `"10Gi"` | Size of the volume claim |

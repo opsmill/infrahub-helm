@@ -113,6 +113,24 @@ def test_valid_values_create_the_secret_with_set_keys_only(valid_values):
     }
 
 
+def test_registry_login_failure_message_leaves_out_the_password():
+    """The e2e harness reports a failed `docker login` with its stderr, never the password."""
+    from tests.e2e.conftest import _login_failure_message
+
+    password = TEST_CREDENTIAL
+    message = _login_failure_message(
+        "registry.example.com",
+        f"Error response from daemon: login attempt with {password} failed: unauthorized\n",
+        password,
+    )
+    assert message.startswith("docker login to registry.example.com failed: ")
+    assert "unauthorized" in message
+    assert password not in message
+    assert _login_failure_message("registry.example.com", "", password).endswith(
+        "no error output"
+    )
+
+
 def test_service_account_does_not_mount_its_token(existing_secret_values):
     documents = render(existing_secret_values)
     account = find(documents, "ServiceAccount", "sync-infrahub-sync")
@@ -161,6 +179,47 @@ def test_rr41_endpoint_with_bundled_object_store_is_refused(existing_secret_valu
     error = render(existing_secret_values, expect_failure=True)
     assert "s3.endpointUrl" in error
     assert "objectStore.enabled" in error
+
+
+@pytest.mark.parametrize(
+    ("block", "value"),
+    [
+        (("image",), 3.0),
+        (("postgresql", "image"), 17),
+        (("objectStore", "image"), 20261018),
+    ],
+    ids=["image.tag", "postgresql.image.tag", "objectStore.image.tag"],
+)
+def test_unquoted_numeric_image_tag_is_refused(existing_secret_values, block, value):
+    """A YAML number reaches the template as a float, so `3.0` would render as `3`."""
+    target = existing_secret_values
+    for key in block:
+        target = target.setdefault(key, {})
+    target["tag"] = value
+    error = render(existing_secret_values, expect_failure=True)
+    assert f"{'.'.join(block)}.tag must be a string" in error
+    assert "%!" not in error
+
+
+def test_quoted_numeric_image_tags_render_as_written(existing_secret_values):
+    existing_secret_values["image"] = {"tag": "3.0"}
+    existing_secret_values["postgresql"] = {"image": {"tag": "17"}}
+    images = {
+        container["image"]
+        for document in render(existing_secret_values)
+        if document["kind"] in WORKLOAD_KINDS
+        for container in pod_spec(document)["containers"]
+        + pod_spec(document).get("initContainers", [])
+    }
+    assert "registry.opsmill.io/opsmill/infrahub-sync:3.0" in images
+    assert any(image.startswith("postgres:17@sha256:") for image in images), images
+    assert not any("%!" in image for image in images), images
+
+
+def test_ingress_without_hostname_is_refused(existing_secret_values):
+    existing_secret_values["ingress"] = {"enabled": True, "tls": True}
+    error = render(existing_secret_values, expect_failure=True)
+    assert "ingress.hostname" in error
 
 
 # Helpers for the properties of a rendered release
@@ -899,6 +958,11 @@ def test_notes_hold_no_credential(valid_values):
     assert "kubectl" in notes and "wait --for=condition=complete" in notes
     assert TEST_CREDENTIAL not in notes
     assert '"enableServiceLinks":false' in notes
+    # The token is read without echo, not typed into a command that the shell history keeps.
+    assert "read -rs INFRAHUB_SYNC_API_TOKEN && export INFRAHUB_SYNC_API_TOKEN" in notes
+    assert "<your API token>" not in notes
+    # The Job wait matches the `--timeout 10m` of the documented `helm install`.
+    assert "--timeout=10m job -l" in notes
     assert base64.b64encode(TEST_CREDENTIAL.encode()).decode() not in notes
 
 
@@ -929,9 +993,17 @@ def bootstrap_job_name(values: dict, extra_args: tuple[str, ...] = ()) -> str:
     [
         (("image", "tag"), "9.9.9"),
         (("s3", "prefix"), "another-prefix"),
+        (("s3", "bucket"), "another-bucket"),
+        (("settings", "workPool"), "another-pool"),
         (("credentials", "s3SecretKey"), "another-" * 3),
     ],
-    ids=["image.tag", "s3.prefix", "credentials.s3SecretKey"],
+    ids=[
+        "image.tag",
+        "s3.prefix",
+        "s3.bucket",
+        "settings.workPool",
+        "credentials.s3SecretKey",
+    ],
 )
 def test_rr34_job_name_changes_with_what_the_bootstrap_reads(valid_values, path, value):
     before = bootstrap_job_name(valid_values)

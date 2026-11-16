@@ -21,6 +21,11 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- $_ = required "credentials.prefectDatabaseUrl is required when postgresql.enabled is false and credentials.existingSecret is empty" $credentials.prefectDatabaseUrl }}
 {{- end }}
 {{- end }}
+{{- range $name, $tag := dict "image.tag" .Values.image.tag "postgresql.image.tag" .Values.postgresql.image.tag "objectStore.image.tag" .Values.objectStore.image.tag }}
+{{- if and $tag (not (kindIs "string" $tag)) }}
+{{- fail (printf "%s must be a string: quote it in the values, for example tag: \"17\". Helm reads an unquoted number as a floating-point number, which can change the tag (3.0 becomes 3)" $name) }}
+{{- end }}
+{{- end }}
 {{- if and .Values.objectStore.enabled .Values.s3.endpointUrl }}
 {{- fail "s3.endpointUrl must be empty when objectStore.enabled is true: the bundled object store is the endpoint. Set objectStore.enabled to false to use another S3-compatible store" }}
 {{- end }}
@@ -39,6 +44,9 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- end }}
 {{- if and .Values.ingress.enabled .Values.gatewayApi.enabled }}
 {{- fail "ingress.enabled and gatewayApi.enabled are mutually exclusive: turn one of them off" }}
+{{- end }}
+{{- if and .Values.ingress.enabled (not .Values.ingress.hostname) }}
+{{- fail "ingress.hostname is required when ingress.enabled is true" }}
 {{- end }}
 {{- if .Values.gatewayApi.enabled }}
 {{- if and (not .Values.gatewayApi.httpRoute.parentRefs) (not .Values.gatewayApi.gateway.enabled) }}

@@ -4,27 +4,31 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
 
 1. Wait for the bootstrap Job to complete:
 
-  kubectl --namespace {{ .Release.Namespace }} wait --for=condition=complete --timeout=15m job -l {{ $bootstrap }}
+  kubectl --namespace {{ .Release.Namespace }} wait --for=condition=complete --timeout=10m job -l {{ $bootstrap }}
 
-   Until the Job completes, the Sync API and the worker exit at start and Kubernetes restarts
-   them. These restarts are expected.
+   With a Sync image that contains the start check, the Sync API and the worker exit at start
+   until the Job has written the bootstrap record, and Kubernetes restarts them. These restarts
+   are expected. The Sync 3.0.0a5 image does not contain the start check: with it, nothing
+   makes the Sync API and the worker wait for the Job, so wait for the Job before you send
+   requests.
 
 2. Reach the Sync API from your workstation:
 
   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ $api }} {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
 
-  Then, in another terminal:
+  Then, in another terminal, give the CLI a token of the bearer tokens in the credentials
+  Secret. `read -rs` reads the token without printing it or writing it to the shell history:
 
   export INFRAHUB_SYNC_API_URL=http://127.0.0.1:{{ .Values.api.service.port }}
-  export INFRAHUB_SYNC_API_TOKEN='<your API token>'
+  read -rs INFRAHUB_SYNC_API_TOKEN && export INFRAHUB_SYNC_API_TOKEN
   infrahub-sync whoami
 
-3. Or run the CLI in the cluster, from the Sync image. Replace <your API token> with a token of
-   the bearer tokens in the credentials Secret:
+3. Or run the CLI in the cluster, from the Sync image, with the token read as in step 2. The
+   token becomes part of the pod definition, so prefer step 2 on a shared cluster:
 
   kubectl --namespace {{ .Release.Namespace }} run infrahub-sync-cli --rm -it --restart=Never \
     --image={{ include "infrahub-sync.image" . }} \
     --overrides='{{ dict "apiVersion" "v1" "spec" (dict "enableServiceLinks" false "imagePullSecrets" .Values.imagePullSecrets) | toJson }}' \
     --env=INFRAHUB_SYNC_API_URL=http://{{ $api }}:{{ .Values.api.service.port }} \
-    --env=INFRAHUB_SYNC_API_TOKEN='<your API token>' \
+    --env=INFRAHUB_SYNC_API_TOKEN="$INFRAHUB_SYNC_API_TOKEN" \
     --command -- infrahub-sync whoami
