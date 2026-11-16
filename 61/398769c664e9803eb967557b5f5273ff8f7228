@@ -1,0 +1,30 @@
+tests/README.md
+  s_d989f93fc3b8fb::t_aa0a1c250c756d 30-36
+  s_d989f93fc3b8fb::t_109904a985fb5b 16
+charts/infrahub-sync/README.md.gotmpl
+  s_d989f93fc3b8fb::t_5e5fd7b27f1273 12-16
+  s_d989f93fc3b8fb::t_675afd8a3f3c58 11
+  s_d989f93fc3b8fb::t_61b1bf7c86ee75 1-10,17-100
+README.md
+  s_d989f93fc3b8fb::t_3529c512c72318 9-10
+charts/infrahub-sync/changelog/+infrahub-sync-chart.added.md
+  s_d989f93fc3b8fb::t_4a0eacb20915ee 1
+charts/infrahub-sync/README.md
+  s_d989f93fc3b8fb::t_d1b6a8a9c5bcd6 1-250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "61398769c664e9803eb967557b5f5273ff8f7228",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
