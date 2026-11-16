@@ -1,3 +1,15 @@
+## [infrahub-backup-1.7.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.7.0) - 2026-11-16
+
+### Added
+
+- Added `externalDatabase` values for a Neo4j or PostgreSQL database that runs outside the Infrahub namespace: `allowRestore`, `insecureTLS`, `timeout`, `neo4jAddress`, `neo4jBackupPort` and `postgresAddress`. Each one sets the matching infrahub-backup environment variable. These values need infrahub-backup 2.6.0 or later.
+- Added `restore.options.neo4jClusterOnlineTimeout`, which sets how long a restore waits for the database to come online on every server of a Neo4j cluster. It needs infrahub-backup 2.4.1 or later.
+
+### Changed
+
+- A restore Job or CronJob with `restore.storage.s3.key` now also sets `INFRAHUB_S3_BUCKET`, `INFRAHUB_S3_PREFIX` and `INFRAHUB_S3_ENDPOINT`. A restore of an external Neo4j database copies the archive into this bucket, under `seed/`, for the Neo4j servers to download, so its credentials need write access to the bucket. The archive download does not change.
+- Bumped the `infrahub-backup` image to `2.6.0`, which the `externalDatabase` values need. It backs up and restores a Neo4j Enterprise or PostgreSQL database that runs outside the Infrahub namespace. The backup and restore pods of this chart run in the Infrahub namespace, so `infrahub-backup` runs the database tools in its own container, creates no Job and no Secret, and needs no change to the Role of the chart. See the [infrahub-backup 2.5.0](https://github.com/opsmill/infrahub-backup/releases/tag/v2.5.0) and [2.6.0](https://github.com/opsmill/infrahub-backup/releases/tag/v2.6.0) release notes.
+
 ## [infrahub-backup-1.6.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-backup-1.6.0) - 2026-11-06
 
 ### Added
