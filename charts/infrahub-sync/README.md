@@ -13,10 +13,8 @@ The chart deploys the same services as the Infrahub Sync `docker-compose.yml`:
 - the Prefect server, which hands the runs to the worker
 - a bootstrap Job, which creates the database schema, the object store bucket, the Prefect work
   pool and the Prefect deployment, then records the Sync version and the work pool it set up.
-  With a Sync image that contains the start check, the Sync API and the worker exit at start
-  until that record matches their version and work pool, and Kubernetes restarts them, so they
-  restart a few times before the Job completes. The Sync 3.0.0a5 image does not contain the
-  start check: with it, nothing makes the Sync API and the worker wait for the Job
+  The Sync API and the worker exit at start until that record matches their version and work
+  pool, and Kubernetes restarts them, so they restart a few times before the Job completes
 - a PostgreSQL server, which holds the Sync database and the Prefect database
 - a Silo object store, which holds the artifacts of the runs
 
@@ -34,7 +32,8 @@ built from the `feature/v3-develop` branch.
 ## The chart is not published yet
 
 The chart is not in the registry until an Infrahub Sync release whose image holds the Prefect
-server and the start check is published. Until then, install the chart from a checkout of this repository:
+server, the start check and `/usr/bin/tini` is published. The chart starts every Sync container
+with `/usr/bin/tini -g --`, so a container from an earlier image, such as 3.0.0a5, fails to start. Until then, install the chart from a checkout of this repository:
 replace `oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in
 the commands below.
 

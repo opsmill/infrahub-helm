@@ -58,6 +58,7 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           command:
+            {{- include "infrahub-sync.tini" . | nindent 12 }}
             - uvicorn
             - --host
             - 0.0.0.0

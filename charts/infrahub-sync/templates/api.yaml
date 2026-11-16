@@ -53,6 +53,11 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            {{- include "infrahub-sync.tini" . | nindent 12 }}
+            - python
+            - -m
+            - infrahub_sync.service.serve
           ports:
             - name: http
               containerPort: 8000

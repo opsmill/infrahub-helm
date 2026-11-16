@@ -6,11 +6,8 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
 
   kubectl --namespace {{ .Release.Namespace }} wait --for=condition=complete --timeout=10m job -l {{ $bootstrap }}
 
-   With a Sync image that contains the start check, the Sync API and the worker exit at start
-   until the Job has written the bootstrap record, and Kubernetes restarts them. These restarts
-   are expected. The Sync 3.0.0a5 image does not contain the start check: with it, nothing
-   makes the Sync API and the worker wait for the Job, so wait for the Job before you send
-   requests.
+   The Sync API and the worker exit at start until the Job has written the bootstrap record,
+   and Kubernetes restarts them. These restarts are expected.
 
 2. Reach the Sync API from your workstation:
 

@@ -566,6 +566,7 @@ def test_worker_reads_no_credentials_secret_by_default(valid_values):
 def test_rr15_prefect_server_command_and_settings(valid_values):
     container = main_container(workload(render(valid_values), "prefect-server"))
     assert [*container.get("command", []), *container.get("args", [])] == [
+        *TINI,
         "uvicorn",
         "--host",
         "0.0.0.0",
@@ -587,6 +588,7 @@ def test_rr16_one_pool_name_for_api_worker_and_bootstrap(valid_values):
     documents = render(valid_values)
     worker = main_container(workload(documents, "worker"))
     assert [*worker.get("command", []), *worker.get("args", [])] == [
+        *TINI,
         "python",
         "-m",
         "infrahub_sync.service.worker",
@@ -611,6 +613,33 @@ def test_rr17_probes(valid_values, component, path, port):
         http = container[probe]["httpGet"]
         assert http["path"] == path
         assert resolve_port(container, http["port"]) == port
+
+
+TINI = ["/usr/bin/tini", "-g", "--"]
+
+
+@pytest.mark.parametrize(
+    ("component", "module"),
+    [
+        ("api", "infrahub_sync.service.serve"),
+        ("worker", "infrahub_sync.service.worker"),
+        ("bootstrap", "infrahub_sync.service.bootstrap"),
+    ],
+)
+def test_sync_commands_run_under_tini(valid_values, component, module):
+    """A Kubernetes command replaces the image entrypoint, so the chart names tini itself."""
+    container = main_container(workload(render(valid_values), component))
+    assert "args" not in container
+    assert container["command"][:6] == [*TINI, "python", "-m", module]
+
+
+def test_every_sync_image_container_but_the_waits_runs_under_tini(valid_values):
+    """Only the short wait init containers start without tini."""
+    documents = render(valid_values)
+    for document in workloads(documents):
+        for container in pod_spec(document)["containers"]:
+            if "infrahub-sync" in container["image"]:
+                assert container["command"][:3] == TINI, component_of(document)
 
 
 @pytest.mark.parametrize("component", ["api", "worker"])
@@ -648,6 +677,7 @@ def test_rr19_bootstrap_is_a_plain_job_and_no_init_container(valid_values):
     assert pod_spec(job)["restartPolicy"] == "OnFailure"
     assert job["spec"]["backoffLimit"] == 6
     assert main_container(job)["command"] == [
+        *TINI,
         "python",
         "-m",
         "infrahub_sync.service.bootstrap",
