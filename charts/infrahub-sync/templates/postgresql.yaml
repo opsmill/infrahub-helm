@@ -157,23 +157,8 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
-          livenessProbe:
-            exec:
-              command:
-                - pg_isready
-                - -q
-                - -h
-                - 127.0.0.1
-                - -p
-                - "5432"
-                - -U
-                - {{ $pg.adminRole | quote }}
-                - -d
-                - {{ $pg.adminRole | quote }}
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 6
+          # No liveness probe: TCP stays closed while a new volume is initialized, and a probe
+          # that restarted the container then would interrupt the initialization.
           {{- with $pg.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

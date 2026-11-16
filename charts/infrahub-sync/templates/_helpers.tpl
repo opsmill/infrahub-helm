@@ -383,9 +383,11 @@ accepts connections. It runs `pg_isready` from the PostgreSQL image and needs no
     - |
       host="$1"
       timeout="$2"
+      role="$3"
       waited=0
       echo "waiting for PostgreSQL at ${host}:5432"
-      until pg_isready -q -h "$host" -p 5432; do
+      # The user has no passwd entry in this image, so pg_isready needs a role name to try.
+      until pg_isready -q -h "$host" -p 5432 -U "$role" -d "$role"; do
         if [ "$waited" -ge "$timeout" ]; then
           echo "PostgreSQL is not ready after ${waited}s" >&2
           exit 1
@@ -397,6 +399,7 @@ accepts connections. It runs `pg_isready` from the PostgreSQL image and needs no
     - wait-for-postgresql
     - {{ include "infrahub-sync.componentName" (dict "context" . "component" "postgresql") | quote }}
     - {{ .Values.waitTimeoutSeconds | int | toString | quote }}
+    - {{ .Values.postgresql.adminRole | quote }}
 {{- end }}
 
 {{/*
@@ -473,8 +476,9 @@ The release revision is not part of it, so an upgrade that changes none of these
 A Job's pod template cannot be changed after creation, so every other value that enters the
 Job's pod template is part of the hash too: the `bootstrap` block (resources, scheduling, pod
 annotations and labels, extra environment), the pull policy and pull secrets, the security
-contexts, the service account and the wait timeout. A change to one of them gives a new Job
-instead of a patch that Kubernetes refuses.
+contexts, the service account, the CA ConfigMap name and the wait timeout. The chart version is
+part of it too, because a new chart version can change the Job's template itself. A change to
+one of them gives a new Job instead of a patch that Kubernetes refuses.
 */}}
 {{- define "infrahub-sync.bootstrapHash" -}}
 {{- $inputs := list
@@ -488,6 +492,8 @@ instead of a patch that Kubernetes refuses.
   (toJson .Values.securityContext)
   (include "infrahub-sync.serviceAccountName" .)
   (toString .Values.waitTimeoutSeconds)
+  (include "infrahub-sync.caConfigMapName" .)
+  (toString .Chart.Version)
   (include "infrahub-sync.checksum.secret" .)
   (include "infrahub-sync.checksum.ca" .)
 }}

@@ -21,9 +21,7 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
 
   kubectl --namespace {{ .Release.Namespace }} run infrahub-sync-cli --rm -it --restart=Never \
     --image={{ include "infrahub-sync.image" . }} \
-    {{- with .Values.imagePullSecrets }}
-    --overrides='{"apiVersion": "v1", "spec": {"imagePullSecrets": {{ toJson . }}}}' \
-    {{- end }}
+    --overrides='{{ dict "apiVersion" "v1" "spec" (dict "enableServiceLinks" false "imagePullSecrets" .Values.imagePullSecrets) | toJson }}' \
     --env=INFRAHUB_SYNC_API_URL=http://{{ $api }}:{{ .Values.api.service.port }} \
     --env=INFRAHUB_SYNC_API_TOKEN='<your API token>' \
     --command -- infrahub-sync whoami
