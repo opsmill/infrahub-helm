@@ -33,7 +33,10 @@ test uses the image in `INFRAHUB_SYNC_E2E_IMAGE` when it is set, otherwise the
 registry image of the chart's `appVersion`. An image in the local Docker store
 is imported into the vcluster. To pull from the registry with a login, set
 `INFRAHUB_SYNC_REGISTRY_USERNAME` and `INFRAHUB_SYNC_REGISTRY_PASSWORD`. When
-the image is in neither place and no login is set, the test is skipped.
+the image is in neither place and no login is set, the test is skipped. In CI,
+the `e2e-infrahub-sync` job reads the login from the repository secrets of the
+same names. When either secret is not set, the job writes a warning annotation
+and a job summary line that say the test did not run and why.
 
 ## Running
 
