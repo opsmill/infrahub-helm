@@ -21,8 +21,10 @@ CHART = Path(__file__).resolve().parents[2] / "charts" / "infrahub-sync"
 TEST_CREDENTIAL = "test-" * 4
 
 
-def render(values: dict, *, expect_failure: bool = False) -> list[dict] | str:
-    """Render the chart with `values`.
+def render(
+    values: dict, *, expect_failure: bool = False, extra_args: tuple[str, ...] = ()
+) -> list[dict] | str:
+    """Render the chart with `values`, adding `extra_args` to `helm template`.
 
     Returns the parsed documents, empty ones left out. With `expect_failure`, the render must
     fail and the error text is returned instead.
@@ -32,7 +34,7 @@ def render(values: dict, *, expect_failure: bool = False) -> list[dict] | str:
         values_file = Path(handle.name)
     try:
         result = subprocess.run(
-            ["helm", "template", "sync", str(CHART), "-f", str(values_file)],
+            ["helm", "template", "sync", str(CHART), "-f", str(values_file), *extra_args],
             capture_output=True,
             text=True,
             check=False,
@@ -753,3 +755,57 @@ def test_postgresql_wait_names_a_role(valid_values):
     )
     assert '-U "$role"' in wait["command"][2]
     assert wait["command"][-1] == "postgres"
+
+
+# Bootstrap Job name (RR-34)
+
+
+def bootstrap_job_name(values: dict, extra_args: tuple[str, ...] = ()) -> str:
+    """Return the name of the bootstrap Job that the chart renders for `values`."""
+    return workload(render(values, extra_args=extra_args), "bootstrap")["metadata"]["name"]
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("image", "tag"), "9.9.9"),
+        (("s3", "prefix"), "another-prefix"),
+        (("credentials", "s3SecretKey"), "another-" * 3),
+    ],
+    ids=["image.tag", "s3.prefix", "credentials.s3SecretKey"],
+)
+def test_rr34_job_name_changes_with_what_the_bootstrap_reads(valid_values, path, value):
+    before = bootstrap_job_name(valid_values)
+    changed = json.loads(json.dumps(valid_values))
+    changed.setdefault(path[0], {})[path[1]] = value
+    after = bootstrap_job_name(changed)
+    assert re.fullmatch(rf"{FULLNAME}-bootstrap-[0-9a-f]{{8}}", after)
+    assert after != before
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("api", "resources"), {"requests": {"cpu": "250m", "memory": "256Mi"}}),
+        (("settings", "runAdmissionTtlSeconds"), 301),
+    ],
+    ids=["api.resources", "settings.runAdmissionTtlSeconds"],
+)
+def test_rr34_job_name_ignores_what_the_bootstrap_does_not_read(valid_values, path, value):
+    before = bootstrap_job_name(valid_values)
+    changed = json.loads(json.dumps(valid_values))
+    changed.setdefault(path[0], {})[path[1]] = value
+    assert bootstrap_job_name(changed) == before
+
+
+def test_rr34_job_name_ignores_the_release_revision(valid_values):
+    """`helm template` has no flag that sets the revision, so the test checks both halves.
+
+    No template reads `.Release.Revision`, and a render as an upgrade (`--is-upgrade`, which
+    is what a later revision is) gives the same name as a render as an install.
+    """
+    for template in (CHART / "templates").iterdir():
+        assert ".Release.Revision" not in template.read_text(), template.name
+    assert bootstrap_job_name(valid_values, ("--is-upgrade",)) == bootstrap_job_name(
+        valid_values
+    )
