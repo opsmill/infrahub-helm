@@ -1,17 +1,9 @@
-"""Special e2e test: back up and restore, through the chart, an Infrahub whose Neo4j
-database runs in another namespace.
+"""Back up and restore, through the chart, an Infrahub whose Neo4j database runs
+in another namespace.
 
-NOT part of CI. It needs an infrahub-backup image built from
-opsmill/infrahub-backup#172 ("back up and restore external databases on
-Kubernetes"), which no released chart appVersion points at, so the module
-carries only the ``manual`` marker. Run it on demand with::
-
-    uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
-
-The session fixture builds the image from the pull request (or from
-``INFRAHUB_BACKUP_SOURCE_DIR``, or takes ``INFRAHUB_BACKUP_IMAGE`` as is),
-imports it into the vcluster, installs a Neo4j Enterprise server in its own
-namespace and deploys Infrahub with ``neo4j.enabled=false`` pointed at it.
+The session fixture installs a Neo4j Enterprise server in its own namespace and
+deploys Infrahub with ``neo4j.enabled=false`` pointed at it. The backup and
+restore Jobs run the infrahub-backup image of the chart's ``appVersion``.
 
 What it proves:
 
@@ -40,7 +32,7 @@ from tests.helpers.utils import (
     wait_for_job,
 )
 
-pytestmark = pytest.mark.manual
+pytestmark = [pytest.mark.e2e, pytest.mark.k8s, pytest.mark.backup]
 
 # The line infrahub-backup logs when it runs the database tools in its own
 # container instead of creating a transient Job (src/internal/app/external_local.go).
@@ -64,9 +56,8 @@ def _kubectl(deployment: dict, *args: str) -> str:
     ).stdout
 
 
-def _common_sets(deployment: dict) -> dict[str, str]:
-    """Values both Jobs share: the image under test, and the external database
-    settings the topology needs.
+def _common_sets() -> dict[str, str]:
+    """External database settings both Jobs share.
 
     The Neo4j server serves no TLS, which infrahub-backup accepts only with
     ``insecureTLS``. The Jobs pass no ``--external-db-image``, as an operator
@@ -74,9 +65,6 @@ def _common_sets(deployment: dict) -> dict[str, str]:
     need an image for one.
     """
     return {
-        "image.repository": deployment["backup_image_repository"],
-        "image.tag": deployment["backup_image_tag"],
-        "image.pullPolicy": "IfNotPresent",
         "externalDatabase.insecureTLS": "true",
     }
 
@@ -108,7 +96,7 @@ async def test_backup_restore_external_neo4j(infrahub_external_neo4j_k8s, tmp_pa
     token = deployment["token"]
     s3 = deployment["s3"]
     chart = CHARTS_DIR / "infrahub-backup"
-    common = _common_sets(deployment)
+    common = _common_sets()
     values_file = _values_file(s3["ca_values"], tmp_path)
     s3_sets = {
         "storage.type": "s3",

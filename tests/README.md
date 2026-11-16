@@ -10,7 +10,7 @@ chart changed (see `.github/workflows/ci.yml`):
 |--------------------------|-----------------|----------------|
 | `infrahub`               | `infrahub`      | Deploys the community chart; a `BuiltinTag` round-trips through the Infrahub SDK. |
 | `infrahub-enterprise`    | `enterprise`    | Same SDK check against the enterprise chart. |
-| `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. The Jobs reach Garage over HTTPS with a certificate issued by a private CA that the test generates, and trust it through `extraEnv`, `extraVolumes` and `extraVolumeMounts`. A restore without these values must fail certificate verification. |
+| `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. The Jobs reach Garage over HTTPS with a certificate issued by a private CA that the test generates, and trust it through `extraEnv`, `extraVolumes` and `extraVolumeMounts`. A restore without these values must fail certificate verification. `test_infrahub_backup_external_neo4j.py` deploys Infrahub with `neo4j.enabled=false`, pointed at a Neo4j 2025.10.1 Enterprise server in the `neo4j-external` namespace. The backup Job must capture that database with the tools in its own container and create no Job and no Secret. The restore Job, with `externalDatabase.allowRestore`, must bring back the data from before the backup. |
 | `infrahub-observability` | `observability` | Deploys Infrahub + the stack together (tracing → Tempo, Alloy scraping Infrahub), drives API traffic, then asserts via Grafana that Infrahub metrics (Prometheus) and Infrahub traces (Tempo) are queryable. |
 | `infrahub-mcp`           | `mcp`           | Deploys Infrahub with the MCP sub-chart behind a shared ingress and drives it over the streamable-HTTP transport. |
 
@@ -47,7 +47,6 @@ uv run pytest -v -m manual tests/e2e/test_tracing_optout.py                  # t
 uv run pytest -v -m manual tests/e2e/test_infrahub_enterprise_openshift.py   # OpenShift overlay
 uv run pytest -v -s -m manual tests/e2e/test_infrahub_upstream_playwright.py # upstream UI suite
 uv run pytest -v -m manual tests/e2e/test_git_custom_ca.py                   # git behind a private CA
-uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py  # backup of an external Neo4j
 ```
 
 `test_tracing_optout.py` checks that enabling `infrahub-observability` for only
@@ -103,33 +102,6 @@ build an image for another ref:
 ```bash
 ./scripts/build-infrahub-image.sh --help
 ./scripts/build-infrahub-image.sh --ref my-branch --tag my-tag
-```
-
-`test_infrahub_backup_external_neo4j.py` backs up and restores, through the
-`infrahub-backup` chart, an Infrahub whose Neo4j database runs in another
-namespace. It installs a Neo4j 2025.10.1 Enterprise server in the
-`neo4j-external` namespace and deploys Infrahub with `neo4j.enabled=false`
-pointed at it. The backup Job must capture the database with the tools in its
-own container and create no Job and no Secret. The restore Job, with
-`externalDatabase.allowRestore`, copies the archive to the Garage bucket, the
-Neo4j server downloads it, and the data from before the backup must be back.
-
-It needs an `infrahub-backup` image carrying
-[opsmill/infrahub-backup#172](https://github.com/opsmill/infrahub-backup/pull/172),
-which no released `appVersion` points at. The fixture clones the pull request,
-builds the image and imports it into the vcluster:
-
-```bash
-# clones opsmill/infrahub-backup itself (needs `gh`)
-uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
-
-# build from a local checkout, as it is, instead of cloning
-INFRAHUB_BACKUP_SOURCE_DIR=~/code/infrahub-backup \
-  uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
-
-# skip the build and use an image that already exists locally (not `latest`)
-INFRAHUB_BACKUP_IMAGE=infrahub-backup:e2e-pr-172 \
-  uv run pytest -v -m manual tests/e2e/test_infrahub_backup_external_neo4j.py
 ```
 
 ## Neo4j HA increment

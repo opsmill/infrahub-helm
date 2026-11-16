@@ -1045,19 +1045,12 @@ async def infrahub_custom_ca_k8s(
 
 # ---------------------------------------------------------------------------
 # Fixture: infrahub_external_neo4j_k8s (Infrahub whose Neo4j runs in another
-# namespace, with the infrahub-backup image that can back it up)
+# namespace)
 # ---------------------------------------------------------------------------
-# Backup and restore of a database outside the Infrahub namespace is not in a
-# released infrahub-backup image yet, so the test runs against an image built
-# from the pull request that adds it. INFRAHUB_BACKUP_IMAGE names an image that
-# already exists locally; INFRAHUB_BACKUP_SOURCE_DIR builds from a local
-# infrahub-backup checkout, as it is, instead of cloning the pull request.
-INFRAHUB_BACKUP_EXTERNAL_DB_PR = "172"
-
 EXTERNAL_DB_NAMESPACE = "infrahub-external-db"
 EXTERNAL_NEO4J_NAMESPACE = "neo4j-external"
-# The Neo4j version is the one the infrahub-backup image takes `neo4j-admin`
-# from (`FROM neo4j:...` in its Dockerfile). infrahub-backup refuses a server
+# The Neo4j version is the one the infrahub-backup image of the chart's
+# appVersion takes `neo4j-admin` from (`FROM neo4j:...` in its Dockerfile). infrahub-backup refuses a server
 # newer than its tools, so a newer server would test that refusal instead.
 EXTERNAL_NEO4J_CHART_VERSION = "2025.10.1"
 # `neo4j.name`: the headless Service is named after it.
@@ -1065,35 +1058,6 @@ EXTERNAL_NEO4J_NAME = "infrahub-ext"
 EXTERNAL_NEO4J_USERNAME = "neo4j"
 EXTERNAL_NEO4J_PASSWORD = "admin12345"
 EXTERNAL_NEO4J_AUTH_SECRET = "neo4j-auth"
-
-
-def build_infrahub_backup_image(workdir: Path) -> str:
-    """Build the infrahub-backup image of the pull request under test and return its tag.
-
-    The tag is local and is not `latest`, so a pod with `imagePullPolicy:
-    IfNotPresent` starts from the imported image instead of pulling.
-    """
-    source = os.environ.get("INFRAHUB_BACKUP_SOURCE_DIR")
-    if not source:
-        ref = subprocess.run(
-            [
-                "gh", "pr", "view", INFRAHUB_BACKUP_EXTERNAL_DB_PR,
-                "--repo", "opsmill/infrahub-backup",
-                "--json", "headRefName", "-q", ".headRefName",
-            ],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
-        source = str(workdir / "infrahub-backup")
-        subprocess.run(
-            [
-                "git", "clone", "--quiet", "--depth", "1", "--single-branch", "--branch", ref,
-                "https://github.com/opsmill/infrahub-backup.git", source,
-            ],
-            check=True,
-        )
-    image = f"infrahub-backup:e2e-pr-{INFRAHUB_BACKUP_EXTERNAL_DB_PR}"
-    subprocess.run(["docker", "build", "-t", image, source], check=True)
-    return image
 
 
 def install_external_neo4j(kubeconfig: str, namespace: str, s3_env: dict[str, str], workdir: Path) -> str:
@@ -1186,10 +1150,6 @@ async def infrahub_external_neo4j_k8s(
     _register_namespace(request, EXTERNAL_NEO4J_NAMESPACE)
     workdir = tmp_path_factory.mktemp("external-db")
 
-    image = os.environ.get("INFRAHUB_BACKUP_IMAGE") or build_infrahub_backup_image(workdir)
-    import_image_into_vcluster(image, vcluster["cluster_name"])
-    repository, _, tag = image.rpartition(":")
-
     # The Neo4j server reaches Garage through the Service IP: with an IP
     # address, the AWS SDK puts the bucket in the path instead of the host
     # name, and this Garage serves path-style requests only.
@@ -1238,6 +1198,4 @@ async def infrahub_external_neo4j_k8s(
         "token": INFRAHUB_ADMIN_TOKEN,
         "server_label": "service=infrahub-server",
         "s3": s3,
-        "backup_image_repository": repository,
-        "backup_image_tag": tag,
     }
