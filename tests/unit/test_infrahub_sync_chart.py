@@ -601,10 +601,13 @@ def test_rr20_endpoint_is_the_release_object_store(valid_values, fullname_overri
     assert find(documents, "Service", f"{fullname}-object-store") is not None
 
 
-@pytest.mark.parametrize("with_ca", [False, True])
-def test_rr21_ca_only_in_api_worker_and_bootstrap(ca_values, with_ca):
+@pytest.mark.parametrize("ca_source", ["", "certificates", "existingConfigMap"])
+def test_rr21_ca_only_in_api_worker_and_bootstrap(ca_values, ca_source):
+    with_ca = bool(ca_source)
     if not with_ca:
         del ca_values["caCertificates"]
+    elif ca_source == "existingConfigMap":
+        ca_values["caCertificates"] = {"existingConfigMap": "private-ca"}
     documents = render(ca_values)
     for document in workloads(documents):
         expected = with_ca and component_of(document) in {"api", "worker", "bootstrap"}
