@@ -1,0 +1,34 @@
+tests/README.md
+  s_d989f93fc3b8fb::t_e8d8f9000cce93 16
+pyproject.toml
+  s_d989f93fc3b8fb::t_1a9301d534a792 36
+AGENTS.md
+  s_d989f93fc3b8fb::t_67a2e39ac6b7d1 53
+  s_d989f93fc3b8fb::t_a247dfa6303277 18-19
+charts/infrahub-sync/Chart.yaml
+  s_d989f93fc3b8fb::t_51a7433b1fd130 1-17
+charts/infrahub-sync/.helmignore
+  s_d989f93fc3b8fb::t_e4630153352ef1 1-28
+charts/infrahub-sync/CHANGELOG.md
+  s_d989f93fc3b8fb::t_71454c928c62db 1-3
+charts/infrahub-sync/changelog/.gitignore
+  s_d989f93fc3b8fb::t_836586355e7f69 1
+charts/infrahub-sync/towncrier.toml
+  s_d989f93fc3b8fb::t_54a85a0e19b0bb 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46d494b8345a6ce0ddfb4ff0479a871a08dc2930",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
