@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.27.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.27.0) - 2026-11-16
+
+### Changed
+
+- The `infrahub` dependency `4.39.0` bumps the bundled `infrahub-backup` subchart to `1.7.0`. It runs the [infrahub-backup 2.6.0](https://github.com/opsmill/infrahub-backup/releases/tag/v2.6.0) image, which backs up and restores a Neo4j Enterprise or PostgreSQL database that runs outside the Infrahub namespace. It adds the `infrahub.infrahub-backup.externalDatabase` values for these databases, and `infrahub.infrahub-backup.restore.options.neo4jClusterOnlineTimeout`, which sets how long a restore into a Neo4j cluster waits for the database to come online. A restore by `restore.storage.s3.key` now also sets the S3 bucket, prefix and endpoint, so its credentials must be able to write to the bucket when the Neo4j database is external.
+
 ## [infrahub-enterprise-4.26.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.26.0) - 2026-11-10
 
 ### Changed
