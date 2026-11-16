@@ -1079,23 +1079,36 @@ def split_sync_image(image: str) -> tuple[str, str]:
     return repository, tag
 
 
+class RegistryLoginError(Exception):
+    """`docker login` failed. The message never holds the password."""
+
+
+def _login_failure_message(registry: str, stderr: str, password: str) -> str:
+    """Describe a failed `docker login` from its stderr, with the password removed."""
+    detail = stderr.replace(password, "<password>").strip() if password else stderr.strip()
+    return f"docker login to {registry} failed: {detail or 'no error output'}"
+
+
 def _image_in_registry(image: str, credentials: tuple[str, str] | None) -> bool:
     """Whether the registry serves the image's manifest, with the login when one is given.
 
     A throwaway Docker config directory holds the login, so the runner's own Docker
-    configuration is neither read nor changed.
+    configuration is neither read nor changed. A failed login raises `RegistryLoginError`,
+    so that it is reported apart from an image the registry does not serve.
     """
     with tempfile.TemporaryDirectory() as config:
         docker = ["docker", "--config", config]
         if credentials:
             username, password = credentials
+            registry = _image_registry(image)
             login = subprocess.run(
-                [*docker, "login", _image_registry(image), "--username", username,
-                 "--password-stdin"],
+                [*docker, "login", registry, "--username", username, "--password-stdin"],
                 input=password, capture_output=True, text=True, check=False, timeout=120,
             )
             if login.returncode != 0:
-                return False
+                raise RegistryLoginError(
+                    _login_failure_message(registry, login.stderr, password)
+                )
         inspect = subprocess.run(
             [*docker, "manifest", "inspect", image],
             capture_output=True, text=True, check=False, timeout=120,
@@ -1122,7 +1135,14 @@ def infrahub_sync_image() -> dict:
     )
     if local.returncode == 0:
         return {"image": image, "local": True, "credentials": credentials}
-    if _image_in_registry(image, credentials):
+    try:
+        served = _image_in_registry(image, credentials)
+    except RegistryLoginError as error:
+        pytest.fail(
+            f"The Sync image {image} is not in the local Docker store, and the registry login "
+            f"of INFRAHUB_SYNC_REGISTRY_USERNAME failed. {error}"
+        )
+    if served:
         return {"image": image, "local": False, "credentials": credentials}
     if credentials:
         pytest.fail(
