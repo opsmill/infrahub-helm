@@ -739,4 +739,17 @@ def test_notes_hold_no_credential(valid_values):
     assert "infrahub-sync whoami" in notes
     assert "kubectl" in notes and "wait --for=condition=complete" in notes
     assert TEST_CREDENTIAL not in notes
+    assert '"enableServiceLinks":false' in notes
     assert base64.b64encode(TEST_CREDENTIAL.encode()).decode() not in notes
+
+
+def test_postgresql_wait_names_a_role(valid_values):
+    """The Sync pod's uid has no passwd entry in the PostgreSQL image, so pg_isready needs -U."""
+    prefect = workload(render(valid_values), "prefect-server")
+    wait = next(
+        container
+        for container in pod_spec(prefect)["initContainers"]
+        if container["name"] == "wait-for-postgresql"
+    )
+    assert '-U "$role"' in wait["command"][2]
+    assert wait["command"][-1] == "postgres"
