@@ -121,7 +121,7 @@ restore:
 # -- Settings for a Neo4j or PostgreSQL database that runs outside the Infrahub namespace. They have no effect on a
 # database that runs in the namespace. The backup and restore pods run in the Infrahub namespace, so infrahub-backup
 # runs `neo4j-admin`, `cypher-shell` and the PostgreSQL client in its own container, and creates no Job and no Secret.
-# Needs an infrahub-backup image with external database support.
+# Needs infrahub-backup 2.6.0 or later.
 externalDatabase:
   # -- Allow a restore to overwrite an external database. Sets `INFRAHUB_ALLOW_EXTERNAL_RESTORE` on the restore
   # containers only. A restore of an external Neo4j database also needs `restore.storage.type: s3`: infrahub-backup
