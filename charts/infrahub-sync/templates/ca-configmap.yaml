@@ -1,0 +1,13 @@
+{{- include "infrahub-sync.validate" . }}
+{{- if and .Values.caCertificates.certificates (not .Values.caCertificates.existingConfigMap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "infrahub-sync.caConfigMapName" . }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" .) | nindent 4 }}
+data:
+  {{- range $name, $pem := .Values.caCertificates.certificates }}
+  {{ $name }}: {{ $pem | toString | quote }}
+  {{- end }}
+{{- end }}

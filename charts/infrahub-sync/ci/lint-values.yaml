@@ -1,0 +1,4 @@
+# Values for `helm lint`: the chart refuses to render without credentials, so the lint names an
+# existing Secret instead of setting credential values.
+credentials:
+  existingSecret: infrahub-sync

@@ -1,0 +1,352 @@
+# Default values for infrahub-sync.
+#
+# The chart deploys the topology of the Infrahub Sync `docker-compose.yml`: the Sync API, the
+# worker, the Prefect server and the bootstrap Job from the Sync image, and a bundled PostgreSQL
+# and object store. No value below holds a credential by default.
+
+# -- Sync image, used by the Sync API, the worker, the Prefect server and the bootstrap Job
+image:
+  # -- Image repository
+  repository: registry.opsmill.io/opsmill/infrahub-sync
+  # -- Image tag. Empty means the chart's `appVersion`
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets, applied to every pod of the release
+imagePullSecrets: []
+
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full name
+fullnameOverride: ""
+
+# -- Credentials of the deployment. Each key of the Secret is the variable name of the Compose
+# `.env` file, so `kubectl create secret generic <name> --from-env-file=.env` creates it.
+credentials:
+  # -- Name of an existing Secret that holds the credential keys. When set, the chart creates no
+  # Secret and the values below are not read
+  existingSecret: ""
+  # -- `INFRAHUB_SYNC_SERVICE_BEARER_TOKENS`: a JSON object of API principals, for example
+  # `{"operator": {"token": "<random>", "administrator": true}}`. Required
+  bearerTokens: ""
+  # -- `INFRAHUB_SYNC_PREFECT_AUTH_STRING`: the Prefect API credential. Required
+  prefectAuthString: ""
+  # -- `INFRAHUB_SYNC_S3_ACCESS_KEY`: the object store access key. Required
+  s3AccessKey: ""
+  # -- `INFRAHUB_SYNC_S3_SECRET_KEY`: the object store secret key. Required
+  s3SecretKey: ""
+  # -- `INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD`: the PostgreSQL administrator password. Required
+  # with the bundled PostgreSQL
+  postgresAdminPassword: ""
+  # -- `INFRAHUB_SYNC_PRODUCT_PASSWORD`: the password of the product role. Required with the
+  # bundled PostgreSQL. It is used in a connection string, so it must be URL-safe
+  productPassword: ""
+  # -- `INFRAHUB_SYNC_PREFECT_PASSWORD`: the password of the Prefect role. Required with the
+  # bundled PostgreSQL. It is used in a connection string, so it must be URL-safe
+  prefectPassword: ""
+  # -- `INFRAHUB_SYNC_DATABASE_URL`: the product database connection string. Required with an
+  # external PostgreSQL
+  databaseUrl: ""
+  # -- `INFRAHUB_SYNC_PREFECT_DATABASE_URL`: the Prefect database connection string. Required
+  # with an external PostgreSQL
+  prefectDatabaseUrl: ""
+  # -- `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`: the destination credential, given to the
+  # Sync API and the worker. Optional
+  infrahubApiToken: ""
+
+# -- Settings of the Sync processes
+settings:
+  # -- `INFRAHUB_SYNC_REQUIRE_APPROVAL`: when true, `apply` refuses a plan without a matching
+  # approval, and `sync` is refused
+  requireApproval: false
+  # -- `INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS`
+  runAdmissionTtlSeconds: 300
+  # -- `INFRAHUB_SYNC_SERVICE_WORK_POOL` and the worker's `--pool`
+  workPool: infrahub-sync
+  # -- `PREFECT_WORKER_QUERY_SECONDS`
+  workerQuerySeconds: 10
+  # -- `PREFECT_WORKER_HEARTBEAT_SECONDS`
+  workerHeartbeatSeconds: 10
+  # -- `INFRAHUB_SYNC_PREFECT_UI_URL`: the Prefect UI address that run responses link to. Empty
+  # turns the link off
+  prefectUiUrl: ""
+
+# -- The bundled object store (Silo, a maintained build of the MinIO server, AGPLv3)
+objectStore:
+  # -- Deploy the bundled object store. When false, set `s3.endpointUrl`
+  enabled: true
+  # -- Object store image, pinned by digest as in `docker-compose.yml`
+  image:
+    # -- Image repository
+    repository: pgsty/silo
+    # -- Image tag
+    tag: RELEASE.2026-10-18T00-00-00Z
+    # -- Image digest
+    digest: sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7
+  # -- Persistent volume of the object store
+  persistence:
+    # -- Size of the volume claim
+    size: 10Gi
+    # -- Storage class of the volume claim. Empty means the cluster default
+    storageClass: ""
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+
+# -- S3 settings of the Sync processes
+s3:
+  # -- `INFRAHUB_SYNC_S3_BUCKET`
+  bucket: infrahub-sync
+  # -- `INFRAHUB_SYNC_S3_PREFIX`
+  prefix: infrahub-sync
+  # -- `INFRAHUB_SYNC_S3_REGION`
+  region: us-east-1
+  # -- `INFRAHUB_SYNC_S3_ENDPOINT_URL`. Required when `objectStore.enabled` is false; refused
+  # when it is true
+  endpointUrl: ""
+  # -- `INFRAHUB_SYNC_S3_ADDRESSING_STYLE`: `path` or `virtual`. Empty means `path`
+  addressingStyle: ""
+
+# -- The bundled PostgreSQL
+postgresql:
+  # -- Deploy the bundled PostgreSQL. When false, set `credentials.databaseUrl` and
+  # `credentials.prefectDatabaseUrl`, or provide them in `credentials.existingSecret`
+  enabled: true
+  # -- PostgreSQL image, pinned by digest as in `docker-compose.yml`
+  image:
+    # -- Image repository
+    repository: postgres
+    # -- Image tag
+    tag: 16-alpine
+    # -- Image digest
+    digest: sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+  # -- Administrator role
+  adminRole: postgres
+  # -- Role that owns the product database
+  productRole: infrahub_sync
+  # -- Product database
+  productDatabase: infrahub_sync
+  # -- Role that owns the Prefect database
+  prefectRole: prefect
+  # -- Prefect database
+  prefectDatabase: prefect
+  # -- Persistent volume of PostgreSQL
+  persistence:
+    # -- Size of the volume claim
+    size: 10Gi
+    # -- Storage class of the volume claim. Empty means the cluster default
+    storageClass: ""
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+
+# -- CA certificates, mounted read-only at `/etc/infrahub-sync/ca` in the Sync API, the worker
+# and the bootstrap Job. Public certificates only: the image refuses to start when a file in the
+# directory holds a private key
+caCertificates:
+  # -- Name of an existing ConfigMap of `*.pem` or `*.crt` files
+  existingConfigMap: ""
+  # -- File name to PEM content; the chart creates the ConfigMap
+  certificates: {}
+
+# -- The Sync API
+api:
+  # -- Number of replicas. One is the only tested value
+  replicaCount: 1
+  # -- Service of the Sync API
+  service:
+    # -- Service type
+    type: ClusterIP
+    # -- Service port
+    port: 8000
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+  # -- Additional environment variables (a list of `env` entries)
+  extraEnv: []
+
+# -- The worker
+worker:
+  # -- Number of replicas. One is the only tested value
+  replicaCount: 1
+  # -- Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret
+  # that only the worker reads
+  credentials: {}
+  # -- Names of existing Secrets whose keys are passed to the worker as variables
+  credentialsExistingSecrets: []
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+  # -- Additional environment variables (a list of `env` entries)
+  extraEnv: []
+
+# -- The Prefect server, run from the Sync image
+prefectServer:
+  # -- `PREFECT_UI_ENABLED`. The chart offers no route to the UI
+  uiEnabled: false
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+  # -- Additional environment variables (a list of `env` entries)
+  extraEnv: []
+
+# -- The bootstrap Job
+bootstrap:
+  # -- Number of retries before the Job is marked failed
+  backoffLimit: 6
+  # -- Resource requests and limits
+  resources: {}
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # -- Affinity rules
+  affinity: {}
+  # -- Pod annotations
+  podAnnotations: {}
+  # -- Pod labels
+  podLabels: {}
+  # -- Additional environment variables (a list of `env` entries)
+  extraEnv: []
+
+# -- How long an init container waits for its dependency before it fails, in seconds
+waitTimeoutSeconds: 600
+
+# -- ServiceAccount configuration. No pod mounts its token
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Name of the ServiceAccount (generated if empty)
+  name: ""
+  # -- Annotations to add to the ServiceAccount
+  annotations: {}
+
+# -- Pod security context of the Sync pods
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container security context of the Sync containers
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Ingress for the Sync API. Mutually exclusive with `gatewayApi`
+ingress:
+  # -- Whether to enable Ingress for the Sync API
+  enabled: false
+  # -- IngressClass name to use
+  ingressClassName: ""
+  # -- Hostname to configure for the ingress
+  hostname: ""
+  # -- Path prefix under which the Sync API is exposed
+  path: /
+  # -- PathType for the ingress rule
+  pathType: Prefix
+  # -- Annotations to configure on the ingress
+  annotations: {}
+  # -- Additional hosts to expose (each entry: hostname, path, pathType)
+  extraHosts: []
+  # -- Enable TLS for `hostname` using the secret "<fullname>-tls"
+  tls: false
+  # -- Additional TLS configuration entries (raw `tls` list items)
+  extraTls: []
+
+# -- Gateway API configuration for the Sync API.
+# ref: https://gateway-api.sigs.k8s.io/
+# Mutually exclusive with `ingress`.
+gatewayApi:
+  # -- Whether to enable Gateway API HTTPRoute for the Sync API
+  enabled: false
+  httpRoute:
+    # -- HTTPRoute resource name (defaults to "<fullname>-httproute")
+    name: ""
+    # -- Additional labels for the HTTPRoute resource
+    labels: {}
+    # -- Additional annotations for the HTTPRoute resource
+    annotations: {}
+    # -- Hostnames that this HTTPRoute should match
+    hostnames: []
+    # -- Parent Gateway references
+    parentRefs: []
+    # - name: default-gateway
+    #   namespace: net
+    #   sectionName: https-listener
+    # -- Path prefix for the default matching rule
+    path: /
+    # -- Additional HTTPRoute rules beyond the generated one
+    extraRules: []
+  gateway:
+    # -- Whether to create a Gateway resource (most users reference an existing Gateway through httpRoute.parentRefs)
+    enabled: false
+    # -- GatewayClass name (required when gateway.enabled is true)
+    className: ""
+    # -- Gateway resource name (defaults to "<fullname>-gateway")
+    name: ""
+    # -- Additional labels for the Gateway resource
+    labels: {}
+    # -- Additional annotations for the Gateway resource
+    annotations: {}
+    # -- Gateway listeners configuration
+    listeners: []
+    # - name: https
+    #   port: 443
+    #   protocol: HTTPS
+    #   hostname: ""
+    #   tls:
+    #     mode: Terminate
+    #     certificateRefs:
+    #       - kind: Secret
+    #         name: my-tls-cert
