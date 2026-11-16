@@ -1,0 +1,61 @@
+{{- include "infrahub-sync.validate" . }}
+{{- $component := .Values.bootstrap }}
+{{- /*
+A plain Job, not a Helm hook. Its name ends with a hash of everything that enters its pod
+template, so a change gives a new Job and Helm deletes the previous one; no Job is ever patched.
+The pod template carries only selector labels and the bootstrap's own values, all of which are
+part of the hash.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- /* 54 + "-" + 8 hash characters stays within the 63 characters of a label value. */}}
+  name: {{ printf "%s-%s" (include "infrahub-sync.componentName" (dict "context" . "component" "bootstrap") | trunc 54 | trimSuffix "-") (include "infrahub-sync.bootstrapHash" .) }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "bootstrap") | nindent 4 }}
+spec:
+  backoffLimit: {{ $component.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "bootstrap") | nindent 8 }}
+        {{- with $component.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $component.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: OnFailure
+      {{- include "infrahub-sync.pod.common" (dict "context" . "values" $component) | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        {{- include "infrahub-sync.initContainer.waitForPrefect" . | nindent 8 }}
+      containers:
+        - name: bootstrap
+          image: {{ include "infrahub-sync.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            - python
+            - -m
+            - infrahub_sync.service.bootstrap
+          env:
+            {{- include "infrahub-sync.env.storage" . | nindent 12 }}
+            {{- include "infrahub-sync.env.ca" . | nindent 12 }}
+            {{- with $component.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $component.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- include "infrahub-sync.mounts.scratch" . | nindent 12 }}
+            {{- include "infrahub-sync.mounts.ca" . | nindent 12 }}
+      volumes:
+        {{- include "infrahub-sync.volumes.scratch" . | nindent 8 }}
+        {{- include "infrahub-sync.volumes.ca" . | nindent 8 }}

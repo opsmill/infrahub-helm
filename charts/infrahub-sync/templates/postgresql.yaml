@@ -1,0 +1,207 @@
+{{- include "infrahub-sync.validate" . }}
+{{- if .Values.postgresql.enabled }}
+{{- $name := include "infrahub-sync.componentName" (dict "context" . "component" "postgresql") }}
+{{- $secretName := include "infrahub-sync.secretName" . }}
+{{- $pg := .Values.postgresql }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-init
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "postgresql") | nindent 4 }}
+data:
+  # The `db-bootstrap-script` of docker-compose.yml, run once by the PostgreSQL entrypoint when it
+  # initializes an empty volume. It binds every value as a psql variable, so no value is
+  # interpolated into SQL. During initialization the server listens on its local socket only.
+  databases.sh: |
+    set -eu
+    psql --set=ON_ERROR_STOP=1 --quiet \
+      --set=role="${INFRAHUB_SYNC_PRODUCT_ROLE}" \
+      --set=password="${INFRAHUB_SYNC_PRODUCT_PASSWORD}" \
+      --set=database="${INFRAHUB_SYNC_PRODUCT_DATABASE}" \
+      --file=/dev/stdin <<'SQL'
+    SELECT format(
+      'CREATE ROLE %I LOGIN PASSWORD %L', :'role', :'password'
+    ) WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role') \gexec
+    SELECT format(
+      'CREATE DATABASE %I OWNER %I', :'database', :'role'
+    ) WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'database') \gexec
+    SQL
+    psql --set=ON_ERROR_STOP=1 --quiet \
+      --set=role="${INFRAHUB_SYNC_PREFECT_ROLE}" \
+      --set=password="${INFRAHUB_SYNC_PREFECT_PASSWORD}" \
+      --set=database="${INFRAHUB_SYNC_PREFECT_DATABASE}" \
+      --file=/dev/stdin <<'SQL'
+    SELECT format(
+      'CREATE ROLE %I LOGIN PASSWORD %L', :'role', :'password'
+    ) WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role') \gexec
+    SELECT format(
+      'CREATE DATABASE %I OWNER %I', :'database', :'role'
+    ) WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'database') \gexec
+    SQL
+    echo "infrahub-sync: product and Prefect roles and databases are present"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "postgresql") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP
+  selector:
+    {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "postgresql") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "postgresql") | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ $name }}
+  selector:
+    matchLabels:
+      {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "postgresql") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "postgresql") | nindent 8 }}
+        {{- with $pg.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with $pg.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "infrahub-sync.pod.common" (dict "context" . "values" $pg) | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgresql
+          image: {{ include "infrahub-sync.digestImage" $pg.image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: {{ $pg.adminRole | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pg.adminRole | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD
+            # The init script's psql connects through the local socket as the administrator.
+            # PGHOST is not set: during initialization the server listens on no TCP address.
+            - name: PGUSER
+              value: {{ $pg.adminRole | quote }}
+            - name: PGDATABASE
+              value: {{ $pg.adminRole | quote }}
+            # A subdirectory, because a new volume can hold `lost+found`.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: INFRAHUB_SYNC_PRODUCT_DATABASE
+              value: {{ $pg.productDatabase | quote }}
+            - name: INFRAHUB_SYNC_PRODUCT_ROLE
+              value: {{ $pg.productRole | quote }}
+            - name: INFRAHUB_SYNC_PRODUCT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: INFRAHUB_SYNC_PRODUCT_PASSWORD
+            - name: INFRAHUB_SYNC_PREFECT_DATABASE
+              value: {{ $pg.prefectDatabase | quote }}
+            - name: INFRAHUB_SYNC_PREFECT_ROLE
+              value: {{ $pg.prefectRole | quote }}
+            - name: INFRAHUB_SYNC_PREFECT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName }}
+                  key: INFRAHUB_SYNC_PREFECT_PASSWORD
+          # Over TCP, so the pod is not ready while the init script runs on the local socket.
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -q
+                - -h
+                - 127.0.0.1
+                - -p
+                - "5432"
+                - -U
+                - {{ $pg.adminRole | quote }}
+                - -d
+                - {{ $pg.adminRole | quote }}
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -q
+                - -h
+                - 127.0.0.1
+                - -p
+                - "5432"
+                - -U
+                - {{ $pg.adminRole | quote }}
+                - -d
+                - {{ $pg.adminRole | quote }}
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          {{- with $pg.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        # Executable, so the entrypoint runs the script instead of sourcing it.
+        - name: init
+          configMap:
+            name: {{ $name }}-init
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "postgresql") | nindent 10 }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with $pg.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $pg.persistence.size | quote }}
+{{- end }}

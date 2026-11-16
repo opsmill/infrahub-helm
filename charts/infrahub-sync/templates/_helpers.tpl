@@ -469,15 +469,68 @@ Suffix of the bootstrap Job name: the first 8 characters of a SHA-256 over what 
 reads. That is the image reference, its environment (no entry of which holds a credential
 value), its extra environment, and the checksums of the credentials Secret and the CA ConfigMap.
 The release revision is not part of it, so an upgrade that changes none of these keeps the Job.
+
+A Job's pod template cannot be changed after creation, so every other value that enters the
+Job's pod template is part of the hash too: the `bootstrap` block (resources, scheduling, pod
+annotations and labels, extra environment), the pull policy and pull secrets, the security
+contexts, the service account and the wait timeout. A change to one of them gives a new Job
+instead of a patch that Kubernetes refuses.
 */}}
 {{- define "infrahub-sync.bootstrapHash" -}}
 {{- $inputs := list
   (include "infrahub-sync.image" .)
   (include "infrahub-sync.env.storage" .)
   (include "infrahub-sync.env.ca" .)
-  (toJson .Values.bootstrap.extraEnv)
+  (toJson .Values.bootstrap)
+  (toString .Values.image.pullPolicy)
+  (toJson .Values.imagePullSecrets)
+  (toJson .Values.podSecurityContext)
+  (toJson .Values.securityContext)
+  (include "infrahub-sync.serviceAccountName" .)
+  (toString .Values.waitTimeoutSeconds)
   (include "infrahub-sync.checksum.secret" .)
   (include "infrahub-sync.checksum.ca" .)
 }}
 {{- join "\n" $inputs | sha256sum | trunc 8 }}
+{{- end }}
+
+{{/*
+The pod-level fields that every pod of the release shares: the service account (whose token is
+never mounted), no service link variables, the pull secrets, and the component's scheduling
+values.
+Argument: (dict "context" $ "values" .Values.api)
+*/}}
+{{- define "infrahub-sync.pod.common" -}}
+serviceAccountName: {{ include "infrahub-sync.serviceAccountName" .context }}
+automountServiceAccountToken: false
+enableServiceLinks: false
+{{- with .context.Values.imagePullSecrets }}
+imagePullSecrets:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .values.nodeSelector }}
+nodeSelector:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .values.tolerations }}
+tolerations:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with .values.affinity }}
+affinity:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}
+
+{{/*
+The optional destination credential, given to the Sync API and the worker. `optional: true`
+lets the pod start when the Secret has no such key.
+*/}}
+{{- define "infrahub-sync.env.destinationCredential" -}}
+- name: INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "infrahub-sync.secretName" . }}
+      key: INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN
+      optional: true
 {{- end }}
