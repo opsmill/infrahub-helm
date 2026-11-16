@@ -602,6 +602,9 @@ async def observability_k8s(
             "global.tracing.endpoint": f"{obs_release}-tempo:4317",
             "global.tracing.protocol": "grpc",
             "global.tracing.insecure": "true",
+            # Infrahub 1.12 records 10% of new traces by default; record all of
+            # them, so the trace of the probe request reaches Tempo.
+            "infrahubServer.infrahubServer.env.INFRAHUB_TRACE_SAMPLE_RATIO": "1",
         },
     )
 
