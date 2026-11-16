@@ -12,7 +12,9 @@ The chart deploys the same services as the Infrahub Sync `docker-compose.yml`:
 - one worker, which executes the runs
 - the Prefect server, which hands the runs to the worker
 - a bootstrap Job, which creates the database schema, the object store bucket, the Prefect work
-  pool and the Prefect deployment before the Sync API and the worker start
+  pool and the Prefect deployment, then records the Sync version and the work pool it set up.
+  The Sync API and the worker exit at start until that record matches their version and work
+  pool, and Kubernetes restarts them, so they restart a few times before the Job completes
 - a PostgreSQL server, which holds the Sync database and the Prefect database
 - a Silo object store, which holds the artifacts of the runs
 
@@ -231,7 +233,7 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | settings.workPool | string | `"infrahub-sync"` | `INFRAHUB_SYNC_SERVICE_WORK_POOL` and the worker's `--pool` |
 | settings.workerHeartbeatSeconds | int | `10` | `PREFECT_WORKER_HEARTBEAT_SECONDS` |
 | settings.workerQuerySeconds | int | `10` | `PREFECT_WORKER_QUERY_SECONDS` |
-| waitTimeoutSeconds | int | `600` | How long an init container waits for its dependency before it fails, in seconds |
+| waitTimeoutSeconds | int | `600` | How long the init containers of the Prefect server and the bootstrap Job wait for PostgreSQL and the Prefect server before they fail, in seconds |
 | worker | object | `{"affinity":{},"credentials":{},"credentialsExistingSecrets":[],"extraEnv":[],"nodeSelector":{},"podAnnotations":{},"podLabels":{},"replicaCount":1,"resources":{},"tolerations":[]}` | The worker |
 | worker.affinity | object | `{}` | Affinity rules |
 | worker.credentials | object | `{}` | Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret that only the worker reads |

@@ -255,7 +255,8 @@ bootstrap:
   # -- Additional environment variables (a list of `env` entries)
   extraEnv: []
 
-# -- How long an init container waits for its dependency before it fails, in seconds
+# -- How long the init containers of the Prefect server and the bootstrap Job wait for
+# PostgreSQL and the Prefect server before they fail, in seconds
 waitTimeoutSeconds: 600
 
 # -- ServiceAccount configuration. No pod mounts its token

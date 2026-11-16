@@ -1,0 +1,1 @@
+The Sync API and the worker no longer have an init container that waits for the bootstrap Job. They read the bootstrap record at start, exit while it is missing or names another Sync version or work pool, and Kubernetes restarts them until the Job has written it.

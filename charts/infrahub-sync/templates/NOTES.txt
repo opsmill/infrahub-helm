@@ -6,6 +6,9 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
 
   kubectl --namespace {{ .Release.Namespace }} wait --for=condition=complete --timeout=15m job -l {{ $bootstrap }}
 
+   Until the Job completes, the Sync API and the worker exit at start and Kubernetes restarts
+   them. These restarts are expected.
+
 2. Reach the Sync API from your workstation:
 
   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ $api }} {{ .Values.api.service.port }}:{{ .Values.api.service.port }}

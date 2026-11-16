@@ -11,7 +11,9 @@ The chart deploys the same services as the Infrahub Sync `docker-compose.yml`:
 - one worker, which executes the runs
 - the Prefect server, which hands the runs to the worker
 - a bootstrap Job, which creates the database schema, the object store bucket, the Prefect work
-  pool and the Prefect deployment before the Sync API and the worker start
+  pool and the Prefect deployment, then records the Sync version and the work pool it set up.
+  The Sync API and the worker exit at start until that record matches their version and work
+  pool, and Kubernetes restarts them, so they restart a few times before the Job completes
 - a PostgreSQL server, which holds the Sync database and the Prefect database
 - a Silo object store, which holds the artifacts of the runs
 

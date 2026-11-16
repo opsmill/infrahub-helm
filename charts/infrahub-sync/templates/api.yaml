@@ -47,8 +47,6 @@ spec:
       {{- include "infrahub-sync.pod.common" (dict "context" . "values" $component) | nindent 6 }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-        {{- include "infrahub-sync.initContainer.waitForBootstrap" . | nindent 8 }}
       containers:
         - name: api
           image: {{ include "infrahub-sync.image" . | quote }}

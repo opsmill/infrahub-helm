@@ -540,9 +540,6 @@ def test_rr16_one_pool_name_for_api_worker_and_bootstrap(valid_values):
             env_value(container, "INFRAHUB_SYNC_SERVICE_WORK_POOL")["value"]
             == "custom-pool"
         )
-    for component in ("api", "worker"):
-        gate = pod_spec(workload(documents, component))["initContainers"][0]
-        assert "custom-pool" in gate["command"]
 
 
 @pytest.mark.parametrize(
@@ -558,9 +555,22 @@ def test_rr17_probes(valid_values, component, path, port):
 
 
 @pytest.mark.parametrize("component", ["api", "worker"])
-def test_rr19_api_and_worker_wait_for_the_bootstrap(valid_values, component):
-    init = pod_spec(workload(render(valid_values), component))["initContainers"]
-    assert [container["name"] for container in init] == ["wait-for-bootstrap"]
+def test_rr19_api_and_worker_have_no_init_container(valid_values, component):
+    assert "initContainers" not in pod_spec(workload(render(valid_values), component))
+
+
+@pytest.mark.parametrize("external", [False, True])
+@pytest.mark.parametrize("component", ["api", "worker"])
+def test_rr19_api_and_worker_receive_the_product_database_url(
+    request, component, external
+):
+    """The start check reads the bootstrap record from the product database."""
+    # external_postgresql_values changes valid_values in place, so request only one of them.
+    values = request.getfixturevalue(
+        "external_postgresql_values" if external else "valid_values"
+    )
+    container = main_container(workload(render(values), component))
+    assert env_value(container, "INFRAHUB_SYNC_DATABASE_URL") is not None
 
 
 def test_rr19_bootstrap_is_a_plain_job_and_no_init_container(valid_values):
