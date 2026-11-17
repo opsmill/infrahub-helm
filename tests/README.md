@@ -32,17 +32,20 @@ Sync 3.0.0, the registry serves that image only to invited testers. The `sync`
 test uses the image in `INFRAHUB_SYNC_E2E_IMAGE` when it is set, otherwise the
 registry image of the chart's `appVersion`. An image in the local Docker store
 is imported into the vcluster. To pull from the registry with a login, set
-`INFRAHUB_SYNC_REGISTRY_USERNAME` and `INFRAHUB_SYNC_REGISTRY_PASSWORD`. When
+`HARBOR_USERNAME` and `HARBOR_PASSWORD`. When
 the image is in neither place and no login is set, the test is skipped. In CI,
 the `e2e-infrahub-sync` job reads the login from the repository secrets of the
-same names. When either secret is not set, the job writes a warning annotation
-and a job summary line that say the test did not run and why.
+same names, which the image workflows of this repository already use. When
+either secret is not available, as on a pull request from a fork, the job
+writes a warning annotation and a job summary line that say the test did not
+run and why.
 
-Add those secrets only once the chart's `appVersion` names a Sync image that the
-registry serves and that contains the bootstrap record check. With a login set,
-the test fails when the registry does not serve the `appVersion` image, and it
-also fails on an image without the check, because the upgrade step asserts that
-the Sync API stays not ready until the bootstrap has run.
+Until the chart's `appVersion` names a Sync image that the registry serves and
+that contains the bootstrap record check and `/usr/bin/tini`, the job fails: it
+fails when the registry does not serve the `appVersion` image, and on an image
+without the check or without tini. The chart's default `appVersion`, 3.0.0a5,
+has neither. Whether the `HARBOR_USERNAME` account can read the restricted Sync
+image is not known.
 
 ## Running
 

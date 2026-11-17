@@ -1056,8 +1056,8 @@ SYNC_DEFAULT_REPOSITORY = "registry.opsmill.io/opsmill/infrahub-sync"
 
 def _sync_registry_credentials() -> tuple[str, str] | None:
     """Return the registry login from the environment, or None when it is not set."""
-    username = os.environ.get("INFRAHUB_SYNC_REGISTRY_USERNAME")
-    password = os.environ.get("INFRAHUB_SYNC_REGISTRY_PASSWORD")
+    username = os.environ.get("HARBOR_USERNAME")
+    password = os.environ.get("HARBOR_PASSWORD")
     if username and password:
         return username, password
     return None
@@ -1140,19 +1140,19 @@ def infrahub_sync_image() -> dict:
     except RegistryLoginError as error:
         pytest.fail(
             f"The Sync image {image} is not in the local Docker store, and the registry login "
-            f"of INFRAHUB_SYNC_REGISTRY_USERNAME failed. {error}"
+            f"of HARBOR_USERNAME failed. {error}"
         )
     if served:
         return {"image": image, "local": False, "credentials": credentials}
     if credentials:
         pytest.fail(
             f"The Sync image {image} is not in the local Docker store, and its registry does "
-            "not serve it with the login of INFRAHUB_SYNC_REGISTRY_USERNAME"
+            "not serve it with the login of HARBOR_USERNAME"
         )
     pytest.skip(
         f"The Sync image {image} is not in the local Docker store, and its registry does not "
         "serve it without a login. Set INFRAHUB_SYNC_E2E_IMAGE to a local image, or "
-        "INFRAHUB_SYNC_REGISTRY_USERNAME and INFRAHUB_SYNC_REGISTRY_PASSWORD."
+        "HARBOR_USERNAME and HARBOR_PASSWORD."
     )
 
 

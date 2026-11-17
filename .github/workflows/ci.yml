@@ -232,9 +232,10 @@ jobs:
         run: "uv run pytest -v -m mcp tests/e2e"
 
   # Before Infrahub Sync 3.0.0 the registry serves the Sync image only to
-  # invited testers. Without INFRAHUB_SYNC_REGISTRY_USERNAME and
-  # INFRAHUB_SYNC_REGISTRY_PASSWORD the test is skipped (tests/README.md).
-  # A repository secret that is not set reads as an empty string.
+  # invited testers. The job logs in with the repository's HARBOR_USERNAME and
+  # HARBOR_PASSWORD, the secrets the image workflows use. Where they are not
+  # available, as on a pull request from a fork, the test is skipped
+  # (tests/README.md). A secret that is not available reads as an empty string.
   e2e-infrahub-sync:
     needs: changes
     if: ${{ needs.changes.outputs.sync == 'true' || needs.changes.outputs.e2e == 'true' }}
@@ -242,15 +243,15 @@ jobs:
       group: huge-runners
     timeout-minutes: 40
     env:
-      INFRAHUB_SYNC_REGISTRY_USERNAME: ${{ secrets.INFRAHUB_SYNC_REGISTRY_USERNAME }}
-      INFRAHUB_SYNC_REGISTRY_PASSWORD: ${{ secrets.INFRAHUB_SYNC_REGISTRY_PASSWORD }}
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
     steps:
       - uses: "actions/checkout@v5"
         with:
           submodules: true
       - uses: "./.github/actions/setup-e2e"
       - name: "Report that the infrahub-sync e2e test does not run without a registry login"
-        if: ${{ env.INFRAHUB_SYNC_REGISTRY_USERNAME == '' || env.INFRAHUB_SYNC_REGISTRY_PASSWORD == '' }}
+        if: ${{ env.HARBOR_USERNAME == '' || env.HARBOR_PASSWORD == '' }}
         run: |
           message="The infrahub-sync end-to-end test did not run: the Sync image needs a registry login until release 3.0.0."
           echo "::warning title=infrahub-sync end-to-end test skipped::${message}"
