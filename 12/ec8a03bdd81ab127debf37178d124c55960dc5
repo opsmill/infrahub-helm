@@ -1,0 +1,59 @@
+charts/infrahub-backup/CHANGELOG.md
+  s_d989f93fc3b8fb::t_6fb61948507ab4 1-12
+charts/infrahub-backup/Chart.yaml
+  s_d989f93fc3b8fb::t_b237509809f192 31,36
+charts/infrahub-backup/README.md
+  s_d989f93fc3b8fb::t_f57bc4ea8c2d4e 46-52,69,72,76,88
+charts/infrahub-backup/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_1bfb5edf2a11b8 107-112,140-171,212-214
+charts/infrahub-backup/templates/cronjob-backup.yaml
+  s_d989f93fc3b8fb::t_3ad9ec7db10764 62
+charts/infrahub-backup/templates/cronjob-restore.yaml
+  s_d989f93fc3b8fb::t_05cbf4f25dd314 61
+charts/infrahub-backup/templates/job-backup.yaml
+  s_d989f93fc3b8fb::t_0a9357b47994e7 55
+charts/infrahub-backup/templates/job-restore.yaml
+  s_d989f93fc3b8fb::t_625c6c419fb0ee 54
+charts/infrahub-backup/values.yaml
+  s_d989f93fc3b8fb::t_959f92722113dd 86-88,112-115,121-149
+charts/infrahub-enterprise/CHANGELOG.md
+  s_d989f93fc3b8fb::t_309e35a3ef12bf 1-6
+charts/infrahub-enterprise/Chart.yaml
+  s_d989f93fc3b8fb::t_4acc0cbb82afa6 21,30
+charts/infrahub-enterprise/README.md
+  s_d989f93fc3b8fb::t_43d2d286d3c8a1 74
+charts/infrahub-sync/templates/api.yaml
+  s_d989f93fc3b8fb::t_cd9cfa70f2e2e7 90,97,104
+charts/infrahub/CHANGELOG.md
+  s_d989f93fc3b8fb::t_65110c044c9825 1-6
+charts/infrahub/Chart.yaml
+  s_d989f93fc3b8fb::t_66a13e7b36a22b 21,50
+charts/infrahub/README.md
+  s_d989f93fc3b8fb::t_957aa3e2095ff2 63
+tests/README.md
+  s_d989f93fc3b8fb::t_bf00c21300e1a0 13,16
+tests/e2e/conftest.py
+  s_d989f93fc3b8fb::t_79fac71cdf171d 608-610,723,805,820-825,1257-1414
+tests/e2e/test_infrahub_backup_external_neo4j.py
+  s_d989f93fc3b8fb::t_45ffab90319226 1-165
+tests/e2e/test_infrahub_sync.py
+  s_d989f93fc3b8fb::t_2085018bec153f 46,280,283,285,288,291,302
+tests/unit/test_infrahub_sync_chart.py
+  s_d989f93fc3b8fb::t_a1a14f739b1956 653
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12ec8a03bdd81ab127debf37178d124c55960dc5",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
