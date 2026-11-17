@@ -6,11 +6,12 @@ name: "Update infrahub-sync"
 # release: it sets appVersion, bumps the chart version and adds a news fragment
 # (scripts/bump_chart.py).
 #
-# opsmill/infrahub-sync sends the `infrahub-sync-released` repository_dispatch
-# event, with {"version": "<tag>"} as client_payload, after it publishes a
-# release and its container image. Run this workflow by hand for a release that
-# did not send the event. An infrahub-sync release tag has no `v` prefix
-# (`3.0.0`), and the image tag is the release tag.
+# It runs on the `infrahub-sync-released` repository_dispatch event, with
+# {"version": "<tag>"} as client_payload, sent after opsmill/infrahub-sync
+# publishes a release and its container image. The release workflow of
+# opsmill/infrahub-sync does not send that event yet. Until it does, and for a
+# release that did not send it, run this workflow by hand. An infrahub-sync
+# release tag has no `v` prefix (`3.0.0`), and the image tag is the release tag.
 #
 # scripts/bump_chart.py refuses to move appVersion from a pre-release such as
 # `3.0.0a5`, so until appVersion is a final release, a maintainer sets it by hand.

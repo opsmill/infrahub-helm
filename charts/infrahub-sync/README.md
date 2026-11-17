@@ -33,9 +33,11 @@ built from the `feature/v3-develop` branch.
 
 The chart is not in the registry until an Infrahub Sync release whose image holds the Prefect
 server, the start check and `/usr/bin/tini` is published. The chart starts every Sync container
-with `/usr/bin/tini -g --`, so a container from an earlier image, such as 3.0.0a5, fails to start. Until then, install the chart from a checkout of this repository:
-replace `oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in
-the commands below.
+with `/usr/bin/tini -g --`, so a container from an earlier image, such as 3.0.0a5, fails to
+start. Until then, install the chart from a checkout of this repository: replace
+`oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in the
+commands below. The chart's `appVersion` is still 3.0.0a5, so also set `image.repository` and
+`image.tag` to a Sync image that holds the Prefect server, the start check and `/usr/bin/tini`.
 
 ## Access to the Sync image
 
@@ -146,7 +148,7 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | gatewayApi.gateway.className | string | `""` | GatewayClass name (required when gateway.enabled is true) |
 | gatewayApi.gateway.enabled | bool | `false` | Whether to create a Gateway resource (most users reference an existing Gateway through httpRoute.parentRefs) |
 | gatewayApi.gateway.labels | object | `{}` | Additional labels for the Gateway resource |
-| gatewayApi.gateway.listeners | list | `[]` | Gateway listeners configuration |
+| gatewayApi.gateway.listeners | list | `[]` | Gateway listeners configuration. At least one is required when gateway.enabled is true |
 | gatewayApi.gateway.name | string | `""` | Gateway resource name (defaults to "<fullname>-gateway") |
 | gatewayApi.httpRoute.annotations | object | `{}` | Additional annotations for the HTTPRoute resource |
 | gatewayApi.httpRoute.extraRules | list | `[]` | Additional HTTPRoute rules beyond the generated one |

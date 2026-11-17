@@ -97,9 +97,6 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-The Sync image: "repository:tag", the tag defaulting to the chart's appVersion.
-*/}}
-{{/*
 The first three items of every Sync container command. tini is the image's entrypoint, and a
 Kubernetes `command` replaces the entrypoint, so the chart names it again, as the infrahub chart
 does for its Prefect server. tini runs as PID 1: it passes SIGTERM on to the whole process group
@@ -112,6 +109,9 @@ processes. Without it the command is PID 1, which the kernel sends no signal it 
 - --
 {{- end -}}
 
+{{/*
+The Sync image: "repository:tag", the tag defaulting to the chart's appVersion.
+*/}}
 {{- define "infrahub-sync.image" -}}
 {{- $tag := .Values.image.tag | default .Chart.AppVersion }}
 {{- printf "%s:%s" (toString .Values.image.repository) (toString $tag) }}
@@ -427,7 +427,8 @@ chart does not create that resource.
 {{- end }}
 
 {{/*
-Pod annotations that restart a pod when a Secret or ConfigMap the chart creates changes.
+Pod annotations of the worker, which restart it when a Secret or ConfigMap the chart creates
+changes. The Sync API sets only the credentials Secret and CA checksums.
 */}}
 {{- define "infrahub-sync.checksums" -}}
 checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}

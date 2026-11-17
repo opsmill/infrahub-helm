@@ -216,6 +216,51 @@ def test_quoted_numeric_image_tags_render_as_written(existing_secret_values):
     assert not any("%!" in image for image in images), images
 
 
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("image", "tag"), 0),
+        (("credentials", "s3SecretKey"), 12345678),
+        (("worker", "credentials", "INFRAHUB_SYNC_CREDENTIAL_NETBOX_TOKEN"), 12345678),
+        (("s3", "bucket"), 20261018),
+        (("s3", "prefix"), 3.10),
+        (("settings", "workPool"), 20261018),
+    ],
+    ids=[
+        "image.tag-zero",
+        "credentials.s3SecretKey",
+        "worker.credentials",
+        "s3.bucket",
+        "s3.prefix",
+        "settings.workPool",
+    ],
+)
+def test_unquoted_number_in_a_text_value_is_refused(valid_values, path, value):
+    """A YAML number reaches the template as a float, so 12345678 would render as 1.2345678e+07."""
+    target = valid_values
+    for key in path[:-1]:
+        target = target.setdefault(key, {})
+    target[path[-1]] = value
+    error = render(valid_values, expect_failure=True)
+    assert f"{'.'.join(path)} must be a string" in error
+    assert "%!" not in error
+
+
+def test_wildcard_ingress_hostname_renders_with_tls(existing_secret_values):
+    existing_secret_values["ingress"] = {
+        "enabled": True,
+        "hostname": "*.example.com",
+        "tls": True,
+        "extraHosts": [{"hostname": "*.example.org"}],
+    }
+    (ingress,) = [
+        document
+        for document in render(existing_secret_values)
+        if document["kind"] == "Ingress"
+    ]
+    assert ingress["spec"]["tls"][0]["hosts"] == ["*.example.com", "*.example.org"]
+
+
 def test_ingress_without_hostname_is_refused(existing_secret_values):
     existing_secret_values["ingress"] = {"enabled": True, "tls": True}
     error = render(existing_secret_values, expect_failure=True)
@@ -1196,8 +1241,22 @@ def test_rr33_created_gateway_is_the_route_parent(valid_values):
             {"gatewayApi": {"enabled": True, "gateway": {"enabled": True}}},
             ("gatewayApi.gateway.className",),
         ),
+        (
+            {
+                "gatewayApi": {
+                    "enabled": True,
+                    "gateway": {"enabled": True, "className": "example"},
+                }
+            },
+            ("gatewayApi.gateway.listeners",),
+        ),
     ],
-    ids=["ingress-and-gateway-api", "no-parent", "gateway-without-class"],
+    ids=[
+        "ingress-and-gateway-api",
+        "no-parent",
+        "gateway-without-class",
+        "gateway-without-listeners",
+    ],
 )
 def test_bad_route_values_are_refused(existing_secret_values, values, names):
     existing_secret_values.update(values)

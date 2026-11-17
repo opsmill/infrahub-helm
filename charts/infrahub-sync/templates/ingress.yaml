@@ -44,10 +44,10 @@ spec:
   tls:
     {{- if .Values.ingress.tls }}
     - hosts:
-        - {{ .Values.ingress.hostname }}
+        - {{ .Values.ingress.hostname | quote }}
       {{- range .Values.ingress.extraHosts }}
         {{- if .hostname }}
-        - {{ .hostname }}
+        - {{ .hostname | quote }}
         {{- end }}
       {{- end }}
       secretName: {{ include "infrahub-sync.fullname" . }}-tls

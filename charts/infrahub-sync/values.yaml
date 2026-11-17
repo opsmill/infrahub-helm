@@ -340,7 +340,7 @@ gatewayApi:
     labels: {}
     # -- Additional annotations for the Gateway resource
     annotations: {}
-    # -- Gateway listeners configuration
+    # -- Gateway listeners configuration. At least one is required when gateway.enabled is true
     listeners: []
     # - name: https
     #   port: 443

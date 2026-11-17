@@ -43,6 +43,9 @@ HOLD_TIMEOUT_SECONDS = 300
 # start check reads the record about 2 seconds later (measured on minikube). Its `Ready` time
 # may precede the record write by that much.
 WORKER_CHECK_SECONDS = 5
+# How long `/status` may take to report a ready worker. A worker that exited before the record
+# was written starts again only after its restart back-off, which Kubernetes caps at 300 s.
+WORKER_STATUS_SECONDS = 330
 
 
 def kubectl(release: dict, *args: str) -> str:
@@ -209,41 +212,64 @@ def refusal(release: dict, pod: dict, container: str) -> tuple[str, str] | None:
     return (previous["finishedAt"], lines[-1]) if lines else None
 
 
-def held_job_is_pending(release: dict, job: str) -> bool:
-    """Whether the Job's pod exists and is `Pending` because it cannot be scheduled."""
+def held_job_state(release: dict, job: str) -> str:
+    """Return the state of the held Job's pods: `waiting`, `pending` or `scheduled`.
+
+    `waiting`: no pod is marked unschedulable yet, because the Job controller has not created
+    the pod or the scheduler has not tried it yet. `pending`: every pod is `Pending` because it
+    cannot be scheduled, so the hold applies. `scheduled`: a pod was given a node, so the hold
+    did not apply.
+    """
     pods = json.loads(
         kubectl(release, "get", "pods", "-l", f"job-name={job}", "-o", "json")
     )["items"]
-    return bool(pods) and all(
-        pod["status"]["phase"] == "Pending"
-        and any(
-            condition["type"] == "PodScheduled" and condition["status"] == "False"
+
+    def scheduled(pod: dict, status: str) -> bool:
+        return any(
+            condition["type"] == "PodScheduled" and condition["status"] == status
             for condition in pod["status"].get("conditions", [])
         )
+
+    if any(
+        pod["status"].get("phase", "Pending") != "Pending" or scheduled(pod, "True")
         for pod in pods
-    )
+    ):
+        return "scheduled"
+    if pods and all(scheduled(pod, "False") for pod in pods):
+        return "pending"
+    return "waiting"
 
 
 async def wait_for_refusal(release: dict, held_job: str) -> tuple[str, str]:
     """While the Job is held, wait for the new Sync API pod's refusal; fail if it gets Ready.
 
     The record names the previous work pool for as long as the Job is held, so a Sync API
-    pod that becomes Ready then did not check the record.
+    pod that becomes Ready then did not check the record. The Job's pod can be created and
+    marked unschedulable a moment after the Job exists, so the hold is confirmed before the
+    refusal is returned, and a scheduled pod fails the test at once.
     """
     deadline = time.monotonic() + HOLD_TIMEOUT_SECONDS
+    found = None
+    state = "waiting"
     while time.monotonic() < deadline:
-        assert held_job_is_pending(release, held_job), (
-            f"the held bootstrap Job {held_job} has no Pending pod, so the hold did not apply"
+        state = held_job_state(release, held_job)
+        assert state != "scheduled", (
+            f"a pod of the held bootstrap Job {held_job} was scheduled, so the hold did not apply"
         )
         for pod in upgraded_pods(release, "api"):
             assert not is_ready(pod), (
                 f"the Sync API pod {pod['metadata']['name']} became Ready while the bootstrap "
-                f"Job {held_job} was Pending and the record named the previous work pool"
+                f"Job {held_job} was held and the record named the previous work pool"
             )
-            found = refusal(release, pod, "api")
-            if found:
-                return found
+            found = found or refusal(release, pod, "api")
+        if found and state == "pending":
+            return found
         await asyncio.sleep(3)
+    if found:
+        raise AssertionError(
+            f"the held bootstrap Job {held_job} had no unschedulable pod within "
+            f"{HOLD_TIMEOUT_SECONDS} s (last state: {state}), so the hold did not apply"
+        )
     raise AssertionError(
         f"no Sync API pod with work pool {UPGRADED_WORK_POOL} logged the start check's refusal "
         f"within {HOLD_TIMEOUT_SECONDS} s while the bootstrap Job {held_job} was held"
@@ -267,8 +293,10 @@ async def check_sync_api(release: dict) -> None:
         assert principal["actor"] == "operator", principal
         assert principal["administrator"] is True, principal
 
-        # The worker reports its heartbeat a few seconds after it starts.
-        deadline = time.monotonic() + 180
+        # The worker reports its heartbeat a few seconds after it starts. A worker that exited
+        # just before the bootstrap wrote its record starts again only after its restart
+        # back-off, which Kubernetes caps at 300 s, so the wait is longer than that cap.
+        deadline = time.monotonic() + WORKER_STATUS_SECONDS
         status = {}
         while time.monotonic() < deadline:
             status = (await client.get("/status")).raise_for_status().json()

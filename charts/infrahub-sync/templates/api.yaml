@@ -39,7 +39,10 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        {{- include "infrahub-sync.checksums" . | nindent 8 }}
+        # The Sync API does not read the worker credentials Secret, so a change to it does not
+        # restart the Sync API.
+        checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}
+        checksum/ca: {{ include "infrahub-sync.checksum.ca" . | quote }}
         {{- with $component.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

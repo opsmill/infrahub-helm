@@ -21,12 +21,14 @@ template-observability: deps-observability
 	helm template test charts/infrahub-observability
 
 lint:
-	@for chart in charts/*/; do \
+	@status=0; \
+	for chart in charts/*/; do \
 	    echo "==> linting $$chart"; \
-	    helm dependency update "$$chart" >/dev/null; \
+	    helm dependency update "$$chart" >/dev/null || status=1; \
 	    if [ -f "$$chart/ci/lint-values.yaml" ]; then \
-	        helm lint "$$chart" -f "$$chart/ci/lint-values.yaml"; \
+	        helm lint "$$chart" -f "$$chart/ci/lint-values.yaml" || status=1; \
 	    else \
-	        helm lint "$$chart"; \
+	        helm lint "$$chart" || status=1; \
 	    fi; \
-	done
+	done; \
+	exit $$status

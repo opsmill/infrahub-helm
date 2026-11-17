@@ -21,9 +21,28 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- $_ = required "credentials.prefectDatabaseUrl is required when postgresql.enabled is false and credentials.existingSecret is empty" $credentials.prefectDatabaseUrl }}
 {{- end }}
 {{- end }}
-{{- range $name, $tag := dict "image.tag" .Values.image.tag "postgresql.image.tag" .Values.postgresql.image.tag "objectStore.image.tag" .Values.objectStore.image.tag }}
-{{- if and $tag (not (kindIs "string" $tag)) }}
-{{- fail (printf "%s must be a string: quote it in the values, for example tag: \"17\". Helm reads an unquoted number as a floating-point number, which can change the tag (3.0 becomes 3)" $name) }}
+{{- /*
+Values that the chart renders as text. Helm reads an unquoted number as a floating-point
+number, so 3.0 would render as 3 and 12345678 as 1.2345678e+07. Each must be a string or unset.
+*/}}
+{{- $strings := dict
+  "image.tag" .Values.image.tag
+  "postgresql.image.tag" .Values.postgresql.image.tag
+  "objectStore.image.tag" .Values.objectStore.image.tag
+  "s3.bucket" .Values.s3.bucket
+  "s3.prefix" .Values.s3.prefix
+  "s3.region" .Values.s3.region
+  "settings.workPool" .Values.settings.workPool
+}}
+{{- range $key, $value := .Values.credentials }}
+{{- $_ := set $strings (printf "credentials.%s" $key) $value }}
+{{- end }}
+{{- range $key, $value := .Values.worker.credentials }}
+{{- $_ := set $strings (printf "worker.credentials.%s" $key) $value }}
+{{- end }}
+{{- range $name, $value := $strings }}
+{{- if not (or (kindIs "string" $value) (kindIs "invalid" $value)) }}
+{{- fail (printf "%s must be a string: quote it in the values, for example \"17\" instead of 17, or pass it with --set-string. Helm reads an unquoted number as a floating-point number, which can change the value (3.0 becomes 3, 12345678 becomes 1.2345678e+07)" $name) }}
 {{- end }}
 {{- end }}
 {{- if and .Values.objectStore.enabled .Values.s3.endpointUrl }}
@@ -54,6 +73,9 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- end }}
 {{- if and .Values.gatewayApi.gateway.enabled (not .Values.gatewayApi.gateway.className) }}
 {{- fail "gatewayApi.gateway.className is required when gatewayApi.gateway.enabled is true" }}
+{{- end }}
+{{- if and .Values.gatewayApi.gateway.enabled (not .Values.gatewayApi.gateway.listeners) }}
+{{- fail "gatewayApi.gateway.listeners needs at least one listener when gatewayApi.gateway.enabled is true" }}
 {{- end }}
 {{- end }}
 {{- if and .Values.caCertificates.existingConfigMap .Values.caCertificates.certificates }}

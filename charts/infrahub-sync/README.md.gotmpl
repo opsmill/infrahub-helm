@@ -32,9 +32,11 @@ built from the `feature/v3-develop` branch.
 
 The chart is not in the registry until an Infrahub Sync release whose image holds the Prefect
 server, the start check and `/usr/bin/tini` is published. The chart starts every Sync container
-with `/usr/bin/tini -g --`, so a container from an earlier image, such as 3.0.0a5, fails to start. Until then, install the chart from a checkout of this repository:
-replace `oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in
-the commands below.
+with `/usr/bin/tini -g --`, so a container from an earlier image, such as 3.0.0a5, fails to
+start. Until then, install the chart from a checkout of this repository: replace
+`oci://registry.opsmill.io/opsmill/chart/infrahub-sync` with `charts/infrahub-sync` in the
+commands below. The chart's `appVersion` is still 3.0.0a5, so also set `image.repository` and
+`image.tag` to a Sync image that holds the Prefect server, the start check and `/usr/bin/tini`.
 
 ## Access to the Sync image
 
