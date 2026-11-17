@@ -1,0 +1,31 @@
+charts/infrahub-sync/README.md
+  s_d989f93fc3b8fb::t_8924356afdc657 175-176,241,244-245
+charts/infrahub-sync/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_a04fdd54c0dfb2 299,301-317,319,321,332,338,343,346-349,351-359,363-374,386,406-482,560-562,582-584
+charts/infrahub-sync/templates/bootstrap-job.yaml
+  s_d989f93fc3b8fb::t_f4d57623e85c04 35-41,70-72
+charts/infrahub-sync/templates/postgresql.yaml
+  s_d989f93fc3b8fb::t_325b08132da93d 13-17
+charts/infrahub-sync/templates/worker.yaml
+  s_d989f93fc3b8fb::t_33db5599528903 56-58,60
+charts/infrahub-sync/values.yaml
+  s_d989f93fc3b8fb::t_831264c0271f93 201-202,204-207,263,266-277
+tests/unit/test_infrahub_sync_chart.py
+  s_d989f93fc3b8fb::t_070097140fe7f6 419,422,467-472,564-569,741-744,748-839
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ab84df6fd08d5ab8fa7f38983035928797b4fdbf",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
