@@ -1,0 +1,49 @@
+.github/workflows/update-infrahub-sync.yml
+  s_d989f93fc3b8fb::t_298c680e52cf1b 13-14
+  s_d989f93fc3b8fb::t_87eeb81cd2645a 9-12
+charts/infrahub-sync/templates/ingress.yaml
+  s_d989f93fc3b8fb::t_18b89df78380c8 47,50
+tests/unit/test_infrahub_sync_chart.py
+  s_d989f93fc3b8fb::t_bd9581ee8db057 219-263
+  s_d989f93fc3b8fb::t_27b2511d63c6cf 1244-1258
+Makefile
+  s_d989f93fc3b8fb::t_19d12756b067e5 24-25,27,29,31,33-34
+charts/infrahub-sync/README.md.gotmpl
+  s_d989f93fc3b8fb::t_b9c36c2fc1f9ed 35-39
+charts/infrahub-sync/templates/_validation.tpl
+  s_d989f93fc3b8fb::t_cedf317e904082 77-79
+  s_d989f93fc3b8fb::t_7601c683c62f0f 24-44
+  s_d989f93fc3b8fb::t_7f77260f9f7031 45
+charts/infrahub-sync/values.yaml
+  s_d989f93fc3b8fb::t_592376d1d0bdd1 343
+tests/e2e/test_infrahub_sync.py
+  s_d989f93fc3b8fb::t_8d3d67376e97cf 215-222,226-229,232-234,236-240,247-249,252-253,255-257,262,264-266,268-272
+  s_d989f93fc3b8fb::t_4e10acd70cf3f8 48
+  s_d989f93fc3b8fb::t_f7efb9c3d970d5 46-47
+  s_d989f93fc3b8fb::t_06fd9b3fffa7a0 296-299
+charts/infrahub-sync/templates/_helpers.tpl
+  s_d989f93fc3b8fb::t_0a7a7b7a1fa21f 112-114
+  s_d989f93fc3b8fb::t_a5fb85aa593a55 430-431
+tests/README.md
+  s_d989f93fc3b8fb::t_6a78a68ef6e0c5 16
+charts/infrahub-sync/templates/api.yaml
+  s_d989f93fc3b8fb::t_ad0bb1944f90c7 42-45
+charts/infrahub-sync/README.md
+  s_d989f93fc3b8fb::t_60ab0017e59a25 36-40,151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfce38c70e37ff0c4c89a39fe1a24efed39f3c3a",
+  "prompts": {},
+  "sessions": {
+    "s_d989f93fc3b8fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b53e9e82-fcbd-48f8-ae99-61f94c0060c7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
