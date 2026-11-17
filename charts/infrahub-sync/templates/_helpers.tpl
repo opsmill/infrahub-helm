@@ -296,16 +296,29 @@ tmpfs mounts of docker-compose.yml).
 {{- end }}
 
 {{/*
-Init container of the bootstrap Job: waits until the Prefect server answers its health probe,
-which Prefect leaves open without the API credential.
+Resource requests and limits of every init container. Renders nothing when the value is empty.
 */}}
-{{- define "infrahub-sync.initContainer.waitForPrefect" -}}
-- name: wait-for-prefect
-  image: {{ include "infrahub-sync.image" . | quote }}
-  imagePullPolicy: {{ .Values.image.pullPolicy }}
+{{- define "infrahub-sync.initContainer.resources" -}}
+{{- with .Values.initContainers.resources }}
+resources:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}
+
+{{/*
+An init container from the Sync image that waits until an HTTP endpoint answers with a success
+status. It runs under tini, so it stops at once on SIGTERM.
+Argument: (dict "context" $ "name" "wait-for-prefect" "url" "http://..." "what" "the Prefect server")
+*/}}
+{{- define "infrahub-sync.initContainer.waitForHttp" -}}
+{{- $ := .context }}
+- name: {{ .name }}
+  image: {{ include "infrahub-sync.image" $ | quote }}
+  imagePullPolicy: {{ $.Values.image.pullPolicy }}
   securityContext:
-    {{- toYaml .Values.securityContext | nindent 4 }}
+    {{- toYaml $.Values.securityContext | nindent 4 }}
   command:
+    {{- include "infrahub-sync.tini" $ | nindent 4 }}
     - python
     - -c
     - |
@@ -316,28 +329,49 @@ which Prefect leaves open without the API credential.
 
       URL = sys.argv[1]
       TIMEOUT = float(sys.argv[2])
+      WHAT = sys.argv[3]
       start = time.monotonic()
       print(f"waiting for {URL}", flush=True)
       while True:
           try:
               httpx.get(URL, timeout=5).raise_for_status()
-              print(f"the Prefect server is healthy after {time.monotonic() - start:.0f}s", flush=True)
+              print(f"{WHAT} is healthy after {time.monotonic() - start:.0f}s", flush=True)
               sys.exit(0)
           except httpx.HTTPError:
               pass
           if time.monotonic() - start >= TIMEOUT:
-              print(f"the Prefect server is not healthy after {time.monotonic() - start:.0f}s", file=sys.stderr, flush=True)
+              print(f"{WHAT} is not healthy after {time.monotonic() - start:.0f}s", file=sys.stderr, flush=True)
               sys.exit(1)
           time.sleep(5)
-    - {{ printf "%s/health" (include "infrahub-sync.prefectApiUrl" .) | quote }}
-    - {{ .Values.waitTimeoutSeconds | int | toString | quote }}
+    - {{ .url | quote }}
+    - {{ $.Values.waitTimeoutSeconds | int | toString | quote }}
+    - {{ .what | quote }}
+  {{- include "infrahub-sync.initContainer.resources" $ | nindent 2 }}
   volumeMounts:
-    {{- include "infrahub-sync.mounts.scratch" . | nindent 4 }}
+    {{- include "infrahub-sync.mounts.scratch" $ | nindent 4 }}
 {{- end }}
 
 {{/*
-Init container of the Prefect server, with the bundled PostgreSQL only: waits until PostgreSQL
-accepts connections. It runs `pg_isready` from the PostgreSQL image and needs no credential.
+Init container of the bootstrap Job: waits until the Prefect server answers its health probe,
+which Prefect leaves open without the API credential.
+*/}}
+{{- define "infrahub-sync.initContainer.waitForPrefect" -}}
+{{- include "infrahub-sync.initContainer.waitForHttp" (dict "context" . "name" "wait-for-prefect" "url" (printf "%s/health" (include "infrahub-sync.prefectApiUrl" .)) "what" "the Prefect server") }}
+{{- end }}
+
+{{/*
+Init container of the bootstrap Job, with the bundled object store only: waits until the object
+store answers its readiness endpoint, as `sync-bootstrap` waits for `object-store` in Compose.
+*/}}
+{{- define "infrahub-sync.initContainer.waitForObjectStore" -}}
+{{- $url := printf "http://%s:9000/minio/health/ready" (include "infrahub-sync.componentName" (dict "context" . "component" "object-store")) }}
+{{- include "infrahub-sync.initContainer.waitForHttp" (dict "context" . "name" "wait-for-object-store" "url" $url "what" "the object store") }}
+{{- end }}
+
+{{/*
+Init container of the Prefect server and the bootstrap Job, with the bundled PostgreSQL only:
+waits until PostgreSQL accepts connections. It runs `pg_isready` from the PostgreSQL image and
+needs no credential. The shell is the container's first process, so it traps SIGTERM to stop.
 */}}
 {{- define "infrahub-sync.initContainer.waitForPostgresql" -}}
 - name: wait-for-postgresql
@@ -349,6 +383,7 @@ accepts connections. It runs `pg_isready` from the PostgreSQL image and needs no
     - /bin/sh
     - -ec
     - |
+      trap 'exit 143' TERM
       host="$1"
       timeout="$2"
       role="$3"
@@ -368,6 +403,83 @@ accepts connections. It runs `pg_isready` from the PostgreSQL image and needs no
     - {{ include "infrahub-sync.componentName" (dict "context" . "component" "postgresql") | quote }}
     - {{ .Values.waitTimeoutSeconds | int | toString | quote }}
     - {{ .Values.postgresql.adminRole | quote }}
+  {{- include "infrahub-sync.initContainer.resources" . | nindent 2 }}
+{{- end }}
+
+{{/*
+Init container of the bootstrap Job, with the bundled PostgreSQL only: runs the init script of
+the PostgreSQL ConfigMap against the server as the administrator, as the `db-bootstrap` service
+of docker-compose.yml does on every start. The script creates a role or a database only when it
+is missing, so it is safe to repeat. The PostgreSQL entrypoint runs the same script only on an
+empty volume, which leaves a renamed role or database, or a first start that was interrupted,
+without them.
+*/}}
+{{- define "infrahub-sync.initContainer.ensureDatabases" -}}
+{{- $pg := .Values.postgresql }}
+{{- $secretName := include "infrahub-sync.secretName" . }}
+- name: ensure-databases
+  image: {{ include "infrahub-sync.digestImage" $pg.image | quote }}
+  imagePullPolicy: IfNotPresent
+  securityContext:
+    {{- toYaml .Values.securityContext | nindent 4 }}
+  command:
+    - /bin/sh
+    - /scripts/databases.sh
+  env:
+    - name: PGHOST
+      value: {{ include "infrahub-sync.componentName" (dict "context" . "component" "postgresql") | quote }}
+    - name: PGPORT
+      value: "5432"
+    - name: PGUSER
+      value: {{ $pg.adminRole | quote }}
+    - name: PGDATABASE
+      value: {{ $pg.adminRole | quote }}
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ $secretName }}
+          key: INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD
+    - name: INFRAHUB_SYNC_PRODUCT_DATABASE
+      value: {{ $pg.productDatabase | quote }}
+    - name: INFRAHUB_SYNC_PRODUCT_ROLE
+      value: {{ $pg.productRole | quote }}
+    - name: INFRAHUB_SYNC_PRODUCT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ $secretName }}
+          key: INFRAHUB_SYNC_PRODUCT_PASSWORD
+    - name: INFRAHUB_SYNC_PREFECT_DATABASE
+      value: {{ $pg.prefectDatabase | quote }}
+    - name: INFRAHUB_SYNC_PREFECT_ROLE
+      value: {{ $pg.prefectRole | quote }}
+    - name: INFRAHUB_SYNC_PREFECT_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ $secretName }}
+          key: INFRAHUB_SYNC_PREFECT_PASSWORD
+    # The script's here-documents need a writable temporary directory.
+    - name: TMPDIR
+      value: /tmp
+  {{- include "infrahub-sync.initContainer.resources" . | nindent 2 }}
+  volumeMounts:
+    - name: postgresql-init
+      mountPath: /scripts
+      readOnly: true
+    - name: ensure-databases-tmp
+      mountPath: /tmp
+{{- end }}
+
+{{/*
+The volumes of the `ensure-databases` init container.
+*/}}
+{{- define "infrahub-sync.volumes.ensureDatabases" -}}
+- name: postgresql-init
+  configMap:
+    name: {{ include "infrahub-sync.componentName" (dict "context" . "component" "postgresql") }}-init
+    defaultMode: 0555
+- name: ensure-databases-tmp
+  emptyDir:
+    medium: Memory
 {{- end }}
 
 {{/*
@@ -445,7 +557,9 @@ The release revision is not part of it, so an upgrade that changes none of these
 A Job's pod template cannot be changed after creation, so every other value that enters the
 Job's pod template is part of the hash too: the `bootstrap` block (resources, scheduling, pod
 annotations and labels, extra environment), the pull policy and pull secrets, the security
-contexts, the service account, the CA ConfigMap name and the wait timeout. The chart version is
+contexts, the service account, the CA ConfigMap name, the wait timeout, the init container
+resources, whether the bundled object store runs, and the PostgreSQL image, roles and databases
+that the `ensure-databases` init container creates. The chart version is
 part of it too, because a new chart version can change the Job's template itself. A change to
 one of them gives a new Job instead of a patch that Kubernetes refuses.
 */}}
@@ -465,6 +579,9 @@ one of them gives a new Job instead of a patch that Kubernetes refuses.
   (toString .Chart.Version)
   (include "infrahub-sync.checksum.secret" .)
   (include "infrahub-sync.checksum.ca" .)
+  (toJson .Values.initContainers)
+  (toString .Values.objectStore.enabled)
+  (toJson (pick .Values.postgresql "enabled" "image" "adminRole" "productRole" "productDatabase" "prefectRole" "prefectDatabase"))
 }}
 {{- join "\n" $inputs | sha256sum | trunc 8 }}
 {{- end }}

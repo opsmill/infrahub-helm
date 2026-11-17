@@ -10,9 +10,11 @@ metadata:
   labels:
     {{- include "infrahub-sync.labels" (dict "context" . "component" "postgresql") | nindent 4 }}
 data:
-  # The `db-bootstrap-script` of docker-compose.yml, run once by the PostgreSQL entrypoint when it
-  # initializes an empty volume. It binds every value as a psql variable, so no value is
-  # interpolated into SQL. During initialization the server listens on its local socket only.
+  # The `db-bootstrap-script` of docker-compose.yml. The PostgreSQL entrypoint runs it once, when
+  # it initializes an empty volume, over the local socket. The `ensure-databases` init container
+  # of the bootstrap Job runs it again over TCP on each new Job, as `db-bootstrap` does on each
+  # Compose start. It binds every value as a psql variable, so no value is interpolated into SQL,
+  # and creates a role or a database only when it is missing.
   databases.sh: |
     set -eu
     psql --set=ON_ERROR_STOP=1 --quiet \

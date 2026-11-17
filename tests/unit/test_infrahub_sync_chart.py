@@ -416,10 +416,10 @@ def test_rr02_sync_containers_use_the_sync_image(valid_values, tag, expected_tag
             image = container["image"]
             repositories.add(image.split("@")[0].rsplit(":", 1)[0])
             assert "prefecthq" not in image
-            # The Prefect server pod's PostgreSQL wait runs `pg_isready` from the PostgreSQL image.
+            # The PostgreSQL wait and `ensure-databases` run from the PostgreSQL image.
             if (
                 component_of(document) in SYNC_COMPONENTS
-                and container["name"] != "wait-for-postgresql"
+                and container["name"] not in POSTGRESQL_IMAGE_INIT_CONTAINERS
             ):
                 assert image == f"registry.example.com/sync:{expected_tag}", container[
                     "name"
@@ -464,7 +464,12 @@ def test_rr06_sync_pods_mount_only_scratch_and_ca(ca_values, component, with_ca)
     if not with_ca:
         del ca_values["caCertificates"]
     document = workload(render(ca_values), component)
-    volumes = pod_spec(document)["volumes"]
+    # The bootstrap Job's `ensure-databases` volumes are checked in their own test.
+    volumes = [
+        volume
+        for volume in pod_spec(document)["volumes"]
+        if volume["name"] not in ENSURE_DATABASES_VOLUMES
+    ]
     scratch = [volume for volume in volumes if "emptyDir" in volume]
     others = [volume for volume in volumes if "emptyDir" not in volume]
     assert len(scratch) == 3
@@ -556,7 +561,12 @@ def test_rr11_prefect_api_credential_reaches_only_its_clients(valid_values):
 @pytest.mark.parametrize(
     ("postgresql", "key", "expected"),
     [
-        (True, "INFRAHUB_SYNC_PREFECT_PASSWORD", {"postgresql", "prefect-server"}),
+        # The bootstrap Job's `ensure-databases` init container creates the Prefect role.
+        (
+            True,
+            "INFRAHUB_SYNC_PREFECT_PASSWORD",
+            {"postgresql", "prefect-server", "bootstrap"},
+        ),
         (False, "INFRAHUB_SYNC_PREFECT_DATABASE_URL", {"prefect-server"}),
     ],
 )
@@ -728,8 +738,103 @@ def test_rr19_bootstrap_is_a_plain_job_and_no_init_container(valid_values):
         "infrahub_sync.service.bootstrap",
     ]
     assert [container["name"] for container in pod_spec(job)["initContainers"]] == [
-        "wait-for-prefect"
+        "wait-for-postgresql",
+        "ensure-databases",
+        "wait-for-object-store",
+        "wait-for-prefect",
     ]
+
+
+POSTGRESQL_IMAGE_INIT_CONTAINERS = {"wait-for-postgresql", "ensure-databases"}
+ENSURE_DATABASES_VOLUMES = {"postgresql-init", "ensure-databases-tmp"}
+
+
+def init_container(document, name):
+    return next(c for c in pod_spec(document)["initContainers"] if c["name"] == name)
+
+
+def test_bootstrap_with_external_stores_waits_only_for_prefect(external_postgresql_values):
+    external_postgresql_values["objectStore"] = {"enabled": False}
+    external_postgresql_values.setdefault("s3", {})["endpointUrl"] = "https://s3.example.com"
+    job = workload(render(external_postgresql_values), "bootstrap")
+    assert [c["name"] for c in pod_spec(job)["initContainers"]] == ["wait-for-prefect"]
+    names = {volume["name"] for volume in pod_spec(job)["volumes"]}
+    assert not names & ENSURE_DATABASES_VOLUMES
+
+
+def test_ensure_databases_runs_the_init_script_over_tcp(valid_values):
+    """The same script the PostgreSQL entrypoint runs, against the Service, as the administrator."""
+    job = workload(render(valid_values), "bootstrap")
+    container = init_container(job, "ensure-databases")
+    assert container["command"] == ["/bin/sh", "/scripts/databases.sh"]
+    assert env_value(container, "PGHOST")["value"] == f"{FULLNAME}-postgresql"
+    assert env_value(container, "PGUSER")["value"] == "postgres"
+    assert (
+        env_value(container, "PGPASSWORD")["valueFrom"]["secretKeyRef"]["key"]
+        == "INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD"
+    )
+    for name in ("INFRAHUB_SYNC_PRODUCT_ROLE", "INFRAHUB_SYNC_PREFECT_DATABASE"):
+        assert env_value(container, name) is not None, name
+    volumes = {volume["name"]: volume for volume in pod_spec(job)["volumes"]}
+    assert volumes["postgresql-init"]["configMap"] == {
+        "name": f"{FULLNAME}-postgresql-init",
+        "defaultMode": 0o555,
+    }
+    assert TEST_CREDENTIAL not in json.dumps(container)
+
+
+def test_a_renamed_role_gives_a_new_bootstrap_job(valid_values):
+    """A new Job name runs `ensure-databases` again, so the renamed role is created."""
+    before = workload(render(valid_values), "bootstrap")["metadata"]["name"]
+    valid_values.setdefault("postgresql", {})["productRole"] = "renamed"
+    after = workload(render(valid_values), "bootstrap")["metadata"]["name"]
+    assert before != after
+
+
+def test_the_object_store_wait_probes_its_readiness_endpoint(valid_values):
+    container = init_container(
+        workload(render(valid_values), "bootstrap"), "wait-for-object-store"
+    )
+    assert (
+        f"http://{FULLNAME}-object-store:9000/minio/health/ready" in container["command"]
+    )
+
+
+@pytest.mark.parametrize("name", ["wait-for-prefect", "wait-for-object-store"])
+def test_http_waits_run_under_tini(valid_values, name):
+    container = init_container(workload(render(valid_values), "bootstrap"), name)
+    assert container["command"][:3] == TINI
+
+
+def test_every_init_container_sets_resources(valid_values):
+    expected = {"requests": {"cpu": "10m", "memory": "64Mi"}, "limits": {"memory": "128Mi"}}
+    for document in workloads(render(valid_values)):
+        for container in pod_spec(document).get("initContainers", []):
+            assert container["resources"] == expected, container["name"]
+
+
+def test_init_container_resources_follow_the_value(valid_values):
+    """Helm merges the given map into the default, as for any map value."""
+    valid_values["initContainers"] = {"resources": {"requests": {"cpu": "50m"}}}
+    expected = {"requests": {"cpu": "50m", "memory": "64Mi"}, "limits": {"memory": "128Mi"}}
+    for document in workloads(render(valid_values)):
+        for container in pod_spec(document).get("initContainers", []):
+            assert container["resources"] == expected, container["name"]
+
+
+def test_a_worker_token_in_worker_credentials_replaces_the_secret_one(valid_values):
+    key = "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN"
+    worker = main_container(workload(render(valid_values), "worker"))
+    assert env_value(worker, key) is not None
+    valid_values["worker"] = {"credentials": {key: TEST_CREDENTIAL}}
+    documents = render(valid_values)
+    worker = main_container(workload(documents, "worker"))
+    assert env_value(worker, key) is None
+    assert env_from_secrets(workload(documents, "worker")) == {
+        f"{FULLNAME}-worker-credentials"
+    }
+    api = main_container(workload(documents, "api"))
+    assert env_value(api, key) is not None
 
 
 @pytest.mark.parametrize("fullname_override", ["", "object"])

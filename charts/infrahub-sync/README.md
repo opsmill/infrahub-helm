@@ -172,6 +172,8 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | ingress.path | string | `"/"` | Path prefix under which the Sync API is exposed |
 | ingress.pathType | string | `"Prefix"` | PathType for the ingress rule |
 | ingress.tls | bool | `false` | Enable TLS for `hostname` using the secret "<fullname>-tls" |
+| initContainers | object | `{"resources":{"limits":{"memory":"128Mi"},"requests":{"cpu":"10m","memory":"64Mi"}}}` | The init containers of the Prefect server and the bootstrap Job: the waits for PostgreSQL, the object store and the Prefect server, and `ensure-databases` |
+| initContainers.resources | object | `{"limits":{"memory":"128Mi"},"requests":{"cpu":"10m","memory":"64Mi"}}` | Resource requests and limits of each init container. A namespace with a ResourceQuota refuses a pod whose containers set none |
 | nameOverride | string | `""` | Override the chart name |
 | objectStore | object | `{"affinity":{},"enabled":true,"image":{"digest":"sha256:2636fc4155d9a7e41ff58cdb65ddd13ba9304e67184e13c25bc5cb34016269d7","repository":"pgsty/silo","tag":"RELEASE.2026-10-18T00-00-00Z"},"nodeSelector":{},"persistence":{"size":"10Gi","storageClass":""},"podAnnotations":{},"podLabels":{},"resources":{},"tolerations":[]}` | The bundled object store (Silo, a maintained build of the MinIO server, AGPLv3) |
 | objectStore.affinity | object | `{}` | Affinity rules |
@@ -236,11 +238,11 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | settings.workPool | string | `"infrahub-sync"` | `INFRAHUB_SYNC_SERVICE_WORK_POOL` and the worker's `--pool` |
 | settings.workerHeartbeatSeconds | int | `10` | `PREFECT_WORKER_HEARTBEAT_SECONDS` |
 | settings.workerQuerySeconds | int | `10` | `PREFECT_WORKER_QUERY_SECONDS` |
-| waitTimeoutSeconds | int | `600` | How long the init containers of the Prefect server and the bootstrap Job wait for PostgreSQL and the Prefect server before they fail, in seconds |
+| waitTimeoutSeconds | int | `600` | How long the init containers of the Prefect server and the bootstrap Job wait for PostgreSQL, the object store and the Prefect server before they fail, in seconds |
 | worker | object | `{"affinity":{},"credentials":{},"credentialsExistingSecrets":[],"extraEnv":[],"nodeSelector":{},"podAnnotations":{},"podLabels":{},"replicaCount":1,"resources":{},"tolerations":[]}` | The worker |
 | worker.affinity | object | `{}` | Affinity rules |
-| worker.credentials | object | `{}` | Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret that only the worker reads |
-| worker.credentialsExistingSecrets | list | `[]` | Names of existing Secrets whose keys are passed to the worker as variables |
+| worker.credentials | object | `{}` | Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret that only the worker reads. `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` set here replaces the one of the credentials Secret for the worker |
+| worker.credentialsExistingSecrets | list | `[]` | Names of existing Secrets whose keys are passed to the worker as variables. When the credentials Secret also holds `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`, its value wins over these Secrets, because Kubernetes gives an `env` entry precedence over `envFrom`. Keep that token in one place |
 | worker.extraEnv | list | `[]` | Additional environment variables (a list of `env` entries) |
 | worker.nodeSelector | object | `{}` | Node selector |
 | worker.podAnnotations | object | `{}` | Pod annotations |

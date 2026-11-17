@@ -53,7 +53,11 @@ spec:
               value: {{ .Values.settings.workerQuerySeconds | toString | quote }}
             - name: PREFECT_WORKER_HEARTBEAT_SECONDS
               value: {{ .Values.settings.workerHeartbeatSeconds | toString | quote }}
+            {{- /* A token in worker.credentials replaces the one of the credentials Secret: an `env`
+            entry would win over the worker Secret in `envFrom`. */}}
+            {{- if not (hasKey $component.credentials "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN") }}
             {{- include "infrahub-sync.env.destinationCredential" . | nindent 12 }}
+            {{- end }}
             {{- with $component.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

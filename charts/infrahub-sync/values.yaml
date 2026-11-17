@@ -198,9 +198,13 @@ worker:
   # -- Number of replicas. One is the only tested value
   replicaCount: 1
   # -- Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret
-  # that only the worker reads
+  # that only the worker reads. `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` set here replaces the
+  # one of the credentials Secret for the worker
   credentials: {}
-  # -- Names of existing Secrets whose keys are passed to the worker as variables
+  # -- Names of existing Secrets whose keys are passed to the worker as variables. When the
+  # credentials Secret also holds `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`, its value wins over
+  # these Secrets, because Kubernetes gives an `env` entry precedence over `envFrom`. Keep that
+  # token in one place
   credentialsExistingSecrets: []
   # -- Resource requests and limits
   resources: {}
@@ -256,8 +260,20 @@ bootstrap:
   extraEnv: []
 
 # -- How long the init containers of the Prefect server and the bootstrap Job wait for
-# PostgreSQL and the Prefect server before they fail, in seconds
+# PostgreSQL, the object store and the Prefect server before they fail, in seconds
 waitTimeoutSeconds: 600
+
+# -- The init containers of the Prefect server and the bootstrap Job: the waits for PostgreSQL,
+# the object store and the Prefect server, and `ensure-databases`
+initContainers:
+  # -- Resource requests and limits of each init container. A namespace with a ResourceQuota
+  # refuses a pod whose containers set none
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
 
 # -- ServiceAccount configuration. No pod mounts its token
 serviceAccount:

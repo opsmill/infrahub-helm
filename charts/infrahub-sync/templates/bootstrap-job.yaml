@@ -32,6 +32,13 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
+        {{- if .Values.postgresql.enabled }}
+        {{- include "infrahub-sync.initContainer.waitForPostgresql" . | nindent 8 }}
+        {{- include "infrahub-sync.initContainer.ensureDatabases" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.objectStore.enabled }}
+        {{- include "infrahub-sync.initContainer.waitForObjectStore" . | nindent 8 }}
+        {{- end }}
         {{- include "infrahub-sync.initContainer.waitForPrefect" . | nindent 8 }}
       containers:
         - name: bootstrap
@@ -60,3 +67,6 @@ spec:
       volumes:
         {{- include "infrahub-sync.volumes.scratch" . | nindent 8 }}
         {{- include "infrahub-sync.volumes.ca" . | nindent 8 }}
+        {{- if .Values.postgresql.enabled }}
+        {{- include "infrahub-sync.volumes.ensureDatabases" . | nindent 8 }}
+        {{- end }}
