@@ -104,7 +104,12 @@ Return S3 environment variables for restore
 */}}
 {{- define "infrahub-backup.restoreS3EnvVars" -}}
 {{- if eq .Values.restore.storage.type "s3" }}
-{{- if .Values.restore.storage.s3.latest }}
+{{- /*
+The bucket, prefix and endpoint are set even when the key names the archive: a
+restore of an external Neo4j database copies the archive into this bucket for
+the Neo4j servers to download. The download of a named key reads the bucket
+from its s3:// address and ignores these.
+*/}}
 - name: INFRAHUB_S3_BUCKET
   value: {{ .Values.restore.storage.s3.bucket | quote }}
 {{- if .Values.restore.storage.s3.prefix }}
@@ -114,7 +119,6 @@ Return S3 environment variables for restore
 {{- if .Values.restore.storage.s3.endpoint }}
 - name: INFRAHUB_S3_ENDPOINT
   value: {{ .Values.restore.storage.s3.endpoint | quote }}
-{{- end }}
 {{- end }}
 - name: INFRAHUB_S3_REGION
   value: {{ .Values.restore.storage.s3.region | quote }}
@@ -130,6 +134,38 @@ Return S3 environment variables for restore
       name: {{ .Values.restore.storage.s3.secretName }}
       key: AWS_SECRET_ACCESS_KEY
 {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Return the environment variables for databases that run outside the Infrahub
+namespace. Call with (dict "root" $ "restore" true) from a restore container.
+*/}}
+{{- define "infrahub-backup.externalDatabaseEnvVars" -}}
+{{- $ext := .root.Values.externalDatabase -}}
+{{- if and .restore $ext.allowRestore }}
+- name: INFRAHUB_ALLOW_EXTERNAL_RESTORE
+  value: "true"
+{{- end }}
+{{- if $ext.insecureTLS }}
+- name: INFRAHUB_EXTERNAL_DB_INSECURE_TLS
+  value: "true"
+{{- end }}
+{{- with $ext.timeout }}
+- name: INFRAHUB_EXTERNAL_DB_TIMEOUT
+  value: {{ . | quote }}
+{{- end }}
+{{- with $ext.neo4jAddress }}
+- name: INFRAHUB_NEO4J_ADDRESS
+  value: {{ . | quote }}
+{{- end }}
+{{- with $ext.neo4jBackupPort }}
+- name: INFRAHUB_NEO4J_BACKUP_PORT
+  value: {{ . | quote }}
+{{- end }}
+{{- with $ext.postgresAddress }}
+- name: INFRAHUB_POSTGRES_ADDRESS
+  value: {{ . | quote }}
 {{- end }}
 {{- end }}
 
@@ -172,6 +208,9 @@ Return restore command arguments
 {{- end }}
 {{- if .Values.restore.options.migrateFormat }}
 - --migrate-format
+{{- end }}
+{{- with .Values.restore.options.neo4jClusterOnlineTimeout }}
+- --neo4j-cluster-online-timeout={{ . }}
 {{- end }}
 {{- if eq .Values.restore.storage.type "local" }}
 {{- if .Values.restore.options.sleep }}

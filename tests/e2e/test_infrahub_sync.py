@@ -43,7 +43,7 @@ HOLD_TIMEOUT_SECONDS = 300
 # start check reads the record about 2 seconds later (measured on minikube). Its `Ready` time
 # may precede the record write by that much.
 WORKER_CHECK_SECONDS = 5
-# How long `/status` may take to report a ready worker. A worker that exited before the record
+# How long `/api/status` may take to report a ready worker. A worker that exited before the record
 # was written starts again only after its restart back-off, which Kubernetes caps at 300 s.
 WORKER_STATUS_SECONDS = 330
 
@@ -277,18 +277,18 @@ async def wait_for_refusal(release: dict, held_job: str) -> tuple[str, str]:
 
 
 async def check_sync_api(release: dict) -> None:
-    """Check `/version`, `/me` with the API token, and a ready worker in `/status`."""
+    """Check `/api/version`, `/api/me` with the API token, and a ready worker in `/api/status`."""
     async with portforward_service(
         release["kubeconfig_path"], release["namespace"], 8000,
-        name=f"{release['fullname']}-api", ready_path="/version",
+        name=f"{release['fullname']}-api", ready_path="/api/version",
     ) as url, httpx.AsyncClient(base_url=url, timeout=10) as client:
-        version = (await client.get("/version")).raise_for_status().json()
+        version = (await client.get("/api/version")).raise_for_status().json()
         assert version["server_version"], version
 
-        denied = await client.get("/me")
+        denied = await client.get("/api/me")
         assert denied.status_code in (401, 403), denied.text
         principal = (
-            await client.get("/me", headers={"Authorization": f"Bearer {release['token']}"})
+            await client.get("/api/me", headers={"Authorization": f"Bearer {release['token']}"})
         ).raise_for_status().json()
         assert principal["actor"] == "operator", principal
         assert principal["administrator"] is True, principal
@@ -299,7 +299,7 @@ async def check_sync_api(release: dict) -> None:
         deadline = time.monotonic() + WORKER_STATUS_SECONDS
         status = {}
         while time.monotonic() < deadline:
-            status = (await client.get("/status")).raise_for_status().json()
+            status = (await client.get("/api/status")).raise_for_status().json()
             if status["worker"]["state"] == "ready":
                 break
             await asyncio.sleep(5)

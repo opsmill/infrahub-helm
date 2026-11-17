@@ -87,21 +87,21 @@ spec:
             {{- end }}
           startupProbe:
             httpGet:
-              path: /version
+              path: /api/version
               port: http
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 60
           readinessProbe:
             httpGet:
-              path: /version
+              path: /api/version
               port: http
             periodSeconds: 5
             timeoutSeconds: 5
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /version
+              path: /api/version
               port: http
             periodSeconds: 10
             timeoutSeconds: 10

@@ -605,6 +605,9 @@ async def observability_k8s(
             "global.tracing.endpoint": f"{obs_release}-tempo:4317",
             "global.tracing.protocol": "grpc",
             "global.tracing.insecure": "true",
+            # Infrahub 1.12 records 10% of new traces by default; record all of
+            # them, so the trace of the probe request reaches Tempo.
+            "infrahubServer.infrahubServer.env.INFRAHUB_TRACE_SAMPLE_RATIO": "1",
         },
     )
 
@@ -717,8 +720,7 @@ async def _bootstrap_garage(admin_url: str, bucket: str) -> None:
     await wait_for_http(f"{admin_url}/health", timeout=60.0, interval=1.0)
 
 
-@pytest.fixture(scope="session")
-async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
+async def deploy_garage(kubeconfig: str, namespace: str) -> dict:
     """Deploy a single-node Garage that serves the backup bucket into the namespace,
     and an HTTPS front for it whose certificate a private CA issued.
 
@@ -730,8 +732,6 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
     """
     from kr8s.asyncio.objects import ConfigMap, Secret
 
-    kubeconfig = infrahub_k8s["kubeconfig_path"]
-    namespace = infrahub_k8s["namespace"]
     bucket = "infrahub-backups"
 
     api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
@@ -802,7 +802,7 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
     ) as admin_url:
         await _bootstrap_garage(admin_url, bucket)
 
-    yield {
+    return {
         "namespace": namespace,
         "kubeconfig_path": kubeconfig,
         "bucket": bucket,
@@ -815,6 +815,12 @@ async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
         "secret_name": "garage-credentials",
         "service_name": "garage",
     }
+
+
+@pytest.fixture(scope="session")
+async def s3_k8s(infrahub_k8s: dict) -> AsyncGenerator[dict, None]:
+    """Garage in the namespace of the community Infrahub deployment; see `deploy_garage`."""
+    yield await deploy_garage(infrahub_k8s["kubeconfig_path"], infrahub_k8s["namespace"])
 
 
 # ---------------------------------------------------------------------------
@@ -1247,4 +1253,162 @@ async def infrahub_sync_k8s(
         "release": SYNC_RELEASE,
         "chart_path": SYNC_CHART,
         "fullname": f"{SYNC_RELEASE}-infrahub-sync",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture: infrahub_external_neo4j_k8s (Infrahub whose Neo4j runs in another
+# namespace)
+# ---------------------------------------------------------------------------
+EXTERNAL_DB_NAMESPACE = "infrahub-external-db"
+EXTERNAL_NEO4J_NAMESPACE = "neo4j-external"
+# The Neo4j version is the one the infrahub-backup image of the chart's
+# appVersion takes `neo4j-admin` from (`FROM neo4j:...` in its Dockerfile). infrahub-backup refuses a server
+# newer than its tools, so a newer server would test that refusal instead.
+EXTERNAL_NEO4J_CHART_VERSION = "2025.10.1"
+# `neo4j.name`: the headless Service is named after it.
+EXTERNAL_NEO4J_NAME = "infrahub-ext"
+EXTERNAL_NEO4J_USERNAME = "neo4j"
+EXTERNAL_NEO4J_PASSWORD = "admin12345"
+EXTERNAL_NEO4J_AUTH_SECRET = "neo4j-auth"
+
+
+def install_external_neo4j(kubeconfig: str, namespace: str, s3_env: dict[str, str], workdir: Path) -> str:
+    """Install a standalone Neo4j Enterprise server and return the address Infrahub uses.
+
+    The server binds its backup service to every interface, so that
+    infrahub-backup can run `neo4j-admin database backup --from=<host>:6362`
+    from the Infrahub namespace. It gets the S3 settings in `s3_env`, because
+    a restore makes the server download the backup from the object store
+    itself. Infrahub connects through the headless Service, which resolves to
+    the pod, so the backup port is reachable at the same host name.
+    """
+    base = ["kubectl", "--kubeconfig", kubeconfig, "-n", namespace]
+    subprocess.run(["kubectl", "--kubeconfig", kubeconfig, "create", "namespace", namespace], check=True)
+    subprocess.run(
+        [
+            *base, "create", "secret", "generic", EXTERNAL_NEO4J_AUTH_SECRET,
+            f"--from-literal=NEO4J_AUTH={EXTERNAL_NEO4J_USERNAME}/{EXTERNAL_NEO4J_PASSWORD}",
+        ],
+        check=True,
+    )
+    values = {
+        "neo4j": {
+            "name": EXTERNAL_NEO4J_NAME,
+            "edition": "enterprise",
+            "acceptLicenseAgreement": "yes",
+            "passwordFromSecret": EXTERNAL_NEO4J_AUTH_SECRET,
+            "resources": {"cpu": "500m", "memory": "2Gi"},
+        },
+        "config": {
+            "server.memory.heap.initial_size": "512m",
+            "server.memory.heap.max_size": "512m",
+            "server.memory.pagecache.size": "256m",
+            "server.backup.enabled": "true",
+            "server.backup.listen_address": "0.0.0.0:6362",
+            "dbms.security.auth_minimum_password_length": "4",
+        },
+        "env": s3_env,
+        "logInitialPassword": False,
+        "volumes": {"data": {"mode": "volume", "volume": {"emptyDir": {}}}},
+        "services": {"neo4j": {"enabled": False}},
+    }
+    values_path = workdir / "neo4j-external.yaml"
+    values_path.write_text(yaml.dump(values))
+    repo = ["--repo", "https://helm.neo4j.com/neo4j", "--version", EXTERNAL_NEO4J_CHART_VERSION]
+    subprocess.run(
+        [
+            "helm", "upgrade", "--install", "neo4j", "neo4j", *repo,
+            "-n", namespace, "-f", str(values_path), "--kubeconfig", kubeconfig,
+        ],
+        check=True,
+    )
+    subprocess.run(
+        [
+            "helm", "upgrade", "--install", "neo4j-headless", "neo4j-headless-service", *repo,
+            "-n", namespace, "--set", f"neo4j.name={EXTERNAL_NEO4J_NAME}", "--kubeconfig", kubeconfig,
+        ],
+        check=True,
+    )
+    subprocess.run([*base, "rollout", "status", "statefulset/neo4j", "--timeout=10m"], check=True)
+    return f"{EXTERNAL_NEO4J_NAME}-headless.{namespace}.svc.cluster.local"
+
+
+@pytest.fixture(scope="session")
+async def external_db_s3_k8s(vcluster: dict, request) -> AsyncGenerator[dict, None]:
+    """Create the namespace of the external database test and deploy Garage in it;
+    see `deploy_garage`."""
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = EXTERNAL_DB_NAMESPACE
+    _register_namespace(request, namespace)
+    subprocess.run(["kubectl", "--kubeconfig", kubeconfig, "create", "namespace", namespace], check=True)
+    yield await deploy_garage(kubeconfig, namespace)
+
+
+@pytest.fixture(scope="session")
+async def infrahub_external_neo4j_k8s(
+    vcluster: dict, external_db_s3_k8s: dict, staged_charts, request, tmp_path_factory
+) -> AsyncGenerator[dict, None]:
+    """Deploy Infrahub without its own Neo4j, pointed at a Neo4j server in another
+    namespace, next to a Garage that serves the backup bucket.
+
+    The task-manager PostgreSQL database stays in the Infrahub namespace, so a
+    backup covers one external and one internal database.
+    """
+    from kr8s.asyncio.objects import Service
+
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = external_db_s3_k8s["namespace"]
+    s3 = external_db_s3_k8s
+    _register_namespace(request, EXTERNAL_NEO4J_NAMESPACE)
+    workdir = tmp_path_factory.mktemp("external-db")
+
+    # The Neo4j server reaches Garage through the Service IP: with an IP
+    # address, the AWS SDK puts the bucket in the path instead of the host
+    # name, and this Garage serves path-style requests only.
+    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
+    garage = await Service.get(s3["service_name"], namespace=namespace, api=api)
+    neo4j_host = install_external_neo4j(
+        kubeconfig,
+        EXTERNAL_NEO4J_NAMESPACE,
+        {
+            "AWS_ACCESS_KEY_ID": s3["access_key"],
+            "AWS_SECRET_ACCESS_KEY": s3["secret_key"],
+            "AWS_REGION": "us-east-1",
+            "AWS_ENDPOINT_URL_S3": f"http://{garage.spec.clusterIP}:{s3['port']}",
+        },
+        workdir,
+    )
+
+    db_env = {
+        "INFRAHUB_DB_ADDRESS": neo4j_host,
+        "INFRAHUB_DB_PORT": "7687",
+        "INFRAHUB_DB_USERNAME": EXTERNAL_NEO4J_USERNAME,
+        "INFRAHUB_DB_PASSWORD": EXTERNAL_NEO4J_PASSWORD,
+    }
+    sets = {"neo4j.enabled": "false"}
+    for component in ("infrahubServer", "infrahubTaskWorker"):
+        for key, value in db_env.items():
+            sets[f"{component}.{component}.env.{key}"] = value
+    helm_install(
+        release="infrahub",
+        chart_path=staged_charts["infrahub"],
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        values_files=[FIXTURES_DIR / "infrahub-values.yaml"],
+        sets=sets,
+    )
+
+    async with portforward_service(
+        kubeconfig, namespace, 8000,
+        label_selector="service=infrahub-server", ready_path="/api/config",
+    ) as url:
+        await wait_for_infrahub_branch_ready(url, INFRAHUB_ADMIN_TOKEN)
+
+    yield {
+        "namespace": namespace,
+        "kubeconfig_path": kubeconfig,
+        "token": INFRAHUB_ADMIN_TOKEN,
+        "server_label": "service=infrahub-server",
+        "s3": s3,
     }

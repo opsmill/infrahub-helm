@@ -650,7 +650,7 @@ def test_rr16_one_pool_name_for_api_worker_and_bootstrap(valid_values):
 
 @pytest.mark.parametrize(
     ("component", "path", "port"),
-    [("api", "/version", 8000), ("prefect-server", "/api/health", 4200)],
+    [("api", "/api/version", 8000), ("prefect-server", "/api/health", 4200)],
 )
 def test_rr17_probes(valid_values, component, path, port):
     container = main_container(workload(render(valid_values), component))
