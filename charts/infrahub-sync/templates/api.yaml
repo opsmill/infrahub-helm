@@ -70,9 +70,21 @@ spec:
             {{- include "infrahub-sync.env.ca" . | nindent 12 }}
             - name: INFRAHUB_SYNC_SERVICE_HOST
               value: "0.0.0.0"
-            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS" "key" "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS") | nindent 12 }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD" "key" "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD") | nindent 12 }}
+            # Optional: the chart leaves the key out of its Secret when the value is empty, and
+            # an existing Secret may not hold it. Without it, the `admin` account has no token.
+            - name: INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "infrahub-sync.secretName" . }}
+                  key: INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN
+                  optional: true
             - name: INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS
               value: {{ .Values.settings.runAdmissionTtlSeconds | toString | quote }}
+            {{- with .Values.settings.sessionIdleSeconds }}
+            - name: INFRAHUB_SYNC_SESSION_IDLE_SECONDS
+              value: {{ . | toString | quote }}
+            {{- end }}
             - name: INFRAHUB_SYNC_REQUIRE_APPROVAL
               value: {{ .Values.settings.requireApproval | toString | quote }}
             - name: PREFECT_WORKER_QUERY_SECONDS

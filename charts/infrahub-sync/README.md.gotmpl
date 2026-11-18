@@ -59,7 +59,8 @@ The chart refuses to render without credentials. Create a Secret that holds them
 
 | Key | Required | Read by |
 | --- | --- | --- |
-| `INFRAHUB_SYNC_SERVICE_BEARER_TOKENS` | always | Sync API |
+| `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` | always | Sync API |
+| `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` | never | Sync API |
 | `INFRAHUB_SYNC_PREFECT_AUTH_STRING` | always | Prefect server, Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_S3_ACCESS_KEY` | always | Sync API, worker, bootstrap, bundled object store |
 | `INFRAHUB_SYNC_S3_SECRET_KEY` | always | Sync API, worker, bootstrap, bundled object store |
@@ -72,6 +73,16 @@ The chart refuses to render without credentials. Create a Secret that holds them
 
 `INFRAHUB_SYNC_PRODUCT_PASSWORD` and `INFRAHUB_SYNC_PREFECT_PASSWORD` are used in connection
 strings, so they must be URL-safe.
+
+`INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` is the password of the `admin` account of the Sync API: at
+least 12 characters. `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` is an API token of that account: at
+least 16 characters, not starting with `ifs_pat_` or `ifs_ses_`. Without it, the `admin` account
+has no token. The Sync API applies both at each start: to change the `admin` password or token,
+change the Secret and restart the Sync API, for example with
+`kubectl -n infrahub-sync rollout restart deployment/infrahub-sync-api`. The chart cannot read an
+existing Secret at render time, so with `credentials.existingSecret` the Sync API checks these
+rules at start and does not start when a value breaks them. To use the CLI, set
+`INFRAHUB_SYNC_API_TOKEN` to the `admin` token or to a token that an account created.
 
 ## Install example
 

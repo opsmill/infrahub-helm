@@ -60,7 +60,8 @@ The chart refuses to render without credentials. Create a Secret that holds them
 
 | Key | Required | Read by |
 | --- | --- | --- |
-| `INFRAHUB_SYNC_SERVICE_BEARER_TOKENS` | always | Sync API |
+| `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` | always | Sync API |
+| `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` | never | Sync API |
 | `INFRAHUB_SYNC_PREFECT_AUTH_STRING` | always | Prefect server, Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_S3_ACCESS_KEY` | always | Sync API, worker, bootstrap, bundled object store |
 | `INFRAHUB_SYNC_S3_SECRET_KEY` | always | Sync API, worker, bootstrap, bundled object store |
@@ -73,6 +74,16 @@ The chart refuses to render without credentials. Create a Secret that holds them
 
 `INFRAHUB_SYNC_PRODUCT_PASSWORD` and `INFRAHUB_SYNC_PREFECT_PASSWORD` are used in connection
 strings, so they must be URL-safe.
+
+`INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` is the password of the `admin` account of the Sync API: at
+least 12 characters. `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` is an API token of that account: at
+least 16 characters, not starting with `ifs_pat_` or `ifs_ses_`. Without it, the `admin` account
+has no token. The Sync API applies both at each start: to change the `admin` password or token,
+change the Secret and restart the Sync API, for example with
+`kubectl -n infrahub-sync rollout restart deployment/infrahub-sync-api`. The chart cannot read an
+existing Secret at render time, so with `credentials.existingSecret` the Sync API checks these
+rules at start and does not start when a value breaks them. To use the CLI, set
+`INFRAHUB_SYNC_API_TOKEN` to the `admin` token or to a token that an account created.
 
 ## Install example
 
@@ -129,8 +140,9 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | caCertificates | object | `{"certificates":{},"existingConfigMap":""}` | CA certificates, mounted read-only at `/etc/infrahub-sync/ca` in the Sync API, the worker and the bootstrap Job. Public certificates only: the image refuses to start when a file in the directory holds a private key |
 | caCertificates.certificates | object | `{}` | File name to PEM content; the chart creates the ConfigMap |
 | caCertificates.existingConfigMap | string | `""` | Name of an existing ConfigMap of `*.pem` or `*.crt` files |
-| credentials | object | `{"bearerTokens":"","databaseUrl":"","existingSecret":"","infrahubApiToken":"","postgresAdminPassword":"","prefectAuthString":"","prefectDatabaseUrl":"","prefectPassword":"","productPassword":"","s3AccessKey":"","s3SecretKey":""}` | Credentials of the deployment. Each key of the Secret is the variable name of the Compose `.env` file, so `kubectl create secret generic <name> --from-env-file=.env` creates it. |
-| credentials.bearerTokens | string | `""` | `INFRAHUB_SYNC_SERVICE_BEARER_TOKENS`: a JSON object of API principals, for example `{"operator": {"token": "<random>", "administrator": true}}`. Required |
+| credentials | object | `{"adminAccountPassword":"","adminAccountToken":"","databaseUrl":"","existingSecret":"","infrahubApiToken":"","postgresAdminPassword":"","prefectAuthString":"","prefectDatabaseUrl":"","prefectPassword":"","productPassword":"","s3AccessKey":"","s3SecretKey":""}` | Credentials of the deployment. Each key of the Secret is the variable name of the Compose `.env` file, so `kubectl create secret generic <name> --from-env-file=.env` creates it. |
+| credentials.adminAccountPassword | string | `""` | `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD`: the password of the `admin` account, given to the Sync API only. At least 12 characters. Required. The Sync API applies it at each start, so change it and restart the Sync API to reset the `admin` password |
+| credentials.adminAccountToken | string | `""` | `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN`: an API token of the `admin` account, given to the Sync API only. At least 16 characters, and it must not start with `ifs_pat_` or `ifs_ses_`. Optional: empty means the `admin` account has no token. The CLI presents it as `INFRAHUB_SYNC_API_TOKEN` |
 | credentials.databaseUrl | string | `""` | `INFRAHUB_SYNC_DATABASE_URL`: the product database connection string. Required with an external PostgreSQL |
 | credentials.existingSecret | string | `""` | Name of an existing Secret that holds the credential keys. When set, the chart creates no Secret and the values below are not read |
 | credentials.infrahubApiToken | string | `""` | `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`: the destination credential, given to the Sync API and the worker. Optional |
@@ -231,10 +243,11 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | serviceAccount.annotations | object | `{}` | Annotations to add to the ServiceAccount |
 | serviceAccount.create | bool | `true` | Create a ServiceAccount |
 | serviceAccount.name | string | `""` | Name of the ServiceAccount (generated if empty) |
-| settings | object | `{"prefectUiUrl":"","requireApproval":false,"runAdmissionTtlSeconds":300,"workPool":"infrahub-sync","workerHeartbeatSeconds":10,"workerQuerySeconds":10}` | Settings of the Sync processes |
+| settings | object | `{"prefectUiUrl":"","requireApproval":false,"runAdmissionTtlSeconds":300,"sessionIdleSeconds":"","workPool":"infrahub-sync","workerHeartbeatSeconds":10,"workerQuerySeconds":10}` | Settings of the Sync processes |
 | settings.prefectUiUrl | string | `""` | `INFRAHUB_SYNC_PREFECT_UI_URL`: the Prefect UI address that run responses link to. Empty turns the link off |
 | settings.requireApproval | bool | `false` | `INFRAHUB_SYNC_REQUIRE_APPROVAL`: when true, `apply` refuses a plan without a matching approval, and `sync` is refused |
 | settings.runAdmissionTtlSeconds | int | `300` | `INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS` |
+| settings.sessionIdleSeconds | string | `""` | `INFRAHUB_SYNC_SESSION_IDLE_SECONDS`: the period without activity, in seconds, after which a sign-in session of the Sync API ends. At least 60. Empty means the Sync API's default, 28800 |
 | settings.workPool | string | `"infrahub-sync"` | `INFRAHUB_SYNC_SERVICE_WORK_POOL` and the worker's `--pool` |
 | settings.workerHeartbeatSeconds | int | `10` | `PREFECT_WORKER_HEARTBEAT_SECONDS` |
 | settings.workerQuerySeconds | int | `10` | `PREFECT_WORKER_QUERY_SECONDS` |

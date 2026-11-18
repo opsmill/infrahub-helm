@@ -69,9 +69,7 @@ def valid_values() -> dict:
     """Minimal valid values: the chart creates the Secret from test credentials."""
     return {
         "credentials": {
-            "bearerTokens": json.dumps(
-                {"operator": {"token": TEST_CREDENTIAL, "administrator": True}}
-            ),
+            "adminAccountPassword": TEST_CREDENTIAL,
             "prefectAuthString": f"prefect:{TEST_CREDENTIAL}",
             "s3AccessKey": TEST_CREDENTIAL,
             "s3SecretKey": TEST_CREDENTIAL,
@@ -103,7 +101,7 @@ def test_valid_values_create_the_secret_with_set_keys_only(valid_values):
     secret = find(documents, "Secret", "sync-infrahub-sync")
     assert secret is not None
     assert set(secret["data"]) == {
-        "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS",
+        "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD",
         "INFRAHUB_SYNC_PREFECT_AUTH_STRING",
         "INFRAHUB_SYNC_S3_ACCESS_KEY",
         "INFRAHUB_SYNC_S3_SECRET_KEY",
@@ -143,7 +141,7 @@ def test_service_account_does_not_mount_its_token(existing_secret_values):
 @pytest.mark.parametrize(
     "value",
     [
-        "bearerTokens",
+        "adminAccountPassword",
         "prefectAuthString",
         "s3AccessKey",
         "s3SecretKey",
@@ -156,6 +154,30 @@ def test_missing_required_credential_is_refused(valid_values, value):
     del valid_values["credentials"][value]
     error = render(valid_values, expect_failure=True)
     assert f"credentials.{value}" in error
+
+
+@pytest.mark.parametrize(
+    ("value", "credential", "message"),
+    [
+        ("adminAccountPassword", "short-pass1", "at least 12 characters"),
+        ("adminAccountToken", "short-token-123", "at least 16 characters"),
+        ("adminAccountToken", "ifs_pat_" + TEST_CREDENTIAL, "must not start with ifs_pat_"),
+        ("adminAccountToken", "ifs_ses_" + TEST_CREDENTIAL, "must not start with ifs_pat_"),
+    ],
+    ids=["short-password", "short-token", "token-pat-prefix", "token-session-prefix"],
+)
+def test_bad_admin_account_credential_is_refused(valid_values, value, credential, message):
+    valid_values["credentials"][value] = credential
+    error = render(valid_values, expect_failure=True)
+    assert f"credentials.{value} must" in error
+    assert message in error
+    assert credential not in error
+
+
+def test_admin_account_credentials_of_minimum_length_render(valid_values):
+    valid_values["credentials"]["adminAccountPassword"] = "p" * 12
+    valid_values["credentials"]["adminAccountToken"] = "t" * 16
+    render(valid_values)
 
 
 def test_bad_worker_credential_key_is_refused(existing_secret_values):
@@ -578,11 +600,32 @@ def test_rr12_prefect_database_credential_reaches_only_postgresql_and_prefect(
     assert components_reading(documents, key) == expected
 
 
-def test_rr13_api_principals_reach_only_the_api(valid_values):
+@pytest.mark.parametrize(
+    "key", ["INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD", "INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN"]
+)
+def test_rr13_admin_account_credentials_reach_only_the_api(valid_values, key):
+    valid_values["credentials"]["adminAccountToken"] = TEST_CREDENTIAL
     documents = render(valid_values)
-    assert components_reading(documents, "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS") == {
-        "api"
-    }
+    assert components_reading(documents, key) == {"api"}
+
+
+def test_rr13_no_component_reads_the_removed_bearer_tokens(valid_values):
+    documents = render(valid_values)
+    assert components_reading(documents, "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS") == set()
+
+
+@pytest.mark.parametrize("token", ["", TEST_CREDENTIAL])
+def test_rr13_admin_token_is_optional(valid_values, token):
+    """The token key is optional in the Secret, so an existing Secret may leave it out."""
+    valid_values["credentials"]["adminAccountToken"] = token
+    documents = render(valid_values)
+    secret = find(documents, "Secret", "sync-infrahub-sync")
+    assert ("INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN" in secret["data"]) == bool(token)
+    api = main_container(workload(documents, "api"))
+    entry = env_value(api, "INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN")
+    assert entry["valueFrom"]["secretKeyRef"]["optional"] is True
+    password = env_value(api, "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD")
+    assert "optional" not in password["valueFrom"]["secretKeyRef"]
 
 
 def test_rr14_worker_credentials_reach_only_the_worker(valid_values):
@@ -882,6 +925,21 @@ def test_rr22_unset_optional_settings_are_absent(valid_values):
             for entry in container.get("env", []):
                 if "value" in entry:
                     assert entry["value"] != "", entry["name"]
+
+
+def test_rr22_session_idle_seconds_is_passed_when_set(valid_values):
+    container = main_container(workload(render(valid_values), "api"))
+    assert env_value(container, "INFRAHUB_SYNC_SESSION_IDLE_SECONDS") is None
+    valid_values["settings"] = {"sessionIdleSeconds": 3600}
+    container = main_container(workload(render(valid_values), "api"))
+    assert env_value(container, "INFRAHUB_SYNC_SESSION_IDLE_SECONDS")["value"] == "3600"
+
+
+@pytest.mark.parametrize("value", [59, "abc", "3600.5", -60])
+def test_bad_session_idle_seconds_is_refused(existing_secret_values, value):
+    existing_secret_values["settings"] = {"sessionIdleSeconds": value}
+    error = render(existing_secret_values, expect_failure=True)
+    assert "settings.sessionIdleSeconds must be a whole number of at least 60" in error
 
 
 def test_rr22_prefect_ui_url_is_passed_when_set(valid_values):

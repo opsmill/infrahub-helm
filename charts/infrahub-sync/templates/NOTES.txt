@@ -13,8 +13,9 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
 
   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ $api }} {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
 
-  Then, in another terminal, give the CLI a token of the bearer tokens in the credentials
-  Secret. `read -rs` reads the token without printing it or writing it to the shell history:
+  Then, in another terminal, give the CLI the token of the `admin` account
+  (INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN in the credentials Secret) or a token that an account
+  created. `read -rs` reads the token without printing it or writing it to the shell history:
 
   export INFRAHUB_SYNC_API_URL=http://127.0.0.1:{{ .Values.api.service.port }}
   read -rs INFRAHUB_SYNC_API_TOKEN && export INFRAHUB_SYNC_API_TOKEN

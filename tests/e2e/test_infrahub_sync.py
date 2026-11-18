@@ -290,7 +290,7 @@ async def check_sync_api(release: dict) -> None:
         principal = (
             await client.get("/api/me", headers={"Authorization": f"Bearer {release['token']}"})
         ).raise_for_status().json()
-        assert principal["actor"] == "operator", principal
+        assert principal["actor"] == "admin", principal
         assert principal["administrator"] is True, principal
 
         # The worker reports its heartbeat a few seconds after it starts. A worker that exited

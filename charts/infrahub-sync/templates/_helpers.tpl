@@ -488,7 +488,8 @@ are the variable names of the Compose `.env` file.
 */}}
 {{- define "infrahub-sync.secret.data" -}}
 {{- $keys := dict
-  "INFRAHUB_SYNC_SERVICE_BEARER_TOKENS" .Values.credentials.bearerTokens
+  "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD" .Values.credentials.adminAccountPassword
+  "INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN" .Values.credentials.adminAccountToken
   "INFRAHUB_SYNC_PREFECT_AUTH_STRING" .Values.credentials.prefectAuthString
   "INFRAHUB_SYNC_S3_ACCESS_KEY" .Values.credentials.s3AccessKey
   "INFRAHUB_SYNC_S3_SECRET_KEY" .Values.credentials.s3SecretKey

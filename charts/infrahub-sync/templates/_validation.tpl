@@ -8,7 +8,7 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- define "infrahub-sync.validate" -}}
 {{- $credentials := .Values.credentials }}
 {{- if not $credentials.existingSecret }}
-{{- $_ := required "credentials.bearerTokens is required when credentials.existingSecret is empty" $credentials.bearerTokens }}
+{{- $_ := required "credentials.adminAccountPassword is required when credentials.existingSecret is empty" $credentials.adminAccountPassword }}
 {{- $_ = required "credentials.prefectAuthString is required when credentials.existingSecret is empty" $credentials.prefectAuthString }}
 {{- $_ = required "credentials.s3AccessKey is required when credentials.existingSecret is empty" $credentials.s3AccessKey }}
 {{- $_ = required "credentials.s3SecretKey is required when credentials.existingSecret is empty" $credentials.s3SecretKey }}
@@ -43,6 +43,30 @@ number, so 3.0 would render as 3 and 12345678 as 1.2345678e+07. Each must be a s
 {{- range $name, $value := $strings }}
 {{- if not (or (kindIs "string" $value) (kindIs "invalid" $value)) }}
 {{- fail (printf "%s must be a string: quote it in the values, for example \"17\" instead of 17, or pass it with --set-string. Helm reads an unquoted number as a floating-point number, which can change the value (3.0 becomes 3, 12345678 becomes 1.2345678e+07)" $name) }}
+{{- end }}
+{{- end }}
+{{- /*
+The rules that the Sync API applies at start to the `admin` account variables, checked here so
+that the render refuses a value that would stop the Sync API. The messages never hold the value.
+`len` counts bytes, not characters, so a password of 12 characters or more that the Sync API
+accepts always passes. The upper limit of 1,024 characters is left to the Sync API.
+*/}}
+{{- if not $credentials.existingSecret }}
+{{- if lt (len $credentials.adminAccountPassword) 12 }}
+{{- fail "credentials.adminAccountPassword must be at least 12 characters long" }}
+{{- end }}
+{{- with $credentials.adminAccountToken }}
+{{- if lt (len .) 16 }}
+{{- fail "credentials.adminAccountToken must be at least 16 characters long, or empty for no admin token" }}
+{{- end }}
+{{- if or (hasPrefix "ifs_pat_" .) (hasPrefix "ifs_ses_" .) }}
+{{- fail "credentials.adminAccountToken must not start with ifs_pat_ or ifs_ses_: these prefixes are reserved for the tokens that the Sync API creates" }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with .Values.settings.sessionIdleSeconds }}
+{{- if not (and (regexMatch "^[0-9]+$" (toString .)) (ge (int .) 60)) }}
+{{- fail "settings.sessionIdleSeconds must be a whole number of at least 60, or empty for the Sync API's default of 28800" }}
 {{- end }}
 {{- end }}
 {{- if and .Values.objectStore.enabled .Values.s3.endpointUrl }}
