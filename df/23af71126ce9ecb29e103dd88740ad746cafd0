@@ -1,0 +1,50 @@
+charts/infrahub-sync/templates/_helpers.tpl
+  s_cf9ada8f865389::t_125dbdbc7a314d 491-492
+charts/infrahub-sync/templates/NOTES.txt
+  s_cf9ada8f865389::t_f81adcfe0ca61c 16-18
+charts/infrahub-sync/templates/_validation.tpl
+  s_cf9ada8f865389::t_b89ade892a55be 11
+  s_cf9ada8f865389::t_98844985830aa5 48-71
+charts/infrahub-sync/README.md.gotmpl
+  s_cf9ada8f865389::t_c6ef490750a74a 62-63
+  s_cf9ada8f865389::t_ddbfdc2e1e7ade 77-86
+charts/infrahub-sync/changelog/+local-accounts.changed.md
+  s_cf9ada8f865389::t_6417c46c740488 1
+charts/infrahub-sync/values.yaml
+  s_cf9ada8f865389::t_c62f99ba423545 71-74
+  s_cf9ada8f865389::t_3cce0b75c56d25 30-38
+charts/infrahub-sync/templates/api.yaml
+  s_cf9ada8f865389::t_1ef6708bd1bbcd 73-81,84-87
+charts/infrahub-sync/README.md
+  s_cf9ada8f865389::t_607adedd338722 63-64,78-87,143-145,246,250
+tests/e2e/conftest.py
+  s_83e4ce4f9ff64e::t_d0a130680df50e 1206-1207
+tests/e2e/test_infrahub_sync.py
+  s_83e4ce4f9ff64e::t_31a0fd538e966b 293
+tests/unit/test_infrahub_sync_chart.py
+  s_83e4ce4f9ff64e::t_64c8b20d46991c 72,104,144,159-182,603-607,609-628,930-944
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df23af71126ce9ecb29e103dd88740ad746cafd0",
+  "prompts": {},
+  "sessions": {
+    "s_83e4ce4f9ff64e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a389532348c1bc6b9",
+        "model": "unknown"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    },
+    "s_cf9ada8f865389": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f9780ee3-7e3e-45ca-950a-97499e57bc75",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
