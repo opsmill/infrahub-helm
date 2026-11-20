@@ -1,3 +1,9 @@
+## [infrahub-enterprise-4.27.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.27.2) - 2026-11-20
+
+### Security
+
+- Neo4j now starts with the Java option `-XX:-UseBASE64Intrinsics` by default, through the `infrahub` chart (`infrahub.neo4j.jvm.additionalJvmArguments`). The option turns off the accelerated Base64 routine of Java, which mitigates [CVE-2026-114938](https://access.redhat.com/security/vulnerabilities/RHSB-2026-018) on x86-64 servers whose processor has AVX-512 VBMI. Upgrading the chart restarts Neo4j, so requests fail until it is back. A list that you set in `infrahub.neo4j.jvm.additionalJvmArguments` in your own values replaces the default list: add the option to your list.
+
 ## [infrahub-enterprise-4.27.0](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-enterprise-4.27.0) - 2026-11-16
 
 ### Changed
