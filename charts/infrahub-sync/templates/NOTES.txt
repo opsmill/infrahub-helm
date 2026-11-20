@@ -1,0 +1,32 @@
+{{- $api := include "infrahub-sync.componentName" (dict "context" . "component" "api") -}}
+{{- $bootstrap := include "infrahub-sync.selectorLabels" (dict "context" . "component" "bootstrap") | replace ": " "=" | replace "\n" "," -}}
+Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is being deployed in the namespace {{ .Release.Namespace }}.
+
+1. Wait for the bootstrap Job to complete:
+
+  kubectl --namespace {{ .Release.Namespace }} wait --for=condition=complete --timeout=10m job -l {{ $bootstrap }}
+
+   The Sync API and the worker exit at start until the Job has written the bootstrap record,
+   and Kubernetes restarts them. These restarts are expected.
+
+2. Reach the Sync API from your workstation:
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ $api }} {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
+
+  Then, in another terminal, give the CLI the token of the `admin` account
+  (INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN in the credentials Secret) or a token that an account
+  created. `read -rs` reads the token without printing it or writing it to the shell history:
+
+  export INFRAHUB_SYNC_API_URL=http://127.0.0.1:{{ .Values.api.service.port }}
+  read -rs INFRAHUB_SYNC_API_TOKEN && export INFRAHUB_SYNC_API_TOKEN
+  infrahub-sync whoami
+
+3. Or run the CLI in the cluster, from the Sync image, with the token read as in step 2. The
+   token becomes part of the pod definition, so prefer step 2 on a shared cluster:
+
+  kubectl --namespace {{ .Release.Namespace }} run infrahub-sync-cli --rm -it --restart=Never \
+    --image={{ include "infrahub-sync.image" . }} \
+    --overrides='{{ dict "apiVersion" "v1" "spec" (dict "enableServiceLinks" false "imagePullSecrets" .Values.imagePullSecrets) | toJson }}' \
+    --env=INFRAHUB_SYNC_API_URL=http://{{ $api }}:{{ .Values.api.service.port }} \
+    --env=INFRAHUB_SYNC_API_TOKEN="$INFRAHUB_SYNC_API_TOKEN" \
+    --command -- infrahub-sync whoami

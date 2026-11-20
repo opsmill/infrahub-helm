@@ -1,0 +1,130 @@
+{{- include "infrahub-sync.validate" . }}
+{{- $name := include "infrahub-sync.componentName" (dict "context" . "component" "api") }}
+{{- $component := .Values.api }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  type: {{ $component.service.type }}
+  ports:
+    - name: http
+      port: {{ $component.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "api") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "api") | nindent 4 }}
+spec:
+  replicas: {{ $component.replicaCount }}
+  # The product schema is initialized under an advisory lock, so two API pods can overlap.
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "api") | nindent 8 }}
+        {{- with $component.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        # The Sync API does not read the worker credentials Secret, so a change to it does not
+        # restart the Sync API.
+        checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}
+        checksum/ca: {{ include "infrahub-sync.checksum.ca" . | quote }}
+        {{- with $component.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "infrahub-sync.pod.common" (dict "context" . "values" $component) | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          image: {{ include "infrahub-sync.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            {{- include "infrahub-sync.tini" . | nindent 12 }}
+            - python
+            - -m
+            - infrahub_sync.service.serve
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            {{- include "infrahub-sync.env.storage" . | nindent 12 }}
+            {{- include "infrahub-sync.env.ca" . | nindent 12 }}
+            - name: INFRAHUB_SYNC_SERVICE_HOST
+              value: "0.0.0.0"
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD" "key" "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD") | nindent 12 }}
+            # Optional: the chart leaves the key out of its Secret when the value is empty, and
+            # an existing Secret may not hold it. Without it, the `admin` account has no token.
+            - name: INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "infrahub-sync.secretName" . }}
+                  key: INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN
+                  optional: true
+            - name: INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS
+              value: {{ .Values.settings.runAdmissionTtlSeconds | toString | quote }}
+            {{- with .Values.settings.sessionIdleSeconds }}
+            - name: INFRAHUB_SYNC_SESSION_IDLE_SECONDS
+              value: {{ . | toString | quote }}
+            {{- end }}
+            - name: INFRAHUB_SYNC_REQUIRE_APPROVAL
+              value: {{ .Values.settings.requireApproval | toString | quote }}
+            - name: PREFECT_WORKER_QUERY_SECONDS
+              value: {{ .Values.settings.workerQuerySeconds | toString | quote }}
+            {{- include "infrahub-sync.env.destinationCredential" . | nindent 12 }}
+            {{- with .Values.settings.prefectUiUrl }}
+            - name: INFRAHUB_SYNC_PREFECT_UI_URL
+              value: {{ . | toString | quote }}
+            {{- end }}
+            {{- with $component.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          {{- with $component.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- include "infrahub-sync.mounts.scratch" . | nindent 12 }}
+            {{- include "infrahub-sync.mounts.ca" . | nindent 12 }}
+      volumes:
+        {{- include "infrahub-sync.volumes.scratch" . | nindent 8 }}
+        {{- include "infrahub-sync.volumes.ca" . | nindent 8 }}

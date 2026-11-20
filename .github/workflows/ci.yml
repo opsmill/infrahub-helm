@@ -23,6 +23,7 @@ jobs:
       backup: ${{ steps.filter.outputs.backup }}
       observability: ${{ steps.filter.outputs.observability }}
       mcp: ${{ steps.filter.outputs.mcp }}
+      sync: ${{ steps.filter.outputs.sync }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: "actions/checkout@v5"
@@ -42,6 +43,8 @@ jobs:
             mcp:
               - 'charts/infrahub-mcp/**'
               - 'charts/infrahub/**'
+            sync:
+              - 'charts/infrahub-sync/**'
             e2e:
               - 'tests/**'
               - 'pyproject.toml'
@@ -107,11 +110,28 @@ jobs:
       - name: "Linting: helm lint infrahub-mcp"
         run: "helm lint charts/infrahub-mcp"
 
+  helm-lint-sync:
+    needs: changes
+    if: ${{ needs.changes.outputs.sync == 'true' }}
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - uses: "actions/checkout@v5"
+        with:
+          submodules: true
+      - uses: "azure/setup-helm@v5.0.0"
+      # The chart refuses to render without credentials; the lint values name
+      # an existing Secret.
+      - name: "Linting: helm lint infrahub-sync"
+        run: "helm lint charts/infrahub-sync -f charts/infrahub-sync/ci/lint-values.yaml"
+
   unit:
     runs-on: "ubuntu-latest"
     timeout-minutes: 10
     steps:
       - uses: "actions/checkout@v5"
+      # The unit tests of the infrahub-sync chart render it with `helm template`.
+      - uses: "azure/setup-helm@v5.0.0"
       - uses: "actions/setup-python@v6"
         with:
           python-version: "3.14"
@@ -210,3 +230,31 @@ jobs:
       - uses: "./.github/actions/setup-e2e"
       - name: "Run e2e tests: infrahub-mcp"
         run: "uv run pytest -v -m mcp tests/e2e"
+
+  # Before Infrahub Sync 3.0.0 the registry serves the Sync image only to
+  # invited testers. The job logs in with the repository's HARBOR_USERNAME and
+  # HARBOR_PASSWORD, the secrets the image workflows use. Where they are not
+  # available, as on a pull request from a fork, the test is skipped
+  # (tests/README.md). A secret that is not available reads as an empty string.
+  e2e-infrahub-sync:
+    needs: changes
+    if: ${{ needs.changes.outputs.sync == 'true' || needs.changes.outputs.e2e == 'true' }}
+    runs-on:
+      group: huge-runners
+    timeout-minutes: 40
+    env:
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+    steps:
+      - uses: "actions/checkout@v5"
+        with:
+          submodules: true
+      - uses: "./.github/actions/setup-e2e"
+      - name: "Report that the infrahub-sync e2e test does not run without a registry login"
+        if: ${{ env.HARBOR_USERNAME == '' || env.HARBOR_PASSWORD == '' }}
+        run: |
+          message="The infrahub-sync end-to-end test did not run: the Sync image needs a registry login until release 3.0.0."
+          echo "::warning title=infrahub-sync end-to-end test skipped::${message}"
+          echo "${message}" >> "$GITHUB_STEP_SUMMARY"
+      - name: "Run e2e tests: infrahub-sync"
+        run: "uv run pytest -v -m sync tests/e2e"

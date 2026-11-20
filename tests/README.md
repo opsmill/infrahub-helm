@@ -13,6 +13,7 @@ chart changed (see `.github/workflows/ci.yml`):
 | `infrahub-backup`        | `backup`        | Seeds a tag, runs the backup Job to an S3 bucket served by Garage, deletes the tag, runs the restore Job, asserts the tag is back. The Jobs reach Garage over HTTPS with a certificate issued by a private CA that the test generates, and trust it through `extraEnv`, `extraVolumes` and `extraVolumeMounts`. A restore without these values must fail certificate verification. `test_infrahub_backup_external_neo4j.py` deploys Infrahub with `neo4j.enabled=false`, pointed at a Neo4j 2025.10.1 Enterprise server in the `neo4j-external` namespace. The backup Job must capture that database with the tools in its own container and create no Job and no Secret. The restore Job, with `externalDatabase.allowRestore`, must bring back the data from before the backup. |
 | `infrahub-observability` | `observability` | Deploys Infrahub + the stack together (tracing → Tempo, Alloy scraping Infrahub), drives API traffic, then asserts via Grafana that Infrahub metrics (Prometheus) and Infrahub traces (Tempo) are queryable. |
 | `infrahub-mcp`           | `mcp`           | Deploys Infrahub with the MCP sub-chart behind a shared ingress and drives it over the streamable-HTTP transport. |
+| `infrahub-sync`          | `sync`          | Installs the standalone Sync chart and waits until its bootstrap Job completes. Checks that `/api/version` returns a server version, that `/api/me` refuses a request without a token and returns the `operator` administrator with the API token, and that `/api/status` reports a ready worker within 330 seconds. A worker that exited before the bootstrap wrote its record starts again only after its restart back-off, which Kubernetes caps at 300 seconds. Then upgrades with a changed `s3.prefix` and `settings.workPool` and a CPU request in `bootstrap.resources` that no node can meet, so the new bootstrap Job stays `Pending`. While it is held, checks that the new Sync API pod does not become `Ready` and logs the start check's refusal for the new work pool. Then upgrades with a small CPU request, checks that each upgrade replaces the bootstrap Job with one of a new name and that the last one completes, waits for the Sync API and worker Deployments to roll out, checks that the new Sync API pod became `Ready` at or after the time the bootstrap logged its record (the worker, which has no readiness probe, may be up to 5 seconds earlier), and runs the Sync API checks again. With an image without the start check, the test fails during the hold. |
 
 Charts are installed from the local `charts/` directory (cross-chart
 dependencies are rewritten to local `file://` paths), so the tests reflect the
@@ -26,7 +27,25 @@ working tree rather than the published OCI charts.
   from upstream via `scripts/sync-upstream.sh`)
 
 All images and charts are pulled anonymously from `registry.opsmill.io`, so no
-registry credentials are required.
+registry credentials are required, except for the Sync image. Before Infrahub
+Sync 3.0.0, the registry serves that image only to invited testers. The `sync`
+test uses the image in `INFRAHUB_SYNC_E2E_IMAGE` when it is set, otherwise the
+registry image of the chart's `appVersion`. An image in the local Docker store
+is imported into the vcluster. To pull from the registry with a login, set
+`HARBOR_USERNAME` and `HARBOR_PASSWORD`. When
+the image is in neither place and no login is set, the test is skipped. In CI,
+the `e2e-infrahub-sync` job reads the login from the repository secrets of the
+same names, which the image workflows of this repository already use. When
+either secret is not available, as on a pull request from a fork, the job
+writes a warning annotation and a job summary line that say the test did not
+run and why.
+
+Until the chart's `appVersion` names a Sync image that the registry serves and
+that contains the bootstrap record check and `/usr/bin/tini`, the job fails: it
+fails when the registry does not serve the `appVersion` image, and on an image
+without the check or without tini. The chart's default `appVersion`, 3.0.0a5,
+has neither. Whether the `HARBOR_USERNAME` account can read the restricted Sync
+image is not known.
 
 ## Running
 

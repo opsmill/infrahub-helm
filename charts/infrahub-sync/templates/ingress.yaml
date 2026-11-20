@@ -1,0 +1,59 @@
+{{- include "infrahub-sync.validate" . }}
+{{- if .Values.ingress.enabled }}
+{{- $apiName := include "infrahub-sync.componentName" (dict "context" . "component" "api") }}
+{{- $apiPort := .Values.api.service.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "infrahub-sync.fullname" . }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" .) | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.ingressClassName }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.hostname | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ $apiName }}
+                port:
+                  number: {{ $apiPort }}
+    {{- range .Values.ingress.extraHosts }}
+    - host: {{ .hostname | quote }}
+      http:
+        paths:
+          - path: {{ default $.Values.ingress.path .path }}
+            pathType: {{ default $.Values.ingress.pathType .pathType }}
+            backend:
+              service:
+                name: {{ $apiName }}
+                port:
+                  number: {{ $apiPort }}
+    {{- end }}
+  {{- if or .Values.ingress.tls .Values.ingress.extraTls }}
+  tls:
+    {{- if .Values.ingress.tls }}
+    - hosts:
+        - {{ .Values.ingress.hostname | quote }}
+      {{- range .Values.ingress.extraHosts }}
+        {{- if .hostname }}
+        - {{ .hostname | quote }}
+        {{- end }}
+      {{- end }}
+      secretName: {{ include "infrahub-sync.fullname" . }}-tls
+    {{- end }}
+    {{- with .Values.ingress.extraTls }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
