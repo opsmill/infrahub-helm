@@ -190,6 +190,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.config."dbms.security.auth_minimum_password_length" | string | `"4"` |  |
 | neo4j.config."dbms.security.procedures.unrestricted" | string | `"apoc.*"` |  |
 | neo4j.enabled | bool | `true` |  |
+| neo4j.jvm | object | `{"additionalJvmArguments":["-XX:-UseBASE64Intrinsics"]}` | Java options added to the Neo4j JVM. The default turns off the accelerated Base64 routine of Java, which mitigates CVE-2026-114938 on x86-64 servers whose processor has AVX-512 VBMI. A list in your own values replaces this list, so keep the option in it. |
 | neo4j.logInitialPassword | bool | `false` |  |
 | neo4j.nameOverride | string | `"database"` |  |
 | neo4j.neo4j.acceptLicenseAgreement | string | `"no"` |  |
@@ -208,7 +209,7 @@ The chart offers the ability to configure persistence for the database and other
 | neo4j.volumes.data.mode | string | `"volume"` |  |
 | neo4j.volumes.data.volume.emptyDir | object | `{}` |  |
 | prefect-server.enabled | bool | `true` |  |
-| prefect-server.global.prefect.image.prefectTag | string | `"1.11.4"` |  |
+| prefect-server.global.prefect.image.prefectTag | string | `"1.12.2"` |  |
 | prefect-server.global.prefect.image.repository | string | `"registry.opsmill.io/opsmill/infrahub"` |  |
 | prefect-server.postgresql.enabled | bool | `true` |  |
 | prefect-server.postgresql.image.repository | string | `"bitnamilegacy/postgresql"` |  |
