@@ -112,6 +112,12 @@ neo4j:
   config:
     dbms.security.auth_minimum_password_length: "4"
     dbms.security.procedures.unrestricted: apoc.*
+  # -- Java options added to the Neo4j JVM. The default turns off the accelerated Base64
+  # routine of Java, which mitigates CVE-2026-114938 on x86-64 servers whose processor has
+  # AVX-512 VBMI. A list in your own values replaces this list, so keep the option in it.
+  jvm:
+    additionalJvmArguments:
+      - "-XX:-UseBASE64Intrinsics"
   logInitialPassword: false
 
 # ----------- Infrahub Task Worker -----------
