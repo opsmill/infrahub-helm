@@ -30,3 +30,10 @@ Infrahub Sync {{ include "infrahub-sync.image" . | splitList ":" | last }} is be
     --env=INFRAHUB_SYNC_API_URL=http://{{ $api }}:{{ .Values.api.service.port }} \
     --env=INFRAHUB_SYNC_API_TOKEN="$INFRAHUB_SYNC_API_TOKEN" \
     --command -- infrahub-sync whoami
+
+4. Store the tokens and passwords of your sources and destinations in the Sync API with
+   `infrahub-sync credentials set <name>`, as an administrator, and name them in your packages.
+   The worker reads their values from the Sync API at {{ include "infrahub-sync.workerApiUrl" . }}
+   with the token of the `worker` account (INFRAHUB_SYNC_WORKER_TOKEN in the credentials Secret).
+   Keep a copy of INFRAHUB_SYNC_ENCRYPTION_KEY from the credentials Secret: changing it is not
+   supported, and losing it means entering every stored credential again.

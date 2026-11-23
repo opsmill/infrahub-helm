@@ -9,6 +9,8 @@ Kubernetes then names a missing key in the status of the pod that needs it.
 {{- $credentials := .Values.credentials }}
 {{- if not $credentials.existingSecret }}
 {{- $_ := required "credentials.adminAccountPassword is required when credentials.existingSecret is empty" $credentials.adminAccountPassword }}
+{{- $_ = required "credentials.encryptionKey is required when credentials.existingSecret is empty" $credentials.encryptionKey }}
+{{- $_ = required "credentials.workerToken is required when credentials.existingSecret is empty" $credentials.workerToken }}
 {{- $_ = required "credentials.prefectAuthString is required when credentials.existingSecret is empty" $credentials.prefectAuthString }}
 {{- $_ = required "credentials.s3AccessKey is required when credentials.existingSecret is empty" $credentials.s3AccessKey }}
 {{- $_ = required "credentials.s3SecretKey is required when credentials.existingSecret is empty" $credentials.s3SecretKey }}
@@ -37,9 +39,7 @@ number, so 3.0 would render as 3 and 12345678 as 1.2345678e+07. Each must be a s
 {{- range $key, $value := .Values.credentials }}
 {{- $_ := set $strings (printf "credentials.%s" $key) $value }}
 {{- end }}
-{{- range $key, $value := .Values.worker.credentials }}
-{{- $_ := set $strings (printf "worker.credentials.%s" $key) $value }}
-{{- end }}
+{{- $_ := set $strings "worker.apiUrl" .Values.worker.apiUrl }}
 {{- range $name, $value := $strings }}
 {{- if not (or (kindIs "string" $value) (kindIs "invalid" $value)) }}
 {{- fail (printf "%s must be a string: quote it in the values, for example \"17\" instead of 17, or pass it with --set-string. Helm reads an unquoted number as a floating-point number, which can change the value (3.0 becomes 3, 12345678 becomes 1.2345678e+07)" $name) }}
@@ -63,6 +63,28 @@ accepts always passes. The upper limit of 1,024 characters is left to the Sync A
 {{- fail "credentials.adminAccountToken must not start with ifs_pat_ or ifs_ses_: these prefixes are reserved for the tokens that the Sync API creates" }}
 {{- end }}
 {{- end }}
+{{- /*
+The key of stored credentials: the standard base64 encoding of 32 bytes is exactly 43 characters
+of the base64 alphabet followed by one `=`.
+*/}}
+{{- if not (regexMatch "^[A-Za-z0-9+/]{43}=$" ($credentials.encryptionKey | toString | trim)) }}
+{{- fail "credentials.encryptionKey must be 32 bytes, base64-encoded: generate one with python -c \"import base64,os;print(base64.b64encode(os.urandom(32)).decode())\"" }}
+{{- end }}
+{{- $workerToken := $credentials.workerToken | toString }}
+{{- if lt (len $workerToken) 16 }}
+{{- fail "credentials.workerToken must be at least 16 characters long" }}
+{{- end }}
+{{- if or (hasPrefix "ifs_pat_" $workerToken) (hasPrefix "ifs_ses_" $workerToken) }}
+{{- fail "credentials.workerToken must not start with ifs_pat_ or ifs_ses_: these prefixes are reserved for the tokens that the Sync API creates" }}
+{{- end }}
+{{- if and $credentials.adminAccountToken (eq $workerToken ($credentials.adminAccountToken | toString)) }}
+{{- fail "credentials.workerToken must differ from credentials.adminAccountToken" }}
+{{- end }}
+{{- end }}
+{{- with .Values.worker.apiUrl }}
+{{- if not (regexMatch "^https?://[^/@[:space:]]+(/[^[:space:]]*)?$" (toString .)) }}
+{{- fail "worker.apiUrl must be an http:// or https:// address with a host, and no user name or password, or empty for the Sync API Service of the release" }}
+{{- end }}
 {{- end }}
 {{- with .Values.settings.sessionIdleSeconds }}
 {{- if not (and (regexMatch "^[0-9]+$" (toString .)) (ge (int .) 60)) }}
@@ -78,11 +100,6 @@ accepts always passes. The upper limit of 1,024 characters is left to the Sync A
 {{- with .Values.s3.addressingStyle }}
 {{- if not (has (toString .) (list "path" "virtual")) }}
 {{- fail (printf "s3.addressingStyle must be \"path\" or \"virtual\", not %q" (toString .)) }}
-{{- end }}
-{{- end }}
-{{- range $key, $_ := .Values.worker.credentials }}
-{{- if not (regexMatch "^INFRAHUB_SYNC_CREDENTIAL_[A-Za-z0-9_]+$" $key) }}
-{{- fail (printf "worker.credentials key %q must match ^INFRAHUB_SYNC_CREDENTIAL_[A-Za-z0-9_]+$" $key) }}
 {{- end }}
 {{- end }}
 {{- if and .Values.ingress.enabled .Values.gatewayApi.enabled }}

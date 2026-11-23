@@ -61,6 +61,8 @@ The chart refuses to render without credentials. Create a Secret that holds them
 | --- | --- | --- |
 | `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` | always | Sync API |
 | `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` | never | Sync API |
+| `INFRAHUB_SYNC_ENCRYPTION_KEY` | always | Sync API |
+| `INFRAHUB_SYNC_WORKER_TOKEN` | always | Sync API, worker |
 | `INFRAHUB_SYNC_PREFECT_AUTH_STRING` | always | Prefect server, Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_S3_ACCESS_KEY` | always | Sync API, worker, bootstrap, bundled object store |
 | `INFRAHUB_SYNC_S3_SECRET_KEY` | always | Sync API, worker, bootstrap, bundled object store |
@@ -69,7 +71,6 @@ The chart refuses to render without credentials. Create a Secret that holds them
 | `INFRAHUB_SYNC_PREFECT_PASSWORD` | bundled PostgreSQL | PostgreSQL, Prefect server |
 | `INFRAHUB_SYNC_DATABASE_URL` | external PostgreSQL | Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_PREFECT_DATABASE_URL` | external PostgreSQL | Prefect server |
-| `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` | never | Sync API, worker |
 
 `INFRAHUB_SYNC_PRODUCT_PASSWORD` and `INFRAHUB_SYNC_PREFECT_PASSWORD` are used in connection
 strings, so they must be URL-safe.
@@ -83,6 +84,31 @@ change the Secret and restart the Sync API, for example with
 existing Secret at render time, so with `credentials.existingSecret` the Sync API checks these
 rules at start and does not start when a value breaks them. To use the CLI, set
 `INFRAHUB_SYNC_API_TOKEN` to the `admin` token or to a token that an account created.
+
+## Stored credentials
+
+The Secret holds no token or password of a source or destination. An administrator stores them
+in the Sync API with `infrahub-sync credentials set <name>`, and a package names them. The Sync
+API encrypts each value with `INFRAHUB_SYNC_ENCRYPTION_KEY` before it writes it to PostgreSQL.
+For each run, the worker reads the values that the run names from the Sync API, with the token of
+the `worker` account.
+
+- `INFRAHUB_SYNC_ENCRYPTION_KEY` is 32 bytes, base64-encoded. Only the Sync API receives it.
+  Generate one with
+  `python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"`. Changing it is
+  not supported, and losing it means entering every stored credential again, so keep a copy
+  outside the cluster.
+- `INFRAHUB_SYNC_WORKER_TOKEN` is the token of the `worker` account. The Sync API applies it at
+  each start, and the worker presents it. It follows the rules of the `admin` token and must
+  differ from it.
+- `worker.apiUrl` sets `INFRAHUB_SYNC_API_URL`, the address at which the worker reaches the Sync
+  API. Empty means the Sync API Service of the release, over plain HTTP inside the cluster: the
+  worker token and the credential values then cross the pod network unencrypted. The worker also
+  accepts an `https://` address and trusts the certificates of `caCertificates`.
+
+The chart checks the key and the worker token at render time when it creates the Secret. With
+`credentials.existingSecret`, the Sync API checks them at start and does not start when a value
+breaks a rule; its message names the variable.
 
 ## Install example
 

@@ -19,6 +19,11 @@ CHART = Path(__file__).resolve().parents[2] / "charts" / "infrahub-sync"
 
 # Placeholder credentials for render tests. They are never used against a service.
 TEST_CREDENTIAL = "test-" * 4
+# A different placeholder, because the worker token must differ from the admin token, which
+# several tests set to TEST_CREDENTIAL.
+TEST_WORKER_TOKEN = "worker-test-" * 2
+# The base64 encoding of 32 zero bytes: the shape of the key, not a key anyone uses.
+TEST_ENCRYPTION_KEY = base64.b64encode(bytes(32)).decode()
 
 
 def render(
@@ -70,6 +75,8 @@ def valid_values() -> dict:
     return {
         "credentials": {
             "adminAccountPassword": TEST_CREDENTIAL,
+            "encryptionKey": TEST_ENCRYPTION_KEY,
+            "workerToken": TEST_WORKER_TOKEN,
             "prefectAuthString": f"prefect:{TEST_CREDENTIAL}",
             "s3AccessKey": TEST_CREDENTIAL,
             "s3SecretKey": TEST_CREDENTIAL,
@@ -102,6 +109,8 @@ def test_valid_values_create_the_secret_with_set_keys_only(valid_values):
     assert secret is not None
     assert set(secret["data"]) == {
         "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD",
+        "INFRAHUB_SYNC_ENCRYPTION_KEY",
+        "INFRAHUB_SYNC_WORKER_TOKEN",
         "INFRAHUB_SYNC_PREFECT_AUTH_STRING",
         "INFRAHUB_SYNC_S3_ACCESS_KEY",
         "INFRAHUB_SYNC_S3_SECRET_KEY",
@@ -142,6 +151,8 @@ def test_service_account_does_not_mount_its_token(existing_secret_values):
     "value",
     [
         "adminAccountPassword",
+        "encryptionKey",
+        "workerToken",
         "prefectAuthString",
         "s3AccessKey",
         "s3SecretKey",
@@ -180,10 +191,66 @@ def test_admin_account_credentials_of_minimum_length_render(valid_values):
     render(valid_values)
 
 
-def test_bad_worker_credential_key_is_refused(existing_secret_values):
-    existing_secret_values["worker"] = {"credentials": {"NETBOX_TOKEN": "x"}}
+@pytest.mark.parametrize(
+    ("value", "credential", "message"),
+    [
+        ("workerToken", "short-token-123", "at least 16 characters"),
+        ("workerToken", "ifs_pat_" + TEST_WORKER_TOKEN, "must not start with ifs_pat_"),
+        ("workerToken", "ifs_ses_" + TEST_WORKER_TOKEN, "must not start with ifs_pat_"),
+        ("workerToken", TEST_CREDENTIAL, "must differ from credentials.adminAccountToken"),
+        ("encryptionKey", base64.b64encode(bytes(16)).decode(), "32 bytes, base64-encoded"),
+        ("encryptionKey", base64.b64encode(bytes(33)).decode(), "32 bytes, base64-encoded"),
+        ("encryptionKey", base64.urlsafe_b64encode(b"\xff" * 32).decode(), "32 bytes"),
+        ("encryptionKey", "k" * 43 + "!", "32 bytes, base64-encoded"),
+    ],
+    ids=[
+        "short-worker-token",
+        "worker-token-pat-prefix",
+        "worker-token-session-prefix",
+        "worker-token-equals-admin-token",
+        "key-16-bytes",
+        "key-33-bytes",
+        "key-url-safe-alphabet",
+        "key-not-base64",
+    ],
+)
+def test_bad_stored_credentials_setting_is_refused(valid_values, value, credential, message):
+    valid_values["credentials"]["adminAccountToken"] = TEST_CREDENTIAL
+    valid_values["credentials"][value] = credential
+    error = render(valid_values, expect_failure=True)
+    assert f"credentials.{value} must" in error
+    assert message in error
+    assert credential not in error
+
+
+def test_worker_token_of_minimum_length_renders(valid_values):
+    valid_values["credentials"]["workerToken"] = "w" * 16
+    render(valid_values)
+
+
+def test_stored_credentials_settings_are_not_checked_with_an_existing_secret(
+    existing_secret_values,
+):
+    """The chart cannot read an existing Secret; the Sync API checks the values at start."""
+    documents = render(existing_secret_values)
+    assert find(documents, "Secret", "sync-infrahub-sync") is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "sync-api:8000",
+        "ftp://sync-api:8000",
+        "http://user:password@sync-api:8000",
+        " http://sync-api:8000",
+        "http://",
+    ],
+    ids=["no-scheme", "other-scheme", "user-info", "leading-space", "no-host"],
+)
+def test_bad_worker_api_url_is_refused(existing_secret_values, url):
+    existing_secret_values["worker"] = {"apiUrl": url}
     error = render(existing_secret_values, expect_failure=True)
-    assert "NETBOX_TOKEN" in error
+    assert "worker.apiUrl must be an http:// or https:// address" in error
 
 
 def test_bad_addressing_style_is_refused(existing_secret_values):
@@ -243,7 +310,7 @@ def test_quoted_numeric_image_tags_render_as_written(existing_secret_values):
     [
         (("image", "tag"), 0),
         (("credentials", "s3SecretKey"), 12345678),
-        (("worker", "credentials", "INFRAHUB_SYNC_CREDENTIAL_NETBOX_TOKEN"), 12345678),
+        (("worker", "apiUrl"), 8000),
         (("s3", "bucket"), 20261018),
         (("s3", "prefix"), 3.10),
         (("settings", "workPool"), 20261018),
@@ -251,7 +318,7 @@ def test_quoted_numeric_image_tags_render_as_written(existing_secret_values):
     ids=[
         "image.tag-zero",
         "credentials.s3SecretKey",
-        "worker.credentials",
+        "worker.apiUrl",
         "s3.bucket",
         "s3.prefix",
         "settings.workPool",
@@ -549,28 +616,26 @@ def test_rr09_no_pod_mounts_a_service_account_token(valid_values):
 
 def test_rr10_no_credential_value_with_an_existing_secret(valid_values):
     valid_values["credentials"]["existingSecret"] = "infrahub-sync"
-    valid_values["credentials"]["infrahubApiToken"] = TEST_CREDENTIAL
     documents = render(valid_values)
     text = yaml.safe_dump_all(documents)
-    assert TEST_CREDENTIAL not in text
-    assert base64.b64encode(TEST_CREDENTIAL.encode()).decode() not in text
+    for value in (TEST_CREDENTIAL, TEST_WORKER_TOKEN, TEST_ENCRYPTION_KEY):
+        assert value not in text
+        assert base64.b64encode(value.encode()).decode() not in text
     assert all(document["kind"] != "Secret" for document in documents)
 
 
 def test_rr10_credentials_never_in_a_config_map_or_env_value(valid_values):
-    valid_values["worker"] = {
-        "credentials": {"INFRAHUB_SYNC_CREDENTIAL_NETBOX_TOKEN": TEST_CREDENTIAL}
-    }
     documents = render(valid_values)
-    for document in documents:
-        if document["kind"] == "ConfigMap":
-            assert TEST_CREDENTIAL not in json.dumps(document)
-    for document in workloads(documents):
-        for container in containers(document):
-            for entry in container.get("env", []):
-                assert TEST_CREDENTIAL not in str(entry.get("value", "")), entry["name"]
-            assert TEST_CREDENTIAL not in json.dumps(container.get("command", []))
-            assert TEST_CREDENTIAL not in json.dumps(container.get("args", []))
+    for value in (TEST_CREDENTIAL, TEST_WORKER_TOKEN, TEST_ENCRYPTION_KEY):
+        for document in documents:
+            if document["kind"] == "ConfigMap":
+                assert value not in json.dumps(document)
+        for document in workloads(documents):
+            for container in containers(document):
+                for entry in container.get("env", []):
+                    assert value not in str(entry.get("value", "")), entry["name"]
+                assert value not in json.dumps(container.get("command", []))
+                assert value not in json.dumps(container.get("args", []))
 
 
 def test_rr11_prefect_api_credential_reaches_only_its_clients(valid_values):
@@ -628,37 +693,69 @@ def test_rr13_admin_token_is_optional(valid_values, token):
     assert "optional" not in password["valueFrom"]["secretKeyRef"]
 
 
-def test_rr14_worker_credentials_reach_only_the_worker(valid_values):
-    valid_values["worker"] = {
-        "credentials": {"INFRAHUB_SYNC_CREDENTIAL_NETBOX_TOKEN": TEST_CREDENTIAL},
-        "credentialsExistingSecrets": ["netbox-credentials"],
-    }
+def test_rr14_encryption_key_reaches_only_the_api(valid_values):
     documents = render(valid_values)
-    readers = {
-        component_of(document): env_from_secrets(document)
-        for document in workloads(documents)
-    }
-    assert readers.pop("worker") == {
-        f"{FULLNAME}-worker-credentials",
-        "netbox-credentials",
-    }
-    assert all(not names for names in readers.values())
+    assert components_reading(documents, "INFRAHUB_SYNC_ENCRYPTION_KEY") == {"api"}
 
 
-def test_rr14_destination_credential_is_optional_and_reaches_api_and_worker(
-    valid_values,
+def test_rr14_worker_token_reaches_only_the_api_and_the_worker(valid_values):
+    documents = render(valid_values)
+    assert components_reading(documents, "INFRAHUB_SYNC_WORKER_TOKEN") == {"api", "worker"}
+
+
+@pytest.mark.parametrize("key", ["INFRAHUB_SYNC_ENCRYPTION_KEY", "INFRAHUB_SYNC_WORKER_TOKEN"])
+def test_rr14_stored_credentials_keys_are_required_in_an_existing_secret(
+    existing_secret_values, key
 ):
-    documents = render(valid_values)
-    key = "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN"
-    assert components_reading(documents, key) == {"api", "worker"}
-    for component in ("api", "worker"):
+    """A required key is not optional, so Kubernetes names a key missing from the Secret."""
+    documents = render(existing_secret_values)
+    for component in components_reading(documents, key):
         entry = env_value(main_container(workload(documents, component)), key)
-        assert entry["valueFrom"]["secretKeyRef"]["optional"] is True
+        assert entry["valueFrom"]["secretKeyRef"] == {"name": "infrahub-sync", "key": key}
 
 
-def test_worker_reads_no_credentials_secret_by_default(valid_values):
+def test_rr14_no_component_reads_a_credential_variable(valid_values):
+    """Source and destination credentials are stored in the Sync API, not given as variables."""
+    documents = render(valid_values)
+    for document in workloads(documents):
+        for container in containers(document):
+            for entry in container.get("env", []):
+                assert not entry["name"].startswith("INFRAHUB_SYNC_CREDENTIAL_"), entry["name"]
+    assert components_reading(documents, "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN") == set()
+
+
+def test_no_component_reads_a_secret_with_env_from(valid_values):
+    for document in workloads(render(valid_values)):
+        assert env_from_secrets(document) == set(), component_of(document)
+
+
+@pytest.mark.parametrize("fullname_override", ["", "object"])
+def test_worker_reaches_the_api_service_of_the_release_by_default(
+    valid_values, fullname_override
+):
+    valid_values["fullnameOverride"] = fullname_override
+    fullname = fullname_override or FULLNAME
+    documents = render(valid_values)
+    service = find(documents, "Service", f"{fullname}-api")
+    port = service["spec"]["ports"][0]["port"]
+    worker = main_container(workload(documents, "worker"))
+    assert env_value(worker, "INFRAHUB_SYNC_API_URL")["value"] == f"http://{fullname}-api:{port}"
+    assert env_value(main_container(workload(documents, "api")), "INFRAHUB_SYNC_API_URL") is None
+
+
+def test_worker_api_url_follows_the_api_service_port(valid_values):
+    valid_values["api"] = {"service": {"port": 9000}}
     worker = main_container(workload(render(valid_values), "worker"))
-    assert "envFrom" not in worker
+    assert env_value(worker, "INFRAHUB_SYNC_API_URL")["value"] == f"http://{FULLNAME}-api:9000"
+
+
+@pytest.mark.parametrize(
+    "url", ["https://sync-api.example.com", "https://sync-api.example.com:8443/"]
+)
+def test_worker_api_url_can_be_overridden(valid_values, url):
+    valid_values["worker"] = {"apiUrl": url}
+    worker = main_container(workload(render(valid_values), "worker"))
+    assert env_value(worker, "INFRAHUB_SYNC_API_URL")["value"] == url
 
 
 def test_rr15_prefect_server_command_and_settings(valid_values):
@@ -863,21 +960,6 @@ def test_init_container_resources_follow_the_value(valid_values):
     for document in workloads(render(valid_values)):
         for container in pod_spec(document).get("initContainers", []):
             assert container["resources"] == expected, container["name"]
-
-
-def test_a_worker_token_in_worker_credentials_replaces_the_secret_one(valid_values):
-    key = "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN"
-    worker = main_container(workload(render(valid_values), "worker"))
-    assert env_value(worker, key) is not None
-    valid_values["worker"] = {"credentials": {key: TEST_CREDENTIAL}}
-    documents = render(valid_values)
-    worker = main_container(workload(documents, "worker"))
-    assert env_value(worker, key) is None
-    assert env_from_secrets(workload(documents, "worker")) == {
-        f"{FULLNAME}-worker-credentials"
-    }
-    api = main_container(workload(documents, "api"))
-    assert env_value(api, key) is not None
 
 
 @pytest.mark.parametrize("fullname_override", ["", "object"])

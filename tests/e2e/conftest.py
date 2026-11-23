@@ -1205,6 +1205,8 @@ async def infrahub_sync_k8s(
         "stringData": {
             "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD": secrets.token_hex(16),
             "INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN": token,
+            "INFRAHUB_SYNC_ENCRYPTION_KEY": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "INFRAHUB_SYNC_WORKER_TOKEN": secrets.token_hex(16),
             "INFRAHUB_SYNC_PREFECT_AUTH_STRING": f"prefect:{secrets.token_hex(16)}",
             "INFRAHUB_SYNC_S3_ACCESS_KEY": secrets.token_hex(10),
             "INFRAHUB_SYNC_S3_SECRET_KEY": secrets.token_hex(20),

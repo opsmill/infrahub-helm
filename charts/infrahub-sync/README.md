@@ -62,6 +62,8 @@ The chart refuses to render without credentials. Create a Secret that holds them
 | --- | --- | --- |
 | `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD` | always | Sync API |
 | `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN` | never | Sync API |
+| `INFRAHUB_SYNC_ENCRYPTION_KEY` | always | Sync API |
+| `INFRAHUB_SYNC_WORKER_TOKEN` | always | Sync API, worker |
 | `INFRAHUB_SYNC_PREFECT_AUTH_STRING` | always | Prefect server, Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_S3_ACCESS_KEY` | always | Sync API, worker, bootstrap, bundled object store |
 | `INFRAHUB_SYNC_S3_SECRET_KEY` | always | Sync API, worker, bootstrap, bundled object store |
@@ -70,7 +72,6 @@ The chart refuses to render without credentials. Create a Secret that holds them
 | `INFRAHUB_SYNC_PREFECT_PASSWORD` | bundled PostgreSQL | PostgreSQL, Prefect server |
 | `INFRAHUB_SYNC_DATABASE_URL` | external PostgreSQL | Sync API, worker, bootstrap |
 | `INFRAHUB_SYNC_PREFECT_DATABASE_URL` | external PostgreSQL | Prefect server |
-| `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` | never | Sync API, worker |
 
 `INFRAHUB_SYNC_PRODUCT_PASSWORD` and `INFRAHUB_SYNC_PREFECT_PASSWORD` are used in connection
 strings, so they must be URL-safe.
@@ -84,6 +85,31 @@ change the Secret and restart the Sync API, for example with
 existing Secret at render time, so with `credentials.existingSecret` the Sync API checks these
 rules at start and does not start when a value breaks them. To use the CLI, set
 `INFRAHUB_SYNC_API_TOKEN` to the `admin` token or to a token that an account created.
+
+## Stored credentials
+
+The Secret holds no token or password of a source or destination. An administrator stores them
+in the Sync API with `infrahub-sync credentials set <name>`, and a package names them. The Sync
+API encrypts each value with `INFRAHUB_SYNC_ENCRYPTION_KEY` before it writes it to PostgreSQL.
+For each run, the worker reads the values that the run names from the Sync API, with the token of
+the `worker` account.
+
+- `INFRAHUB_SYNC_ENCRYPTION_KEY` is 32 bytes, base64-encoded. Only the Sync API receives it.
+  Generate one with
+  `python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"`. Changing it is
+  not supported, and losing it means entering every stored credential again, so keep a copy
+  outside the cluster.
+- `INFRAHUB_SYNC_WORKER_TOKEN` is the token of the `worker` account. The Sync API applies it at
+  each start, and the worker presents it. It follows the rules of the `admin` token and must
+  differ from it.
+- `worker.apiUrl` sets `INFRAHUB_SYNC_API_URL`, the address at which the worker reaches the Sync
+  API. Empty means the Sync API Service of the release, over plain HTTP inside the cluster: the
+  worker token and the credential values then cross the pod network unencrypted. The worker also
+  accepts an `https://` address and trusts the certificates of `caCertificates`.
+
+The chart checks the key and the worker token at render time when it creates the Secret. With
+`credentials.existingSecret`, the Sync API checks them at start and does not start when a value
+breaks a rule; its message names the variable.
 
 ## Install example
 
@@ -140,12 +166,12 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | caCertificates | object | `{"certificates":{},"existingConfigMap":""}` | CA certificates, mounted read-only at `/etc/infrahub-sync/ca` in the Sync API, the worker and the bootstrap Job. Public certificates only: the image refuses to start when a file in the directory holds a private key |
 | caCertificates.certificates | object | `{}` | File name to PEM content; the chart creates the ConfigMap |
 | caCertificates.existingConfigMap | string | `""` | Name of an existing ConfigMap of `*.pem` or `*.crt` files |
-| credentials | object | `{"adminAccountPassword":"","adminAccountToken":"","databaseUrl":"","existingSecret":"","infrahubApiToken":"","postgresAdminPassword":"","prefectAuthString":"","prefectDatabaseUrl":"","prefectPassword":"","productPassword":"","s3AccessKey":"","s3SecretKey":""}` | Credentials of the deployment. Each key of the Secret is the variable name of the Compose `.env` file, so `kubectl create secret generic <name> --from-env-file=.env` creates it. |
+| credentials | object | `{"adminAccountPassword":"","adminAccountToken":"","databaseUrl":"","encryptionKey":"","existingSecret":"","postgresAdminPassword":"","prefectAuthString":"","prefectDatabaseUrl":"","prefectPassword":"","productPassword":"","s3AccessKey":"","s3SecretKey":"","workerToken":""}` | Credentials of the deployment. Each key of the Secret is the variable name of the Compose `.env` file, so `kubectl create secret generic <name> --from-env-file=.env` creates it. |
 | credentials.adminAccountPassword | string | `""` | `INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD`: the password of the `admin` account, given to the Sync API only. At least 12 characters. Required. The Sync API applies it at each start, so change it and restart the Sync API to reset the `admin` password |
 | credentials.adminAccountToken | string | `""` | `INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN`: an API token of the `admin` account, given to the Sync API only. At least 16 characters, and it must not start with `ifs_pat_` or `ifs_ses_`. Optional: empty means the `admin` account has no token. The CLI presents it as `INFRAHUB_SYNC_API_TOKEN` |
 | credentials.databaseUrl | string | `""` | `INFRAHUB_SYNC_DATABASE_URL`: the product database connection string. Required with an external PostgreSQL |
+| credentials.encryptionKey | string | `""` | `INFRAHUB_SYNC_ENCRYPTION_KEY`: the key that encrypts the credentials stored in the Sync API, 32 bytes, base64-encoded, given to the Sync API only. Required. Generate one with `python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"`. Changing it is not supported, and losing it means entering every stored credential again: keep a copy |
 | credentials.existingSecret | string | `""` | Name of an existing Secret that holds the credential keys. When set, the chart creates no Secret and the values below are not read |
-| credentials.infrahubApiToken | string | `""` | `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`: the destination credential, given to the Sync API and the worker. Optional |
 | credentials.postgresAdminPassword | string | `""` | `INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD`: the PostgreSQL administrator password. Required with the bundled PostgreSQL |
 | credentials.prefectAuthString | string | `""` | `INFRAHUB_SYNC_PREFECT_AUTH_STRING`: the Prefect API credential. Required |
 | credentials.prefectDatabaseUrl | string | `""` | `INFRAHUB_SYNC_PREFECT_DATABASE_URL`: the Prefect database connection string. Required with an external PostgreSQL |
@@ -153,6 +179,7 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | credentials.productPassword | string | `""` | `INFRAHUB_SYNC_PRODUCT_PASSWORD`: the password of the product role. Required with the bundled PostgreSQL. It is used in a connection string, so it must be URL-safe |
 | credentials.s3AccessKey | string | `""` | `INFRAHUB_SYNC_S3_ACCESS_KEY`: the object store access key. Required |
 | credentials.s3SecretKey | string | `""` | `INFRAHUB_SYNC_S3_SECRET_KEY`: the object store secret key. Required |
+| credentials.workerToken | string | `""` | `INFRAHUB_SYNC_WORKER_TOKEN`: the token of the `worker` account, given to the Sync API and the worker. The worker presents it to read the values of the stored credentials that a run names. Required. At least 16 characters, it must not start with `ifs_pat_` or `ifs_ses_`, and it must differ from `adminAccountToken` |
 | fullnameOverride | string | `""` | Override the full name |
 | gatewayApi | object | `{"enabled":false,"gateway":{"annotations":{},"className":"","enabled":false,"labels":{},"listeners":[],"name":""},"httpRoute":{"annotations":{},"extraRules":[],"hostnames":[],"labels":{},"name":"","parentRefs":[],"path":"/"}}` | Gateway API configuration for the Sync API. ref: https://gateway-api.sigs.k8s.io/ Mutually exclusive with `ingress`. |
 | gatewayApi.enabled | bool | `false` | Whether to enable Gateway API HTTPRoute for the Sync API |
@@ -252,10 +279,9 @@ kubectl -n infrahub-sync port-forward svc/infrahub-sync-api 8000:8000
 | settings.workerHeartbeatSeconds | int | `10` | `PREFECT_WORKER_HEARTBEAT_SECONDS` |
 | settings.workerQuerySeconds | int | `10` | `PREFECT_WORKER_QUERY_SECONDS` |
 | waitTimeoutSeconds | int | `600` | How long the init containers of the Prefect server and the bootstrap Job wait for PostgreSQL, the object store and the Prefect server before they fail, in seconds |
-| worker | object | `{"affinity":{},"credentials":{},"credentialsExistingSecrets":[],"extraEnv":[],"nodeSelector":{},"podAnnotations":{},"podLabels":{},"replicaCount":1,"resources":{},"tolerations":[]}` | The worker |
+| worker | object | `{"affinity":{},"apiUrl":"","extraEnv":[],"nodeSelector":{},"podAnnotations":{},"podLabels":{},"replicaCount":1,"resources":{},"tolerations":[]}` | The worker |
 | worker.affinity | object | `{}` | Affinity rules |
-| worker.credentials | object | `{}` | Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret that only the worker reads. `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` set here replaces the one of the credentials Secret for the worker |
-| worker.credentialsExistingSecrets | list | `[]` | Names of existing Secrets whose keys are passed to the worker as variables. When the credentials Secret also holds `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`, its value wins over these Secrets, because Kubernetes gives an `env` entry precedence over `envFrom`. Keep that token in one place |
+| worker.apiUrl | string | `""` | `INFRAHUB_SYNC_API_URL`: the address at which the worker reaches the Sync API to read the values of stored credentials. Empty means the Sync API Service of the release, `http://<fullname>-api:<api.service.port>`, which is plain HTTP inside the cluster: the worker token and the credential values cross the pod network unencrypted. The worker also accepts an `https://` address, such as one served by a TLS proxy in front of the Sync API, and trusts the certificates of `caCertificates` |
 | worker.extraEnv | list | `[]` | Additional environment variables (a list of `env` entries) |
 | worker.nodeSelector | object | `{}` | Node selector |
 | worker.podAnnotations | object | `{}` | Pod annotations |

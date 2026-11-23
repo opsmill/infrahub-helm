@@ -57,9 +57,16 @@ credentials:
   # -- `INFRAHUB_SYNC_PREFECT_DATABASE_URL`: the Prefect database connection string. Required
   # with an external PostgreSQL
   prefectDatabaseUrl: ""
-  # -- `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`: the destination credential, given to the
-  # Sync API and the worker. Optional
-  infrahubApiToken: ""
+  # -- `INFRAHUB_SYNC_ENCRYPTION_KEY`: the key that encrypts the credentials stored in the Sync
+  # API, 32 bytes, base64-encoded, given to the Sync API only. Required. Generate one with
+  # `python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"`. Changing it
+  # is not supported, and losing it means entering every stored credential again: keep a copy
+  encryptionKey: ""
+  # -- `INFRAHUB_SYNC_WORKER_TOKEN`: the token of the `worker` account, given to the Sync API and
+  # the worker. The worker presents it to read the values of the stored credentials that a run
+  # names. Required. At least 16 characters, it must not start with `ifs_pat_` or `ifs_ses_`, and
+  # it must differ from `adminAccountToken`
+  workerToken: ""
 
 # -- Settings of the Sync processes
 settings:
@@ -207,15 +214,13 @@ api:
 worker:
   # -- Number of replicas. One is the only tested value
   replicaCount: 1
-  # -- Worker credentials, `INFRAHUB_SYNC_CREDENTIAL_<NAME>` to value. The chart creates a Secret
-  # that only the worker reads. `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN` set here replaces the
-  # one of the credentials Secret for the worker
-  credentials: {}
-  # -- Names of existing Secrets whose keys are passed to the worker as variables. When the
-  # credentials Secret also holds `INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN`, its value wins over
-  # these Secrets, because Kubernetes gives an `env` entry precedence over `envFrom`. Keep that
-  # token in one place
-  credentialsExistingSecrets: []
+  # -- `INFRAHUB_SYNC_API_URL`: the address at which the worker reaches the Sync API to read the
+  # values of stored credentials. Empty means the Sync API Service of the release,
+  # `http://<fullname>-api:<api.service.port>`, which is plain HTTP inside the cluster: the
+  # worker token and the credential values cross the pod network unencrypted. The worker also
+  # accepts an `https://` address, such as one served by a TLS proxy in front of the Sync API,
+  # and trusts the certificates of `caCertificates`
+  apiUrl: ""
   # -- Resource requests and limits
   resources: {}
   # -- Node selector

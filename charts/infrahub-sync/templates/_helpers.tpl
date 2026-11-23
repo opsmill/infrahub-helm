@@ -137,13 +137,6 @@ Name of the Secret that holds the credentials: the existing Secret, or "<fullnam
 {{- end }}
 
 {{/*
-Name of the Secret that the chart creates from worker.credentials.
-*/}}
-{{- define "infrahub-sync.workerCredentialsSecretName" -}}
-{{- printf "%s-worker-credentials" (include "infrahub-sync.fullname" .) }}
-{{- end }}
-
-{{/*
 Name of the CA ConfigMap: the existing ConfigMap, or "<fullname>-ca". Empty when no CA value is set.
 */}}
 {{- define "infrahub-sync.caConfigMapName" -}}
@@ -498,21 +491,13 @@ are the variable names of the Compose `.env` file.
   "INFRAHUB_SYNC_PREFECT_PASSWORD" .Values.credentials.prefectPassword
   "INFRAHUB_SYNC_DATABASE_URL" .Values.credentials.databaseUrl
   "INFRAHUB_SYNC_PREFECT_DATABASE_URL" .Values.credentials.prefectDatabaseUrl
-  "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN" .Values.credentials.infrahubApiToken
+  "INFRAHUB_SYNC_ENCRYPTION_KEY" .Values.credentials.encryptionKey
+  "INFRAHUB_SYNC_WORKER_TOKEN" .Values.credentials.workerToken
 }}
 {{- range $key := keys $keys | sortAlpha }}
 {{- with get $keys $key }}
 {{ $key }}: {{ . | toString | b64enc | quote }}
 {{- end }}
-{{- end }}
-{{- end }}
-
-{{/*
-The `data` of the worker credentials Secret.
-*/}}
-{{- define "infrahub-sync.workerCredentials.data" -}}
-{{- range $key, $value := .Values.worker.credentials }}
-{{ $key }}: {{ $value | toString | b64enc | quote }}
 {{- end }}
 {{- end }}
 
@@ -527,12 +512,6 @@ chart does not create that resource.
 {{- end }}
 {{- end }}
 
-{{- define "infrahub-sync.checksum.workerCredentials" -}}
-{{- if .Values.worker.credentials }}
-{{- include "infrahub-sync.workerCredentials.data" . | sha256sum }}
-{{- end }}
-{{- end }}
-
 {{- define "infrahub-sync.checksum.ca" -}}
 {{- if and .Values.caCertificates.certificates (not .Values.caCertificates.existingConfigMap) }}
 {{- toJson .Values.caCertificates.certificates | sha256sum }}
@@ -540,12 +519,11 @@ chart does not create that resource.
 {{- end }}
 
 {{/*
-Pod annotations of the worker, which restart it when a Secret or ConfigMap the chart creates
-changes. The Sync API sets only the credentials Secret and CA checksums.
+Pod annotations of the Sync API and the worker, which restart them when the credentials Secret
+or the CA ConfigMap that the chart creates changes.
 */}}
 {{- define "infrahub-sync.checksums" -}}
 checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}
-checksum/worker-credentials: {{ include "infrahub-sync.checksum.workerCredentials" . | quote }}
 checksum/ca: {{ include "infrahub-sync.checksum.ca" . | quote }}
 {{- end }}
 
@@ -616,14 +594,13 @@ affinity:
 {{- end }}
 
 {{/*
-The optional destination credential, given to the Sync API and the worker. `optional: true`
-lets the pod start when the Secret has no such key.
+The address at which the worker reaches the Sync API: `worker.apiUrl`, or the Sync API Service
+of the release.
 */}}
-{{- define "infrahub-sync.env.destinationCredential" -}}
-- name: INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "infrahub-sync.secretName" . }}
-      key: INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN
-      optional: true
+{{- define "infrahub-sync.workerApiUrl" -}}
+{{- if .Values.worker.apiUrl }}
+{{- .Values.worker.apiUrl | toString }}
+{{- else }}
+{{- printf "http://%s:%v" (include "infrahub-sync.componentName" (dict "context" . "component" "api")) .Values.api.service.port }}
+{{- end }}
 {{- end }}

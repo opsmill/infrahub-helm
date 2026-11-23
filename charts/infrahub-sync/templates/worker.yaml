@@ -53,25 +53,15 @@ spec:
               value: {{ .Values.settings.workerQuerySeconds | toString | quote }}
             - name: PREFECT_WORKER_HEARTBEAT_SECONDS
               value: {{ .Values.settings.workerHeartbeatSeconds | toString | quote }}
-            {{- /* A token in worker.credentials replaces the one of the credentials Secret: an `env`
-            entry would win over the worker Secret in `envFrom`. */}}
-            {{- if not (hasKey $component.credentials "INFRAHUB_SYNC_CREDENTIAL_INFRAHUB_API_TOKEN") }}
-            {{- include "infrahub-sync.env.destinationCredential" . | nindent 12 }}
-            {{- end }}
+            # The worker holds no source or destination credential. For each run, it reads the
+            # values of the stored credentials that the run names from the Sync API, at this
+            # address, with the token of the `worker` account.
+            - name: INFRAHUB_SYNC_API_URL
+              value: {{ include "infrahub-sync.workerApiUrl" . | quote }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_WORKER_TOKEN" "key" "INFRAHUB_SYNC_WORKER_TOKEN") | nindent 12 }}
             {{- with $component.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- if or $component.credentials $component.credentialsExistingSecrets }}
-          envFrom:
-            {{- if $component.credentials }}
-            - secretRef:
-                name: {{ include "infrahub-sync.workerCredentialsSecretName" . }}
-            {{- end }}
-            {{- range $component.credentialsExistingSecrets }}
-            - secretRef:
-                name: {{ . }}
-            {{- end }}
-          {{- end }}
           # No probe, as in docker-compose.yml: the worker serves no HTTP endpoint.
           {{- with $component.resources }}
           resources:

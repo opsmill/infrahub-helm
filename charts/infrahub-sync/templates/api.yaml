@@ -39,10 +39,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        # The Sync API does not read the worker credentials Secret, so a change to it does not
-        # restart the Sync API.
-        checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}
-        checksum/ca: {{ include "infrahub-sync.checksum.ca" . | quote }}
+        {{- include "infrahub-sync.checksums" . | nindent 8 }}
         {{- with $component.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -79,6 +76,10 @@ spec:
                   name: {{ include "infrahub-sync.secretName" . }}
                   key: INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN
                   optional: true
+            # Only the Sync API holds the key that encrypts stored credentials. It applies the
+            # token of the `worker` account at each start, and the worker presents the same value.
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_ENCRYPTION_KEY" "key" "INFRAHUB_SYNC_ENCRYPTION_KEY") | nindent 12 }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_WORKER_TOKEN" "key" "INFRAHUB_SYNC_WORKER_TOKEN") | nindent 12 }}
             - name: INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS
               value: {{ .Values.settings.runAdmissionTtlSeconds | toString | quote }}
             {{- with .Values.settings.sessionIdleSeconds }}
@@ -89,7 +90,6 @@ spec:
               value: {{ .Values.settings.requireApproval | toString | quote }}
             - name: PREFECT_WORKER_QUERY_SECONDS
               value: {{ .Values.settings.workerQuerySeconds | toString | quote }}
-            {{- include "infrahub-sync.env.destinationCredential" . | nindent 12 }}
             {{- with .Values.settings.prefectUiUrl }}
             - name: INFRAHUB_SYNC_PREFECT_UI_URL
               value: {{ . | toString | quote }}
