@@ -129,9 +129,11 @@ Chart.lock
 
 # Grafana provisioning (dashboards + datasources) is fetched from upstream and
 # adapted at packaging/release time by scripts/sync-upstream.sh — these files
-# are never committed to the repo.
+# are never committed to the repo. The scripts of the Grafana MCP server in
+# files/grafana-mcp/ are committed: they are not synced from upstream.
 charts/infrahub-observability/dashboards/
-charts/infrahub-observability/files/
+charts/infrahub-observability/files/*
+!charts/infrahub-observability/files/grafana-mcp/
 
 # Claude Code session state
 .claude/

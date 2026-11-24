@@ -262,3 +262,90 @@ prefectExporter:
   # -- Extra environment variables for the prefect-exporter container, for
   # example the exporter's OFFSET_MINUTES or FAILED_RUNS_OFFSET_MINUTES.
   extraEnv: []
+
+# ----------------------------------------------------------------------------
+# Grafana MCP server — lets an AI assistant, such as Claude Code, read the
+# metrics, logs and traces of the stack through Grafana. It is off by default.
+# It only reads: it runs with --disable-write --disable-api, and its Grafana
+# service account has the Viewer role. A hook Job creates that service account
+# and stores its token in a Secret, which the Deployment mounts as a file.
+# ----------------------------------------------------------------------------
+grafanaMcp:
+  # -- Install the Grafana MCP server. When false, the chart creates no object for it.
+  enabled: false
+  image:
+    # -- Image of the Grafana MCP server.
+    repository: grafana/mcp-grafana
+    # -- Tag of the image.
+    tag: "2.0.2"
+    # -- Digest of the image. The chart pulls repository:tag@digest. Empty: pull by tag only.
+    digest: "sha256:78d208116ec52b09b44f0eca66892073b39aefcb64483c54d43255c8eab7e97a"
+    # -- Image pull policy. Empty: global.imagePullPolicy.
+    pullPolicy: ""
+  # -- Token that AI assistants send to the server (as a bearer token). It has no
+  # default: set `value` or `existingSecret`, or the install fails.
+  serverToken:
+    # -- The token as a plain value. The chart stores it in a Secret. Prefer `existingSecret`.
+    value: ""
+    # -- Name of an existing Secret that holds the token. Takes the place of `value`.
+    existingSecret: ""
+    # -- Key of the token in the existing Secret.
+    existingSecretKey: token
+  # -- Host header values that the server accepts, separated by commas. Add the
+  # host and port of any URL other than a `kubectl port-forward svc/<name> 8100:8000`.
+  allowedHosts: "localhost:8100,127.0.0.1:8100"
+  service:
+    # -- Service type. LoadBalancer and NodePort open the server to a network, so
+    # they need `tls.existingSecret`.
+    type: ClusterIP
+    # -- Service port.
+    port: 8000
+  tls:
+    # -- Name of a kubernetes.io/tls Secret (keys tls.crt and tls.key), for example
+    # from cert-manager. The server then serves HTTPS. Empty: the server serves plain HTTP.
+    existingSecret: ""
+  grafana:
+    # -- Address of Grafana. Empty: the Grafana Service of this release.
+    url: ""
+    # -- Name of the Secret with the Grafana admin user and password, which the hook
+    # Job uses to create the service account. Empty: the admin Secret of the grafana
+    # sub-chart (or `grafana.admin.existingSecret` when that is set).
+    adminSecret: ""
+  serviceAccountJob:
+    # -- Image of the hook Job. It needs curl, sed, grep and base64: the Grafana image has them.
+    image:
+      repository: grafana/grafana
+      tag: "11.1.5"
+      pullPolicy: ""
+    # -- Pod-level security context of the Job pod.
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 472
+      runAsGroup: 472
+      fsGroup: 472
+    # -- Container-level security context of the Job.
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: [ALL]
+    resources: {}
+  replicas: 1
+  podAnnotations: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # -- Pod-level security context of the server pod. The image runs as user 1000,
+  # group 999. fsGroup lets that group read the mounted TLS key.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 999
+    fsGroup: 999
+  # -- Container-level security context of the server.
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]

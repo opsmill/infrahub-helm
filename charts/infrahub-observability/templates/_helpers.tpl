@@ -132,3 +132,73 @@ override via .Values.prefectExporter.prefectApiUrl.
 http://prefect-server:4200/api
 {{- end -}}
 {{- end }}
+
+{{/*
+Grafana MCP server. Names are cut so that the longest one, the Job name, stays
+under the 63 characters that Kubernetes allows.
+*/}}
+{{- define "infrahub-observability.grafanaMcpFullname" -}}
+{{ include "infrahub-observability.fullname" . | trunc 45 | trimSuffix "-" }}-grafana-mcp
+{{- end }}
+
+{{/*
+Name of the Secret that the hook Job writes with the Grafana token.
+*/}}
+{{- define "infrahub-observability.grafanaMcpGrafanaTokenSecret" -}}
+{{ include "infrahub-observability.grafanaMcpFullname" . }}-grafana-token
+{{- end }}
+
+{{/*
+Name of the Secret with the token that AI assistants send.
+*/}}
+{{- define "infrahub-observability.grafanaMcpServerTokenSecret" -}}
+{{- if .Values.grafanaMcp.serverToken.existingSecret -}}
+{{ .Values.grafanaMcp.serverToken.existingSecret }}
+{{- else -}}
+{{ include "infrahub-observability.grafanaMcpFullname" . }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Name of the Service of the grafana sub-chart. It follows the fullname logic of
+the sub-chart: the release name when it contains "grafana", else <release>-grafana.
+*/}}
+{{- define "infrahub-observability.grafanaFullname" -}}
+{{- if .Values.grafana.fullnameOverride -}}
+{{ .Values.grafana.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else -}}
+{{- $name := default "grafana" .Values.grafana.nameOverride -}}
+{{- if contains $name .Release.Name -}}
+{{ .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else -}}
+{{ printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Address of Grafana for the Grafana MCP server and its hook Job.
+*/}}
+{{- define "infrahub-observability.grafanaMcpGrafanaUrl" -}}
+{{- if .Values.grafanaMcp.grafana.url -}}
+{{ .Values.grafanaMcp.grafana.url }}
+{{- else -}}
+{{- $port := int (default 80 (.Values.grafana.service).port) -}}
+http://{{ include "infrahub-observability.grafanaFullname" . }}{{ if ne $port 80 }}:{{ $port }}{{ end }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Check the values of the Grafana MCP server. Called by the Deployment.
+*/}}
+{{- define "infrahub-observability.grafanaMcpValidate" -}}
+{{- if not (or .Values.grafanaMcp.serverToken.value .Values.grafanaMcp.serverToken.existingSecret) -}}
+{{- fail "grafanaMcp.serverToken.value or grafanaMcp.serverToken.existingSecret is required" -}}
+{{- end -}}
+{{- if and (ne .Values.grafanaMcp.service.type "ClusterIP") (not .Values.grafanaMcp.tls.existingSecret) -}}
+{{- fail (printf "grafanaMcp.service.type is %s, which is open to a network: set grafanaMcp.tls.existingSecret" .Values.grafanaMcp.service.type) -}}
+{{- end -}}
+{{- if and (not .Values.grafanaMcp.grafana.url) (not .Values.grafana.enabled) -}}
+{{- fail "grafanaMcp.grafana.url is required when grafana.enabled is false" -}}
+{{- end -}}
+{{- end }}

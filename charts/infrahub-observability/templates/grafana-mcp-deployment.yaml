@@ -1,0 +1,142 @@
+{{- if .Values.grafanaMcp.enabled }}
+{{- include "infrahub-observability.grafanaMcpValidate" . }}
+{{- $image := .Values.grafanaMcp.image }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "infrahub-observability.grafanaMcpFullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    service: grafana-mcp
+    {{- include "infrahub-observability.labels" . | nindent 4 }}
+  {{- with (include "infrahub-observability.annotations" .) }}
+  annotations:
+    {{- . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.grafanaMcp.replicas }}
+  selector:
+    matchLabels:
+      service: grafana-mcp
+      {{- include "infrahub-observability.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        service: grafana-mcp
+        {{- include "infrahub-observability.selectorLabels" . | nindent 8 }}
+      {{- with .Values.grafanaMcp.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.grafanaMcp.securityContext | nindent 8 }}
+      containers:
+        - name: grafana-mcp
+          image: "{{ $image.repository }}:{{ $image.tag }}{{ if $image.digest }}@{{ $image.digest }}{{ end }}"
+          imagePullPolicy: {{ default .Values.global.imagePullPolicy $image.pullPolicy }}
+          {{- with .Values.grafanaMcp.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - --transport
+            - streamable-http
+            - --address
+            - 0.0.0.0:8000
+            - --healthz-address
+            - ":8081"
+            - --allowed-hosts
+            - {{ .Values.grafanaMcp.allowedHosts | quote }}
+            - --usage-stats=disabled
+            - --disable-write
+            - --disable-api
+            - --disable-docs
+            - --disable-plugin
+            - --instructions-append
+            - "In this stack the Grafana MCP server only reads: it has no tool that creates or changes dashboards, folders, annotations, incidents, alert rules or data sources."
+            {{- if .Values.grafanaMcp.tls.existingSecret }}
+            - --server.tls-cert-file
+            - /etc/grafana-mcp/tls/tls.crt
+            - --server.tls-key-file
+            - /etc/grafana-mcp/tls/tls.key
+            {{- end }}
+          env:
+            - name: DO_NOT_TRACK
+              value: "1"
+            - name: GRAFANA_URL
+              value: {{ include "infrahub-observability.grafanaMcpGrafanaUrl" . | quote }}
+            - name: GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE
+              value: /var/run/grafana-mcp/token
+            - name: MCP_GRAFANA_SERVER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "infrahub-observability.grafanaMcpServerTokenSecret" . | quote }}
+                  key: {{ .Values.grafanaMcp.serverToken.existingSecretKey | quote }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          # /healthz is on the side listener (--healthz-address). It serves plain HTTP also
+          # when the main port serves HTTPS, and it is outside the Host check that rejects a
+          # probe, which sends the pod IP as its Host header.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 20
+          volumeMounts:
+            - name: grafana-token
+              mountPath: /var/run/grafana-mcp
+              readOnly: true
+            {{- if .Values.grafanaMcp.tls.existingSecret }}
+            - name: tls
+              mountPath: /etc/grafana-mcp/tls
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.grafanaMcp.resources | nindent 12 }}
+      volumes:
+        # The hook Job writes this Secret after the install. The Secret is optional so that
+        # the pod starts without it, and `helm install --wait` can reach the hook. The server
+        # reads the token file on every call, and the kubelet adds the file when the Secret
+        # exists.
+        - name: grafana-token
+          secret:
+            secretName: {{ include "infrahub-observability.grafanaMcpGrafanaTokenSecret" . }}
+            optional: true
+            defaultMode: 0440
+        {{- if .Values.grafanaMcp.tls.existingSecret }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.grafanaMcp.tls.existingSecret | quote }}
+            defaultMode: 0440
+        {{- end }}
+      {{- with .Values.grafanaMcp.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.grafanaMcp.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.grafanaMcp.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
