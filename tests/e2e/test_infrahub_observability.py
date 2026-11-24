@@ -238,7 +238,9 @@ async def _mcp_initialize(client: httpx.AsyncClient, url: str, token: str) -> di
         },
     )
     assert response.status_code == 200, response.text
-    headers["Mcp-Session-Id"] = response.headers["mcp-session-id"]
+    # The server in this chart may keep no session: send the id only when it gives one.
+    if "mcp-session-id" in response.headers:
+        headers["Mcp-Session-Id"] = response.headers["mcp-session-id"]
     await client.post(
         url, headers=headers, json={"jsonrpc": "2.0", "method": "notifications/initialized"}
     )
