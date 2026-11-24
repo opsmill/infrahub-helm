@@ -6,7 +6,14 @@ generate API traffic; then via Grafana's datasource proxy assert that
 Infrahub-server metrics are in Prometheus and Infrahub traces are in Tempo.
 """
 
+import asyncio
+import json
+import time
+
+import httpx
+import kr8s.asyncio
 import pytest
+from kr8s.asyncio.objects import Secret
 
 from tests.conftest import CHARTS_DIR
 from tests.e2e.conftest import portforward_service
@@ -190,3 +197,116 @@ async def test_grafana_dashboards_present_and_functional(observability_k8s):
         await grafana_query_prometheus(
             url, auth, prometheus_uid, "sum(rate(infrahub_requests_total[5m]))"
         )
+
+
+# ---------------------------------------------------------------------------
+# Grafana MCP server
+# ---------------------------------------------------------------------------
+# The chart allows this Host header by default (`grafanaMcp.allowedHosts`), whatever local
+# port the port-forward gets.
+GRAFANA_MCP_HOST = "localhost:8100"
+MCP_HEADERS = {
+    "Host": GRAFANA_MCP_HOST,
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+}
+
+
+def _mcp_result(response: httpx.Response) -> dict:
+    """The JSON-RPC answer of an MCP call, whether it is JSON or a server-sent event."""
+    if response.headers.get("content-type", "").startswith("text/event-stream"):
+        data = [line[5:].strip() for line in response.text.splitlines() if line.startswith("data:")]
+        return json.loads(data[-1])
+    return response.json()
+
+
+async def _mcp_initialize(client: httpx.AsyncClient, url: str, token: str) -> dict[str, str]:
+    """Open an MCP session and return the headers that the next calls send."""
+    headers = {**MCP_HEADERS, "Authorization": f"Bearer {token}"}
+    response = await client.post(
+        url,
+        headers=headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "e2e", "version": "1"},
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    headers["Mcp-Session-Id"] = response.headers["mcp-session-id"]
+    await client.post(
+        url, headers=headers, json={"jsonrpc": "2.0", "method": "notifications/initialized"}
+    )
+    return headers
+
+
+async def test_grafana_mcp_server_reads_grafana_with_the_caller_token(observability_k8s):
+    """The hook Job stores the Grafana token, and the server needs the caller token.
+
+    The hook Job creates the Grafana service account and the Secret with its token. The
+    server then answers a caller with the right token by reading Grafana with the Job's
+    token. It rejects a request without a token, or with a wrong one, and offers no tool
+    that changes Grafana.
+    """
+    kubeconfig = observability_k8s["kubeconfig_path"]
+    namespace = observability_k8s["namespace"]
+    release = observability_k8s["release"]
+    caller_token = observability_k8s["grafana_mcp_token"]
+    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
+
+    # The Job created the Secret. The test only checks that it holds a token.
+    secret = await Secret.get(
+        f"{release}-infrahub-observability-grafana-mcp-grafana-token", namespace=namespace, api=api
+    )
+    assert secret.raw.get("data", {}).get("token"), "The hook Job stored no Grafana token"
+
+    async with portforward_service(
+        kubeconfig, namespace, 8000, label_selector="service=grafana-mcp"
+    ) as base_url:
+        url = f"{base_url}/mcp"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # A request without the token, or with a wrong one, is rejected.
+            for headers in (MCP_HEADERS, {**MCP_HEADERS, "Authorization": "Bearer wrong"}):
+                response = await client.post(
+                    url, headers=headers, json={"jsonrpc": "2.0", "id": 1, "method": "ping"}
+                )
+                assert response.status_code == 401, response.text
+
+            headers = await _mcp_initialize(client, url, caller_token)
+
+            # The server reads only: no tool creates, changes or deletes anything.
+            response = await client.post(
+                url, headers=headers, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
+            )
+            names = [tool["name"] for tool in _mcp_result(response)["result"]["tools"]]
+            assert "query_prometheus" in names and "query_loki_logs" in names
+            writers = [n for n in names if n.split("_")[0] in ("create", "update", "delete")]
+            assert not writers, f"Write tools are on: {writers}"
+
+            # The pod gets the token file some time after the Job writes the Secret
+            # (the kubelet refreshes mounted Secrets), so poll until Grafana accepts it.
+            deadline = time.monotonic() + 300
+            while True:
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 3,
+                        "method": "tools/call",
+                        "params": {"name": "list_datasources", "arguments": {}},
+                    },
+                )
+                result = _mcp_result(response)["result"]
+                text = result["content"][0]["text"]
+                if not result.get("isError"):
+                    datasource_types = {ds["type"] for ds in json.loads(text)["datasources"]}
+                    break
+                assert time.monotonic() < deadline, f"Grafana refused the server for 5 minutes: {text}"
+                await asyncio.sleep(10)
+            assert {"prometheus", "loki", "tempo"} <= datasource_types, datasource_types
