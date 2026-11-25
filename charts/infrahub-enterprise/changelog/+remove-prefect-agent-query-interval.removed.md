@@ -1,1 +1,0 @@
-Removed `PREFECT_AGENT_QUERY_INTERVAL` from the default environment of the task workers, through the `infrahub` chart (`infrahub.infrahubTaskWorker.infrahubTaskWorker.env`). Prefect does not read this variable (checked in Prefect 3.8.6, which Infrahub 1.12.3 runs, and in 3.9.5), so the task workers behave the same.
