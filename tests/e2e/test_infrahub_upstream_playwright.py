@@ -33,16 +33,27 @@ Knobs:
   (skips clone + ``uv sync``). Its ref is used as-is.
 * ``INFRAHUB_E2E_TESTS`` — subset to run, relative to the checkout
   (default ``tests/e2e``), e.g. ``tests/e2e/branches``.
+* ``INFRAHUB_E2E_SUPPORTING_SERVICES`` — ``bundled`` (default) deploys the
+  chart's own Redis, RabbitMQ and task manager PostgreSQL, all Bitnami charts.
+  ``redhat`` turns those off and runs the suite against the services
+  ``redhat-supporting-services.yaml`` deploys next to the release: Redis and
+  PostgreSQL from registry.redhat.io, RabbitMQ from the official image. It
+  needs a ``docker login registry.redhat.io`` on the machine running the test
+  (a registry service account works), copied into the namespace as a pull
+  secret.
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
+import json
 import os
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import kr8s.asyncio
 import pytest
 import yaml
 
@@ -52,6 +63,7 @@ from tests.e2e.conftest import (
     _register_namespace,
     helm_install,
     loadbalancer_url,
+    wait_for_workloads,
 )
 from tests.helpers.utils import INFRAHUB_ADMIN_TOKEN, wait_for_http, wait_for_job
 
@@ -116,12 +128,19 @@ DEMO_DATA_TIMEOUT = 30 * 60
 # Above this many failures, retrying is not triage — something is broken.
 RETRY_LIMIT = 10
 
+SUPPORTING_SERVICES = os.environ.get("INFRAHUB_E2E_SUPPORTING_SERVICES", "bundled")
+
+REDHAT_REGISTRY = "registry.redhat.io"
+REDHAT_PULL_SECRET = "redhat-registry"
+
 VALUES_FILES = [
     FIXTURES_DIR / "infrahub-enterprise-values.yaml",
     CHARTS_DIR / "infrahub-enterprise" / "values.openshift.yaml",
     FIXTURES_DIR / "openshift-scc-simulation.yaml",
     FIXTURES_DIR / "upstream-e2e-values.yaml",
 ]
+if SUPPORTING_SERVICES == "redhat":
+    VALUES_FILES.append(FIXTURES_DIR / "redhat-supporting-services-values.yaml")
 
 
 def _run(*args: str, cwd: Path, timeout: int = 1800) -> None:
@@ -214,6 +233,64 @@ def _summarize_junit(report: Path) -> tuple[int, int, int, list[str]]:
     return tests, failures, errors, failed
 
 
+def _redhat_pull_secret() -> dict:
+    """A pull secret carrying the local registry.redhat.io login, and only that.
+
+    The rest of the Docker config may hold credentials for other registries,
+    which have no business in the cluster.
+    """
+    config_path = Path(os.environ.get("DOCKER_CONFIG") or Path.home() / ".docker") / "config.json"
+    auths = json.loads(config_path.read_text()).get("auths", {}) if config_path.exists() else {}
+    auth = (auths.get(REDHAT_REGISTRY) or {}).get("auth")
+    if not auth:
+        pytest.fail(
+            f"no {REDHAT_REGISTRY} login in {config_path} (a credential store keeps it elsewhere): "
+            f"run `docker login {REDHAT_REGISTRY}` with a registry service account"
+        )
+    config = json.dumps({"auths": {REDHAT_REGISTRY: {"auth": auth}}})
+    return {
+        "metadata": {"name": REDHAT_PULL_SECRET, "namespace": NAMESPACE},
+        "type": "kubernetes.io/dockerconfigjson",
+        "data": {".dockerconfigjson": base64.b64encode(config.encode()).decode()},
+    }
+
+
+async def _deploy_redhat_supporting_services(kubeconfig: str) -> None:
+    """Deploy the Red Hat-image cache, message queue and task manager database.
+
+    The manifests carry no uid, as OpenShift wants them; each pod gets the ids
+    openshift-scc-simulation.yaml gives the chart's pods, standing in for the
+    SCC the same way.
+    """
+    from kr8s.asyncio.objects import Secret, Service, StatefulSet
+
+    simulation = yaml.safe_load((FIXTURES_DIR / "openshift-scc-simulation.yaml").read_text())
+    scc_context = simulation["infrahub"]["infrahubServer"]["podSecurityContext"]
+
+    subprocess.run(
+        ["kubectl", "create", "namespace", NAMESPACE, "--kubeconfig", kubeconfig], check=True
+    )
+    api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
+
+    await Secret(_redhat_pull_secret(), namespace=NAMESPACE, api=api).create()
+
+    kinds = {"Secret": Secret, "Service": Service, "StatefulSet": StatefulSet}
+    manifests = yaml.safe_load_all((FIXTURES_DIR / "redhat-supporting-services.yaml").read_text())
+    for manifest in manifests:
+        if not manifest:
+            continue
+        manifest["metadata"]["namespace"] = NAMESPACE
+        if manifest["kind"] == "StatefulSet":
+            pod = manifest["spec"]["template"]["spec"]
+            pod["securityContext"] = dict(scc_context)
+            pod["imagePullSecrets"] = [{"name": REDHAT_PULL_SECRET}]
+        await kinds[manifest["kind"]](manifest, namespace=NAMESPACE, api=api).create()
+
+    # Ready before the chart goes in, so a service that fails to start is not
+    # mistaken for an Infrahub that cannot reach it.
+    wait_for_workloads(namespace=NAMESPACE, kubeconfig=kubeconfig, timeout="10m")
+
+
 @pytest.fixture(scope="session")
 def upstream_checkout() -> Path:
     """The upstream infrahub checkout, cloned/updated and installed once."""
@@ -225,6 +302,13 @@ async def infrahub_upstream_e2e_k8s(vcluster, staged_charts, request):
     """Deploy the enterprise chart the way the OpenShift overlay does, with data."""
     kubeconfig = vcluster["kubeconfig_path"]
     _register_namespace(request, NAMESPACE)
+
+    if SUPPORTING_SERVICES == "redhat":
+        await _deploy_redhat_supporting_services(kubeconfig)
+    elif SUPPORTING_SERVICES != "bundled":
+        pytest.fail(
+            f"INFRAHUB_E2E_SUPPORTING_SERVICES must be bundled or redhat, not {SUPPORTING_SERVICES!r}"
+        )
 
     helm_install(
         release=RELEASE,
@@ -305,7 +389,7 @@ async def test_upstream_playwright_suite(infrahub_upstream_e2e_k8s, upstream_che
         failed, returncode = still_failing, retry_code
 
     print(
-        f"\nupstream suite ({UPSTREAM_REF}): {tests} tests, "
+        f"\nupstream suite ({UPSTREAM_REF}, {SUPPORTING_SERVICES} supporting services): {tests} tests, "
         f"{len(failed)} failed, {len(flaky)} flaky (passed on retry)",
         flush=True,
     )

@@ -1,0 +1,317 @@
+# Infrahub's supporting services from Red Hat images, for the upstream
+# Playwright suite's `redhat` mode (tests/e2e/test_infrahub_upstream_playwright.py).
+# redhat-supporting-services-values.yaml turns the chart's bundled Bitnami
+# services off and points Infrahub and Prefect here.
+#
+# - cache: Red Hat's Redis 7 (registry.redhat.io/rhel9/redis-7)
+# - task-manager-db: Red Hat's PostgreSQL 16 (registry.redhat.io/rhel9/postgresql-16)
+# - message-queue: the official RabbitMQ image; Red Hat publishes none
+#
+# Swapping the image of a bundled Bitnami chart is not an option: the bundled
+# PostgreSQL chart sets POSTGRES_* variables where the Red Hat image reads
+# POSTGRESQL_*.
+#
+# The manifests pin no uid, gid or fsGroup, as OpenShift's restricted-v2 SCC
+# requires; the test assigns the same ids openshift-scc-simulation.yaml gives
+# the chart's pods.
+#
+# The Service names follow Infrahub's Docker Compose file. A Service named
+# infrahub-cache would break Infrahub: Kubernetes sets <SERVICE>_PORT in every
+# pod of the namespace, and INFRAHUB_CACHE_PORT is Infrahub's cache port setting.
+#
+# Every password below is a test value.
+---
+# Read by the cache and the message queue for their credentials, and loaded
+# whole into the Infrahub server and task worker through envFromExistingSecrets,
+# so each password is written once.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: infrahub-supporting-services
+type: Opaque
+stringData:
+  # REDIS_PASSWORD sets the password of Redis's built-in `default` user, and
+  # Infrahub only authenticates to Redis when it has both a username and a
+  # password: with the password alone it connects without credentials and is
+  # refused ("Authentication required").
+  INFRAHUB_CACHE_USERNAME: default
+  INFRAHUB_CACHE_PASSWORD: infrahub-cache-e2e
+  INFRAHUB_BROKER_USERNAME: infrahub
+  INFRAHUB_BROKER_PASSWORD: infrahub-broker-e2e
+---
+# Read by PostgreSQL for its user and database, and by Prefect for its
+# connection string (prefect-server.secret.name).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: task-manager-db
+type: Opaque
+stringData:
+  username: prefect
+  password: prefect-e2e
+  database: prefect
+  connection-string: postgresql+asyncpg://prefect:prefect-e2e@task-manager-db:5432/prefect
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache
+  labels:
+    app.kubernetes.io/name: cache
+spec:
+  selector:
+    app.kubernetes.io/name: cache
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cache
+  labels:
+    app.kubernetes.io/name: cache
+spec:
+  serviceName: cache
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cache
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cache
+        infrahub/service: cache
+    spec:
+      containers:
+        - name: redis
+          image: registry.redhat.io/rhel9/redis-7
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: infrahub-supporting-services
+                  key: INFRAHUB_CACHE_PASSWORD
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/redis/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-queue
+  labels:
+    app.kubernetes.io/name: message-queue
+spec:
+  selector:
+    app.kubernetes.io/name: message-queue
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+---
+# A StatefulSet keeps the pod's hostname, and with it RabbitMQ's node name
+# (rabbit@<hostname>), stable across restarts: RabbitMQ stores its data under
+# the node name and would not find it again under a new one.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: message-queue
+  labels:
+    app.kubernetes.io/name: message-queue
+spec:
+  serviceName: message-queue
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: message-queue
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: message-queue
+        infrahub/service: message-queue
+    spec:
+      containers:
+        - name: rabbitmq
+          image: docker.io/library/rabbitmq:4.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: infrahub-supporting-services
+                  key: INFRAHUB_BROKER_USERNAME
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: infrahub-supporting-services
+                  key: INFRAHUB_BROKER_PASSWORD
+          ports:
+            - name: amqp
+              containerPort: 5672
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 15
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-manager-db
+  labels:
+    app.kubernetes.io/name: task-manager-db
+spec:
+  selector:
+    app.kubernetes.io/name: task-manager-db
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: task-manager-db
+  labels:
+    app.kubernetes.io/name: task-manager-db
+spec:
+  serviceName: task-manager-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: task-manager-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: task-manager-db
+        infrahub/service: task-manager-db
+    spec:
+      containers:
+        - name: postgresql
+          image: registry.redhat.io/rhel9/postgresql-16
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-db
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-db
+                  key: password
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-db
+                  key: database
+          ports:
+            - name: postgresql
+              containerPort: 5432
+          # The image first initialises the database with a server that only
+          # listens on the local socket, so a TCP check passes only once the
+          # final server is up.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-p", "5432"]
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-p", "5432"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

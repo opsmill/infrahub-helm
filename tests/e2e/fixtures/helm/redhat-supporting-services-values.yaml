@@ -1,0 +1,41 @@
+# Turns off the chart's bundled Redis, RabbitMQ and task manager PostgreSQL
+# (all three Bitnami charts) and points Infrahub and Prefect at the services
+# redhat-supporting-services.yaml deploys, for the upstream Playwright suite's
+# `redhat` mode. Layered last, after the enterprise values, the OpenShift
+# overlay, the SCC simulation and upstream-e2e-values.yaml.
+#
+# With a bundled service turned off, the chart stops setting its address on the
+# Infrahub pods, so the addresses are set here. Credentials come from the
+# Secrets in redhat-supporting-services.yaml rather than from this file.
+infrahub:
+  redis:
+    enabled: false
+  rabbitmq:
+    enabled: false
+
+  infrahubServer:
+    infrahubServer:
+      env:
+        INFRAHUB_CACHE_ADDRESS: cache
+        INFRAHUB_BROKER_ADDRESS: message-queue
+      # INFRAHUB_CACHE_USERNAME, INFRAHUB_CACHE_PASSWORD, INFRAHUB_BROKER_USERNAME,
+      # INFRAHUB_BROKER_PASSWORD. The upgrade job reuses the server's env and envFrom.
+      envFromExistingSecrets:
+        - infrahub-supporting-services
+
+  infrahubTaskWorker:
+    infrahubTaskWorker:
+      env:
+        INFRAHUB_CACHE_ADDRESS: cache
+        INFRAHUB_BROKER_ADDRESS: message-queue
+      envFromExistingSecrets:
+        - infrahub-supporting-services
+
+  prefect-server:
+    postgresql:
+      enabled: false
+    # Prefect reads its database URL from the `connection-string` key of this
+    # Secret instead of one the chart would generate.
+    secret:
+      create: false
+      name: task-manager-db
