@@ -27,6 +27,7 @@ from tests.conftest import CHARTS_DIR, REPO_ROOT
 from tests.helpers.ha import (
     MEMBERS,
     REPLICATED_SERVICES,
+    chart_metadata,
     image_overrides,
     kubectl,
     neo4j_dependency,
@@ -1052,10 +1053,6 @@ async def infrahub_custom_ca_k8s(
 # ---------------------------------------------------------------------------
 EXTERNAL_DB_NAMESPACE = "infrahub-external-db"
 EXTERNAL_NEO4J_NAMESPACE = "neo4j-external"
-# The Neo4j version is the one the infrahub-backup image of the chart's
-# appVersion takes `neo4j-admin` from (`FROM neo4j:...` in its Dockerfile). infrahub-backup refuses a server
-# newer than its tools, so a newer server would test that refusal instead.
-EXTERNAL_NEO4J_CHART_VERSION = "2025.10.1"
 # `neo4j.name`: the headless Service is named after it.
 EXTERNAL_NEO4J_NAME = "infrahub-ext"
 EXTERNAL_NEO4J_USERNAME = "neo4j"
@@ -1063,8 +1060,18 @@ EXTERNAL_NEO4J_PASSWORD = "admin12345"
 EXTERNAL_NEO4J_AUTH_SECRET = "neo4j-auth"
 
 
-def install_external_neo4j(kubeconfig: str, namespace: str, s3_env: dict[str, str], workdir: Path) -> str:
+def install_external_neo4j(
+    kubeconfig: str, namespace: str, s3_env: dict[str, str], workdir: Path, neo4j_chart: Path
+) -> str:
     """Install a standalone Neo4j Enterprise server and return the address Infrahub uses.
+
+    `neo4j_chart` is the packaged Neo4j chart that the `infrahub` chart pins,
+    so the server runs the Neo4j version that Infrahub deploys. No version is
+    written here on purpose. infrahub-backup refuses a server newer than the
+    Neo4j tools in its image, so this test fails when the `infrahub` chart
+    moves to a Neo4j that the infrahub-backup image of the `infrahub-backup`
+    chart cannot back up. Fix that with a newer infrahub-backup release, never
+    with an older server.
 
     The server binds its backup service to every interface, so that
     infrahub-backup can run `neo4j-admin database backup --from=<host>:6362`
@@ -1105,17 +1112,17 @@ def install_external_neo4j(kubeconfig: str, namespace: str, s3_env: dict[str, st
     }
     values_path = workdir / "neo4j-external.yaml"
     values_path.write_text(yaml.dump(values))
-    repo = ["--repo", "https://helm.neo4j.com/neo4j", "--version", EXTERNAL_NEO4J_CHART_VERSION]
     subprocess.run(
         [
-            "helm", "upgrade", "--install", "neo4j", "neo4j", *repo,
+            "helm", "upgrade", "--install", "neo4j", str(neo4j_chart),
             "-n", namespace, "-f", str(values_path), "--kubeconfig", kubeconfig,
         ],
         check=True,
     )
     subprocess.run(
         [
-            "helm", "upgrade", "--install", "neo4j-headless", "neo4j-headless-service", *repo,
+            "helm", "upgrade", "--install", "neo4j-headless", "neo4j-headless-service",
+            "--repo", "https://helm.neo4j.com/neo4j", "--version", str(chart_metadata(neo4j_chart)["version"]),
             "-n", namespace, "--set", f"neo4j.name={EXTERNAL_NEO4J_NAME}", "--kubeconfig", kubeconfig,
         ],
         check=True,
@@ -1168,6 +1175,7 @@ async def infrahub_external_neo4j_k8s(
             "AWS_ENDPOINT_URL_S3": f"http://{garage.spec.clusterIP}:{s3['port']}",
         },
         workdir,
+        neo4j_dependency(staged_charts["infrahub"]),
     )
 
     db_env = {
