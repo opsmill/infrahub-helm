@@ -1,3 +1,9 @@
+## [infrahub-4.39.4](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.39.4) - 2026-11-26
+
+### Fixed
+
+- Bumped the bundled `infrahub-backup` subchart to `1.7.1`. It runs the [infrahub-backup 2.6.1](https://github.com/opsmill/infrahub-backup/releases/tag/v2.6.1) image, which has the Neo4j 2026.05.0 tools. The 2.6.0 image had the Neo4j 2025.10.1 tools and refused to back up the Neo4j 2026.05.0 server that this chart deploys.
+
 ## [infrahub-4.39.2](https://github.com/opsmill/infrahub-helm/releases/tag/infrahub-4.39.2) - 2026-11-20
 
 ### Security
