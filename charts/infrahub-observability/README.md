@@ -99,7 +99,7 @@ What the chart creates:
 - A Deployment, a Service (`ClusterIP`), a ServiceAccount and, for a token value, a Secret, all named
   `<release>-grafana-mcp`. They come from the dependency.
 - A hook Job, after each install and upgrade, that creates the Grafana service account
-  `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-grafana-token`.
+  `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-service-account-token`.
   The Job logs in to Grafana as the admin user, with the admin Secret of the Grafana sub-chart or
   `grafana-mcp-setup.grafanaAdminSecret`. It keeps a stored token that Grafana still accepts and replaces
   one that Grafana refuses. The Job and the server never print a token.
@@ -161,7 +161,7 @@ grafana-mcp:
   volumes:
     - name: grafana-token
       secret:
-        secretName: grafana-mcp-grafana-token
+        secretName: grafana-mcp-service-account-token
         optional: true
         defaultMode: 0440
     - name: tls
@@ -261,7 +261,7 @@ default. Delete the PVCs explicitly if you want a clean slate.
 | grafana-mcp.serverAuth.tokenSecret.name | string | `""` | Name of an existing Secret that holds the token. Takes the place of `token`. |
 | grafana-mcp.startupProbe | object | `{"failureThreshold":30,"httpGet":{"path":"/healthz","port":8081},"periodSeconds":2}` | Probes on /healthz of the side listener (--healthz-address). It serves plain HTTP also when the main port serves HTTPS, and it is outside the Host check that rejects a probe, which sends the pod IP as its Host header. The default liveness probe of the dependency calls the main port. |
 | grafana-mcp.volumeMounts | list | `[{"mountPath":"/var/run/grafana-mcp","name":"grafana-token","readOnly":true}]` | Volume mounts of the server. |
-| grafana-mcp.volumes | list | `[{"name":"grafana-token","secret":{"defaultMode":288,"optional":true,"secretName":"grafana-mcp-grafana-token"}}]` | Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is optional so the pod starts before the Job has written it, and `helm install --wait` can reach the hook. The kubelet adds the token file 30 to 90 seconds after the Job. |
+| grafana-mcp.volumes | list | `[{"name":"grafana-token","secret":{"defaultMode":288,"optional":true,"secretName":"grafana-mcp-service-account-token"}}]` | Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is optional so the pod starts before the Job has written it, and `helm install --wait` can reach the hook. The kubelet adds the token file 30 to 90 seconds after the Job. |
 | grafana.adminPassword | string | `"admin"` | Default password matches docker-compose dev parity. Override via `grafana.admin.existingSecret` in production. |
 | loki | object | `{"backend":{"replicas":0},"chunksCache":{"enabled":false},"deploymentMode":"SingleBinary","enabled":true,"gateway":{"enabled":false},"loki":{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"compaction_interval":"10m","delete_request_store":"filesystem","retention_delete_delay":"2h","retention_delete_worker_count":100,"retention_enabled":true,"working_directory":"/var/loki/compactor"},"limits_config":{"allow_structured_metadata":true,"cardinality_limit":100000,"ingestion_burst_size_mb":64,"ingestion_rate_mb":32,"max_entries_limit_per_query":10000,"max_global_streams_per_user":15000,"max_query_lookback":"24h","max_streams_per_user":20000,"per_stream_rate_limit":"3MB","per_stream_rate_limit_burst":"5MB","reject_old_samples":true,"reject_old_samples_max_age":"168h","retention_period":"24h"},"schemaConfig":{"configs":[{"from":"2024-04-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"filesystem","schema":"v13","store":"tsdb"}]},"server":{"log_level":"warn"},"storage":{"type":"filesystem"}},"lokiCanary":{"enabled":false},"read":{"replicas":0},"resultsCache":{"enabled":false},"singleBinary":{"persistence":{"enabled":true,"size":"10Gi"},"replicas":1},"test":{"enabled":false},"write":{"replicas":0}}` | -------------------------------------------------------------------------- |
 | prefectExporter | object | `{"affinity":{},"containerSecurityContext":{},"enabled":true,"extraEnv":[],"image":{"pullPolicy":"","repository":"prefecthq/prometheus-prefect-exporter","tag":"3.3.0"},"logLevel":"WARNING","nodeSelector":{},"podAnnotations":{},"prefectApiUrl":"","readinessProbe":{"failureThreshold":3,"httpGet":{"path":"/metrics","port":"metrics"},"initialDelaySeconds":10,"periodSeconds":30,"timeoutSeconds":10},"replicas":1,"resources":{},"securityContext":{"runAsNonRoot":true,"runAsUser":1000},"service":{"port":8000,"type":"ClusterIP"},"tolerations":[]}` | -------------------------------------------------------------------------- |

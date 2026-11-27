@@ -21,7 +21,7 @@ TOKEN_REQUIRED = "grafana-mcp.serverAuth.token or grafana-mcp.serverAuth.tokenSe
 DIGEST = "sha256:78d208116ec52b09b44f0eca66892073b39aefcb64483c54d43255c8eab7e97a"
 SERVER = "obs-grafana-mcp"
 JOB = "obs-infrahub-observability-grafana-mcp-init"
-GRAFANA_TOKEN_SECRET = "grafana-mcp-grafana-token"
+GRAFANA_TOKEN_SECRET = "grafana-mcp-service-account-token"
 
 pytestmark = pytest.mark.skipif(shutil.which("helm") is None, reason="helm is not installed")
 

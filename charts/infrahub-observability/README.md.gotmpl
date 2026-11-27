@@ -98,7 +98,7 @@ What the chart creates:
 - A Deployment, a Service (`ClusterIP`), a ServiceAccount and, for a token value, a Secret, all named
   `<release>-grafana-mcp`. They come from the dependency.
 - A hook Job, after each install and upgrade, that creates the Grafana service account
-  `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-grafana-token`.
+  `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-service-account-token`.
   The Job logs in to Grafana as the admin user, with the admin Secret of the Grafana sub-chart or
   `grafana-mcp-setup.grafanaAdminSecret`. It keeps a stored token that Grafana still accepts and replaces
   one that Grafana refuses. The Job and the server never print a token.
@@ -160,7 +160,7 @@ grafana-mcp:
   volumes:
     - name: grafana-token
       secret:
-        secretName: grafana-mcp-grafana-token
+        secretName: grafana-mcp-service-account-token
         optional: true
         defaultMode: 0440
     - name: tls

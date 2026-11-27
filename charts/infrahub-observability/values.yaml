@@ -411,7 +411,7 @@ grafana-mcp:
   volumes:
     - name: grafana-token
       secret:
-        secretName: grafana-mcp-grafana-token
+        secretName: grafana-mcp-service-account-token
         optional: true
         defaultMode: 0440
   # -- Volume mounts of the server.

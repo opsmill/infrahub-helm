@@ -262,7 +262,7 @@ async def test_grafana_mcp_server_reads_grafana_with_the_caller_token(observabil
 
     # The Job created the Secret. The test only checks that it holds a token.
     secret = await Secret.get(
-        "grafana-mcp-grafana-token", namespace=namespace, api=api
+        "grafana-mcp-service-account-token", namespace=namespace, api=api
     )
     assert secret.raw.get("data", {}).get("token"), "The hook Job stored no Grafana token"
 
