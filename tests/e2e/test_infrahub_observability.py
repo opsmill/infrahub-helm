@@ -257,18 +257,20 @@ async def test_grafana_mcp_server_reads_grafana_with_the_caller_token(observabil
     """
     kubeconfig = observability_k8s["kubeconfig_path"]
     namespace = observability_k8s["namespace"]
-    release = observability_k8s["release"]
     caller_token = observability_k8s["grafana_mcp_token"]
     api = await kr8s.asyncio.api(kubeconfig=kubeconfig)
 
     # The Job created the Secret. The test only checks that it holds a token.
     secret = await Secret.get(
-        f"{release}-infrahub-observability-grafana-mcp-grafana-token", namespace=namespace, api=api
+        "grafana-mcp-grafana-token", namespace=namespace, api=api
     )
     assert secret.raw.get("data", {}).get("token"), "The hook Job stored no Grafana token"
 
     async with portforward_service(
-        kubeconfig, namespace, 8000, label_selector="service=grafana-mcp"
+        kubeconfig,
+        namespace,
+        8000,
+        label_selector="app.kubernetes.io/name=grafana-mcp,app.kubernetes.io/component=mcp-server",
     ) as base_url:
         url = f"{base_url}/mcp"
         async with httpx.AsyncClient(timeout=30.0) as client:
