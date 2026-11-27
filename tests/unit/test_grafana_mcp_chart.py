@@ -526,3 +526,28 @@ def test_the_job_script_never_prints_a_token():
     for line in run.splitlines():
         if line.lstrip().startswith("echo") or line.lstrip().startswith("printf"):
             assert "$token" not in line and "${token" not in line
+
+
+def notes(chart: Path, *sets: str, release: str = "obs") -> str:
+    """The install notes. `helm template` does not print them, so use a client-side dry run."""
+    cmd = ["helm", "install", release, str(chart), "--namespace", "monitoring", "--dry-run=client"]
+    for item in sets:
+        cmd.extend(["--set", item])
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "\nNOTES:\n" in result.stdout
+    return result.stdout.split("\nNOTES:\n", 1)[1]
+
+
+def test_install_notes_name_the_grafana_mcp_server_when_it_is_on(chart):
+    text = notes(chart, *ENABLED, release="obs")
+    assert "port-forward svc/obs-grafana-mcp 8100:8000" in text
+    assert "http://localhost:8100/mcp" in text
+    assert "Authorization: Bearer" in text
+    assert "read-only" in text
+    assert "up to about three minutes" in text
+    assert "--namespace monitoring" in text
+
+
+def test_install_notes_have_no_grafana_mcp_section_when_it_is_off(chart):
+    assert "grafana-mcp" not in notes(chart, "grafana.enabled=true")

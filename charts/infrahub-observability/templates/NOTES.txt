@@ -31,6 +31,24 @@ The stack includes: Grafana Alloy, Loki, Tempo, Prometheus, Grafana, and the Pre
    - Prometheus remote-write:  {{ include "infrahub-observability.prometheusRemoteWriteUrl" . }}
    - Loki push API:            {{ include "infrahub-observability.lokiPushUrl" . }}
 
+{{- if index .Values "grafana-mcp-setup" "enabled" }}
+
+4. Connect an AI assistant to the Grafana MCP server
+
+   The server is read-only: it has no tool that creates or changes dashboards, alert rules or
+   data sources. Port-forward to reach it:
+
+     kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-grafana-mcp 8100:8000
+
+   Then add http://localhost:8100/mcp as an MCP server in the assistant. The assistant sends the
+   value of grafana-mcp.serverAuth.token (or the Secret named in grafana-mcp.serverAuth.tokenSecret)
+   in the header "Authorization: Bearer <token>".
+
+   The server reads Grafana with a token that a Job stores in the Secret grafana-mcp-service-account-token.
+   The pod gets that token file up to about three minutes after the install. Until then, calls to
+   Grafana fail with HTTP 401.
+{{- end }}
+
 {{- if not .Values.prefectExporter.enabled }}
 
 NOTE: The Prefect exporter is disabled (.Values.prefectExporter.enabled=false). Prefect flow-run metrics
