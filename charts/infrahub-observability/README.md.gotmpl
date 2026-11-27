@@ -113,8 +113,9 @@ The Grafana address is `grafana-mcp.grafana.url`. Its default, `http://obs-grafa
 a release named `obs`. With another release name, or with `grafana.enabled=false`, set the address: the
 chart refuses to render with the default in those cases.
 
-After an install, the pod gets the token file about one to two minutes after the Job writes the
-Secret, because the kubelet refreshes mounted Secrets on a timer. Until then, calls to Grafana
+The pod gets the token file up to about three minutes after the Job writes or replaces the Secret
+(30 seconds to 2 minutes 20 seconds in manual tests), because the kubelet refreshes mounted Secrets on
+a timer. Until then, calls to Grafana
 through the server fail with HTTP 401. The server reads the file on every call, so it needs no restart.
 `helm uninstall` does not remove the token Secret, because the Job created it: delete it by hand.
 

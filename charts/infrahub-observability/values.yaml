@@ -398,7 +398,7 @@ grafana-mcp:
   # -- Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the
   # Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is
   # optional so the pod starts before the Job has written it, and `helm install --wait` can reach the
-  # hook. The kubelet adds the token file 30 to 90 seconds after the Job.
+  # hook. The kubelet adds the token file up to about three minutes after the Job.
   volumes:
     - name: grafana-token
       secret:
