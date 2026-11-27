@@ -48,3 +48,10 @@ dependencies:
     version: "4.36.0"
     repository: "https://prometheus-community.github.io/helm-charts"
     condition: prometheus-node-exporter.enabled
+  # The community chart. grafana.github.io/helm-charts has a deprecated grafana-mcp chart
+  # (0.3.1, server 0.8.2) that cannot set a token for callers. The condition is our own flag,
+  # because the values schema of this chart rejects an `enabled` key.
+  - name: grafana-mcp
+    version: "0.37.0"
+    repository: "https://grafana-community.github.io/helm-charts"
+    condition: grafanaMcp.enabled

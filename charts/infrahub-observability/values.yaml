@@ -271,42 +271,10 @@ prefectExporter:
 # and stores its token in a Secret, which the Deployment mounts as a file.
 # ----------------------------------------------------------------------------
 grafanaMcp:
-  # -- Install the Grafana MCP server. When false, the chart creates no object for it.
+  # -- Install the Grafana MCP server. This one flag turns on both the `grafana-mcp` dependency
+  # and the hook Job of this chart. When false, the chart creates no object for the server.
   enabled: false
-  image:
-    # -- Image of the Grafana MCP server.
-    repository: grafana/mcp-grafana
-    # -- Tag of the image.
-    tag: "2.0.2"
-    # -- Digest of the image. The chart pulls repository:tag@digest. Empty: pull by tag only.
-    digest: "sha256:78d208116ec52b09b44f0eca66892073b39aefcb64483c54d43255c8eab7e97a"
-    # -- Image pull policy. Empty: global.imagePullPolicy.
-    pullPolicy: ""
-  # -- Token that AI assistants send to the server (as a bearer token). It has no
-  # default: set `value` or `existingSecret`, or the install fails.
-  serverToken:
-    # -- The token as a plain value. The chart stores it in a Secret. Prefer `existingSecret`.
-    value: ""
-    # -- Name of an existing Secret that holds the token. Takes the place of `value`.
-    existingSecret: ""
-    # -- Key of the token in the existing Secret.
-    existingSecretKey: token
-  # -- Host header values that the server accepts, separated by commas. Add the
-  # host and port of any URL other than a `kubectl port-forward svc/<name> 8100:8000`.
-  allowedHosts: "localhost:8100,127.0.0.1:8100"
-  service:
-    # -- Service type. LoadBalancer and NodePort open the server to a network, so
-    # they need `tls.existingSecret`.
-    type: ClusterIP
-    # -- Service port.
-    port: 8000
-  tls:
-    # -- Name of a kubernetes.io/tls Secret (keys tls.crt and tls.key), for example
-    # from cert-manager. The server then serves HTTPS. Empty: the server serves plain HTTP.
-    existingSecret: ""
   grafana:
-    # -- Address of Grafana. Empty: the Grafana Service of this release.
-    url: ""
     # -- Name of the Secret with the Grafana admin user and password, which the hook
     # Job uses to create the service account. Empty: the admin Secret of the grafana
     # sub-chart (or `grafana.admin.existingSecret` when that is set).
@@ -329,23 +297,126 @@ grafanaMcp:
       readOnlyRootFilesystem: true
       capabilities:
         drop: [ALL]
+    # -- Resources of the Job.
     resources: {}
-  replicas: 1
-  podAnnotations: {}
-  resources: {}
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
-  # -- Pod-level security context of the server pod. The image runs as user 1000,
-  # group 999. fsGroup lets that group read the mounted TLS key.
+
+# Values of the grafana-mcp dependency (https://github.com/grafana-community/helm-charts, chart
+# version 0.37.0). The dependency is installed only when `grafanaMcp.enabled` is true. Its values
+# schema rejects an unknown key, so this chart keeps its own settings under `grafanaMcp`.
+# The settings below make the server read-only, and the chart refuses to render when one is removed.
+grafana-mcp:
+  image:
+    # -- Image of the Grafana MCP server.
+    repository: grafana/mcp-grafana
+    # -- Tag and digest of the image. The dependency builds the image as repository:tag, so the
+    # digest is part of the tag. The image is under security review at this version.
+    tag: "2.0.2@sha256:78d208116ec52b09b44f0eca66892073b39aefcb64483c54d43255c8eab7e97a"
+  grafana:
+    # -- Address of Grafana. The default is the Service of a release named `obs`. With another
+    # release name, set it to `http://<release>-grafana`: the chart refuses to render otherwise.
+    # When `grafana.enabled` is false, set the address of your Grafana.
+    url: "http://obs-grafana"
+  # -- Token that AI assistants send to the server, as a bearer token. Set `token` or
+  # `tokenSecret.name`, or the chart refuses to render: without it, the dependency would
+  # generate a token or turn authentication off.
+  serverAuth:
+    # -- The token as a plain value. The dependency stores it in a Secret. Prefer `tokenSecret`.
+    token: ""
+    tokenSecret:
+      # -- Name of an existing Secret that holds the token. Takes the place of `token`.
+      name: ""
+      # -- Key of the token in that Secret.
+      key: token
+  # -- Pass --disable-write: the server has no tool that creates or changes anything in Grafana.
+  # The chart refuses to render when this is false.
+  disableWrite: true
+  # -- Tool categories to turn off, passed as --disable-<category>. The chart refuses to render
+  # without api, docs and plugin, unless `extraArgs` has the matching flag.
+  disabledCategories: [api, docs, plugin]
+  # -- Environment variables of the server.
+  env:
+    # -- Do not send usage data.
+    DO_NOT_TRACK: "1"
+    # -- File with the Grafana token. The hook Job writes the token to a Secret that the
+    # `grafana-token` volume mounts here. The server reads the file on every call.
+    GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE: /var/run/grafana-mcp/token
+  # -- Host header values that the server accepts, besides the loopback addresses and the
+  # names of the Service. A client that uses another address, such as
+  # `kubectl port-forward svc/<name> 8100:8000`, needs its host and port here.
+  allowedHosts:
+    extra:
+      - localhost:8100
+      - 127.0.0.1:8100
+  # -- Arguments of the server. The dependency adds the flags of disableWrite, disabledCategories
+  # and allowedHosts itself. To serve HTTPS, add `--server.tls-cert-file=/etc/grafana-mcp/tls/tls.crt`
+  # and `--server.tls-key-file=/etc/grafana-mcp/tls/tls.key`, and mount the Secret with `volumes`
+  # and `volumeMounts` (see the README). Do not change the port of `--address` without `service.port`.
+  extraArgs:
+    - --transport
+    - streamable-http
+    - --address
+    - 0.0.0.0:8000
+    - --healthz-address
+    - ":8081"
+    - --usage-stats=disabled
+    - --instructions-append
+    - "In this stack the Grafana MCP server only reads: it has no tool that creates or changes dashboards, folders, annotations, incidents, alert rules or data sources."
+  # -- Probes on /healthz of the side listener (--healthz-address). It serves plain HTTP also when
+  # the main port serves HTTPS, and it is outside the Host check that rejects a probe, which sends
+  # the pod IP as its Host header. The default liveness probe of the dependency calls the main port.
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: 8081
+    periodSeconds: 2
+    failureThreshold: 30
+  readinessProbe:
+    # null removes the TCP check of the dependency: a probe has one handler.
+    tcpSocket: null
+    httpGet:
+      path: /healthz
+      port: 8081
+    periodSeconds: 10
+  livenessProbe:
+    # null removes the Host header and timeout of the dependency, which belong to its probe on the main port.
+    timeoutSeconds: null
+    httpGet:
+      httpHeaders: null
+      path: /healthz
+      port: 8081
+    periodSeconds: 20
+  # -- Pod-level security context. The image runs as user 1000, group 999. fsGroup lets that
+  # group read a mounted TLS key.
   securityContext:
+    fsGroup: 999
     runAsNonRoot: true
     runAsUser: 1000
     runAsGroup: 999
-    fsGroup: 999
-  # -- Container-level security context of the server.
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Container-level security context.
   containerSecurityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
     capabilities:
       drop: [ALL]
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  # -- Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the
+  # Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is
+  # optional so the pod starts before the Job has written it, and `helm install --wait` can reach the
+  # hook. The kubelet adds the token file 30 to 90 seconds after the Job.
+  volumes:
+    - name: grafana-token
+      secret:
+        secretName: grafana-mcp-grafana-token
+        optional: true
+        defaultMode: 0440
+  # -- Volume mounts of the server.
+  volumeMounts:
+    - name: grafana-token
+      mountPath: /var/run/grafana-mcp
+      readOnly: true

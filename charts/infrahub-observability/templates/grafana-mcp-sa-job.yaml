@@ -1,4 +1,5 @@
 {{- if .Values.grafanaMcp.enabled }}
+{{- include "infrahub-observability.grafanaMcpValidate" . }}
 {{- $name := include "infrahub-observability.grafanaMcpFullname" . }}
 {{- $initName := printf "%s-init" $name }}
 {{- $tokenSecret := include "infrahub-observability.grafanaMcpGrafanaTokenSecret" . }}
@@ -123,7 +124,7 @@ spec:
           command: ["sh", "/scripts/run.sh"]
           env:
             - name: GRAFANA_URL
-              value: {{ include "infrahub-observability.grafanaMcpGrafanaUrl" . | quote }}
+              value: {{ (index .Values "grafana-mcp").grafana.url | quote }}
             - name: GRAFANA_ADMIN_USER
               valueFrom:
                 secretKeyRef:
