@@ -176,8 +176,10 @@ grafana-mcp:
       readOnly: true
 ```
 
-The probes check `/healthz` on the side listener, which serves plain HTTP also when the main port
-serves HTTPS, so they need no change. The pod runs with `fsGroup: 999`, so that the server can read the
+The startup and liveness probes check `/healthz` on the side listener, which serves plain HTTP also
+when the main port serves HTTPS. The readiness probe is a TCP check on the main port. So the probes
+need no change. Do not set a probe key to `null`: `helm upgrade --reuse-values` brings the default
+back, and the probe then has two handlers. The pod runs with `fsGroup: 999`, so that the server can read the
 key. Restart the pod after a certificate renewal, so that the server reads the new files.
 
 ## Uninstalling the Chart

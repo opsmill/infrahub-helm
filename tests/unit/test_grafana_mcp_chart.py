@@ -8,6 +8,7 @@ once, to download that chart. They need no vcluster. The other sub-charts are no
 import base64
 import shutil
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -296,17 +297,65 @@ def test_pod_can_read_a_tls_key_of_group_999(chart):
     assert container_context["capabilities"] == {"drop": ["ALL"]}
 
 
-def test_probes_use_the_side_listener_over_http(chart):
+def test_probes_have_one_handler_and_the_right_ports(chart):
     container = server_container(render(chart, *ENABLED))
     for name in ("startupProbe", "readinessProbe", "livenessProbe"):
-        probe = container[name]
-        assert list(probe).count("httpGet") == 1
-        assert not {"tcpSocket", "exec", "grpc"} & set(probe), f"{name} has two handlers"
-        assert probe["httpGet"]["path"] == "/healthz"
-        assert probe["httpGet"]["port"] == 8081
-        assert probe["httpGet"].get("scheme", "HTTP") == "HTTP"
-        assert "httpHeaders" not in probe["httpGet"]
+        handlers = {"httpGet", "tcpSocket", "exec", "grpc"} & set(container[name])
+        assert len(handlers) == 1, f"{name} has {sorted(handlers)}"
+    for name in ("startupProbe", "livenessProbe"):
+        http_get = container[name]["httpGet"]
+        assert http_get["path"] == "/healthz"
+        assert http_get["port"] == 8081
+        assert http_get.get("scheme", "HTTP") == "HTTP"
+    # The readiness check is a TCP check on the main port, so it works with TLS too.
+    assert container["readinessProbe"]["tcpSocket"]["port"] == "mcp-http"
     assert "--healthz-address" in container["args"]
+
+
+def merge_keeping_defaults(default: dict, override: dict) -> dict:
+    """Merge two maps. A null in `override` does not remove the key of `default`."""
+    merged = dict(default)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge_keeping_defaults(merged[key], value)
+        elif value is not None:
+            merged[key] = value
+    return merged
+
+
+def test_probes_keep_one_handler_when_values_are_reused(chart):
+    """`helm upgrade --reuse-values` renders from the stored values of the release.
+
+    Those hold the defaults of the grafana-mcp dependency again, because a null in
+    values.yaml does not remove them there. So the probes must not depend on a null:
+    each key of a default probe that the chart overrides must give one handler.
+    """
+    with tarfile.open(next((chart / "charts").glob("grafana-mcp-*.tgz"))) as archive:
+        defaults = yaml.safe_load(archive.extractfile("grafana-mcp/values.yaml").read())
+    ours = yaml.safe_load((CHART_DIR / "values.yaml").read_text())["grafana-mcp"]
+    stored = merge_keeping_defaults(defaults, ours)
+    docs = render(chart, *ENABLED, values={"grafana-mcp": stored})
+    container = server_container(docs)
+    for name in ("startupProbe", "readinessProbe", "livenessProbe"):
+        handlers = {"httpGet", "tcpSocket", "exec", "grpc"} & set(container[name])
+        assert len(handlers) == 1, f"{name} has {sorted(handlers)}"
+
+
+def test_values_do_not_set_null_for_the_dependency():
+    """A null removes a default only in a fresh render. `--reuse-values` brings the default back."""
+
+    def nulls(node: object, path: str = "") -> list[str]:
+        if not isinstance(node, dict):
+            return []
+        found = []
+        for key, value in node.items():
+            if value is None:
+                found.append(f"{path}.{key}")
+            found.extend(nulls(value, f"{path}.{key}"))
+        return found
+
+    ours = yaml.safe_load((CHART_DIR / "values.yaml").read_text())["grafana-mcp"]
+    assert nulls(ours, "grafana-mcp") == []
 
 
 def test_grafana_token_secret_is_optional_in_the_pod(chart):

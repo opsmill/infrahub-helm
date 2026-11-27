@@ -177,8 +177,10 @@ grafana-mcp:
       readOnly: true
 ```
 
-The probes check `/healthz` on the side listener, which serves plain HTTP also when the main port
-serves HTTPS, so they need no change. The pod runs with `fsGroup: 999`, so that the server can read the
+The startup and liveness probes check `/healthz` on the side listener, which serves plain HTTP also
+when the main port serves HTTPS. The readiness probe is a TCP check on the main port. So the probes
+need no change. Do not set a probe key to `null`: `helm upgrade --reuse-values` brings the default
+back, and the probe then has two handlers. The pod runs with `fsGroup: 999`, so that the server can read the
 key. Restart the pod after a certificate renewal, so that the server reads the new files.
 
 ## Uninstalling the Chart
@@ -245,21 +247,13 @@ default. Delete the PVCs explicitly if you want a clean slate.
 | grafana-mcp.grafana.url | string | `"http://obs-grafana"` | Address of Grafana. The default is the Service of a release named `obs`. With another release name, set it to `http://<release>-grafana`: the chart refuses to render otherwise. When `grafana.enabled` is false, set the address of your Grafana. |
 | grafana-mcp.image.repository | string | `"grafana/mcp-grafana"` | Image of the Grafana MCP server. |
 | grafana-mcp.image.tag | string | `"2.0.2@sha256:78d208116ec52b09b44f0eca66892073b39aefcb64483c54d43255c8eab7e97a"` | Tag and digest of the image. The dependency builds the image as repository:tag, so the digest is part of the tag. The image is under security review at this version. |
-| grafana-mcp.livenessProbe.httpGet.httpHeaders | string | `nil` |  |
-| grafana-mcp.livenessProbe.httpGet.path | string | `"/healthz"` |  |
 | grafana-mcp.livenessProbe.httpGet.port | int | `8081` |  |
-| grafana-mcp.livenessProbe.periodSeconds | int | `20` |  |
-| grafana-mcp.livenessProbe.timeoutSeconds | string | `nil` |  |
-| grafana-mcp.readinessProbe.httpGet.path | string | `"/healthz"` |  |
-| grafana-mcp.readinessProbe.httpGet.port | int | `8081` |  |
-| grafana-mcp.readinessProbe.periodSeconds | int | `10` |  |
-| grafana-mcp.readinessProbe.tcpSocket | string | `nil` |  |
 | grafana-mcp.securityContext | object | `{"fsGroup":999,"runAsGroup":999,"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}}` | Pod-level security context. The image runs as user 1000, group 999. fsGroup lets that group read a mounted TLS key. |
 | grafana-mcp.serverAuth | object | `{"token":"","tokenSecret":{"key":"token","name":""}}` | Token that AI assistants send to the server, as a bearer token. Set `token` or `tokenSecret.name`, or the chart refuses to render: without it, the dependency would generate a token or turn authentication off. |
 | grafana-mcp.serverAuth.token | string | `""` | The token as a plain value. The dependency stores it in a Secret. Prefer `tokenSecret`. |
 | grafana-mcp.serverAuth.tokenSecret.key | string | `"token"` | Key of the token in that Secret. |
 | grafana-mcp.serverAuth.tokenSecret.name | string | `""` | Name of an existing Secret that holds the token. Takes the place of `token`. |
-| grafana-mcp.startupProbe | object | `{"failureThreshold":30,"httpGet":{"path":"/healthz","port":8081},"periodSeconds":2}` | Probes on /healthz of the side listener (--healthz-address). It serves plain HTTP also when the main port serves HTTPS, and it is outside the Host check that rejects a probe, which sends the pod IP as its Host header. The default liveness probe of the dependency calls the main port. |
+| grafana-mcp.startupProbe | object | `{"failureThreshold":30,"httpGet":{"path":"/healthz","port":8081},"periodSeconds":2}` | Probes. The startup probe and the liveness probe call /healthz of the side listener (`--healthz-address`). It serves plain HTTP also when the main port serves HTTPS, and it is outside the Host check. The readiness probe stays the TCP check of the dependency on the main port, which also works with TLS. Do not set a key to `null` here: `helm upgrade --reuse-values` brings the default back, and a probe then has two handlers. Only the port of the liveness probe changes from the default of the dependency; its Host header and timeout stay. |
 | grafana-mcp.volumeMounts | list | `[{"mountPath":"/var/run/grafana-mcp","name":"grafana-token","readOnly":true}]` | Volume mounts of the server. |
 | grafana-mcp.volumes | list | `[{"name":"grafana-token","secret":{"defaultMode":288,"optional":true,"secretName":"grafana-mcp-service-account-token"}}]` | Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is optional so the pod starts before the Job has written it, and `helm install --wait` can reach the hook. The kubelet adds the token file 30 to 90 seconds after the Job. |
 | grafana.adminPassword | string | `"admin"` | Default password matches docker-compose dev parity. Override via `grafana.admin.existingSecret` in production. |

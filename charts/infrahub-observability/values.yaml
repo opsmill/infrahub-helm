@@ -360,30 +360,21 @@ grafana-mcp:
     - --usage-stats=disabled
     - --instructions-append
     - "In this stack the Grafana MCP server only reads: it has no tool that creates or changes dashboards, folders, annotations, incidents, alert rules or data sources."
-  # -- Probes on /healthz of the side listener (--healthz-address). It serves plain HTTP also when
-  # the main port serves HTTPS, and it is outside the Host check that rejects a probe, which sends
-  # the pod IP as its Host header. The default liveness probe of the dependency calls the main port.
+  # -- Probes. The startup probe and the liveness probe call /healthz of the side listener
+  # (`--healthz-address`). It serves plain HTTP also when the main port serves HTTPS, and it is
+  # outside the Host check. The readiness probe stays the TCP check of the dependency on the main
+  # port, which also works with TLS. Do not set a key to `null` here: `helm upgrade --reuse-values`
+  # brings the default back, and a probe then has two handlers. Only the port of the liveness
+  # probe changes from the default of the dependency; its Host header and timeout stay.
   startupProbe:
     httpGet:
       path: /healthz
       port: 8081
     periodSeconds: 2
     failureThreshold: 30
-  readinessProbe:
-    # null removes the TCP check of the dependency: a probe has one handler.
-    tcpSocket: null
-    httpGet:
-      path: /healthz
-      port: 8081
-    periodSeconds: 10
   livenessProbe:
-    # null removes the Host header and timeout of the dependency, which belong to its probe on the main port.
-    timeoutSeconds: null
     httpGet:
-      httpHeaders: null
-      path: /healthz
       port: 8081
-    periodSeconds: 20
   # -- Pod-level security context. The image runs as user 1000, group 999. fsGroup lets that
   # group read a mounted TLS key.
   securityContext:
