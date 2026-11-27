@@ -1,11 +1,12 @@
-{{- if .Values.grafanaMcp.enabled }}
+{{- $setup := index .Values "grafana-mcp-setup" }}
+{{- if $setup.enabled }}
 {{- include "infrahub-observability.grafanaMcpValidate" . }}
 {{- $name := include "infrahub-observability.grafanaMcpFullname" . }}
 {{- $initName := printf "%s-init" $name }}
 {{- $tokenSecret := include "infrahub-observability.grafanaMcpGrafanaTokenSecret" . }}
-{{- $job := .Values.grafanaMcp.serviceAccountJob }}
+{{- $job := $setup.tokenJob }}
 {{- $admin := .Values.grafana.admin | default dict }}
-{{- $adminSecret := .Values.grafanaMcp.grafana.adminSecret | default $admin.existingSecret | default (include "infrahub-observability.grafanaFullname" .) }}
+{{- $adminSecret := $setup.grafanaAdminSecret | default $admin.existingSecret | default (include "infrahub-observability.grafanaFullname" .) }}
 ---
 apiVersion: v1
 kind: ServiceAccount

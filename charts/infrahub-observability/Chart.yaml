@@ -54,4 +54,4 @@ dependencies:
   - name: grafana-mcp
     version: "0.37.0"
     repository: "https://grafana-community.github.io/helm-charts"
-    condition: grafanaMcp.enabled
+    condition: grafana-mcp-setup.enabled

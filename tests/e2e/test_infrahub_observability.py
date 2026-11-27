@@ -202,7 +202,7 @@ async def test_grafana_dashboards_present_and_functional(observability_k8s):
 # ---------------------------------------------------------------------------
 # Grafana MCP server
 # ---------------------------------------------------------------------------
-# The chart allows this Host header by default (`grafanaMcp.allowedHosts`), whatever local
+# The chart allows this Host header by default (`grafana-mcp.allowedHosts.extra`), whatever local
 # port the port-forward gets.
 GRAFANA_MCP_HOST = "localhost:8100"
 MCP_HEADERS = {

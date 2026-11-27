@@ -270,16 +270,15 @@ prefectExporter:
 # service account has the Viewer role. A hook Job creates that service account
 # and stores its token in a Secret, which the Deployment mounts as a file.
 # ----------------------------------------------------------------------------
-grafanaMcp:
+grafana-mcp-setup:
   # -- Install the Grafana MCP server. This one flag turns on both the `grafana-mcp` dependency
   # and the hook Job of this chart. When false, the chart creates no object for the server.
   enabled: false
-  grafana:
-    # -- Name of the Secret with the Grafana admin user and password, which the hook
-    # Job uses to create the service account. Empty: the admin Secret of the grafana
-    # sub-chart (or `grafana.admin.existingSecret` when that is set).
-    adminSecret: ""
-  serviceAccountJob:
+  # -- Name of the Secret with the Grafana admin user and password, which the hook
+  # Job uses to create the service account. Empty: the admin Secret of the grafana
+  # sub-chart (or `grafana.admin.existingSecret` when that is set).
+  grafanaAdminSecret: ""
+  tokenJob:
     # -- Image of the hook Job. It needs curl, sed, grep and base64: the Grafana image has them.
     image:
       repository: grafana/grafana
@@ -301,8 +300,8 @@ grafanaMcp:
     resources: {}
 
 # Values of the grafana-mcp dependency (https://github.com/grafana-community/helm-charts, chart
-# version 0.37.0). The dependency is installed only when `grafanaMcp.enabled` is true. Its values
-# schema rejects an unknown key, so this chart keeps its own settings under `grafanaMcp`.
+# version 0.37.0). The dependency is installed only when `grafana-mcp-setup.enabled` is true. Its values
+# schema rejects an unknown key, so this chart keeps its own settings under `grafana-mcp-setup`.
 # The settings below make the server read-only, and the chart refuses to render when one is removed.
 grafana-mcp:
   image:

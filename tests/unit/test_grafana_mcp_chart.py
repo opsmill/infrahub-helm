@@ -107,7 +107,7 @@ def env_of(container: dict) -> dict[str, dict]:
     return {item["name"]: item for item in container["env"]}
 
 
-ENABLED = ("grafanaMcp.enabled=true", f"grafana-mcp.serverAuth.token={TEST_TOKEN}")
+ENABLED = ("grafana-mcp-setup.enabled=true", f"grafana-mcp.serverAuth.token={TEST_TOKEN}")
 
 
 def tls_values() -> dict:
@@ -149,14 +149,14 @@ def test_one_flag_turns_on_the_dependency_and_the_job(chart):
 
 
 def test_dependency_flag_is_not_a_value_of_the_dependency(chart):
-    """The values schema of grafana-mcp rejects an `enabled` key, so the flag is grafanaMcp.enabled."""
+    """The values schema of grafana-mcp rejects an `enabled` key, so the flag is grafana-mcp-setup.enabled."""
     result = helm_template(chart, *ENABLED, "grafana-mcp.enabled=true")
     assert result.returncode != 0
     assert "enabled" in result.stderr
 
 
 def test_render_fails_without_a_token(chart):
-    result = helm_template(chart, "grafanaMcp.enabled=true")
+    result = helm_template(chart, "grafana-mcp-setup.enabled=true")
     assert result.returncode != 0
     assert TOKEN_REQUIRED in result.stderr
 
@@ -164,7 +164,7 @@ def test_render_fails_without_a_token(chart):
 @pytest.mark.parametrize("value", ["grafana-mcp.serverAuth.token=null", "grafana-mcp.serverAuth.token="])
 def test_render_fails_when_the_token_is_empty_or_null(chart, value):
     """The dependency generates a token for "" and turns authentication off for null."""
-    result = helm_template(chart, "grafanaMcp.enabled=true", value)
+    result = helm_template(chart, "grafana-mcp-setup.enabled=true", value)
     assert result.returncode != 0
     assert TOKEN_REQUIRED in result.stderr
 
@@ -180,7 +180,7 @@ def test_the_token_value_is_only_in_the_secret(chart):
 def test_existing_secret_replaces_the_token_value(chart):
     docs = render(
         chart,
-        "grafanaMcp.enabled=true",
+        "grafana-mcp-setup.enabled=true",
         "grafana-mcp.serverAuth.tokenSecret.name=my-token",
         "grafana-mcp.serverAuth.tokenSecret.key=caller",
     )
@@ -191,7 +191,7 @@ def test_existing_secret_replaces_the_token_value(chart):
 
 def test_existing_secret_needs_a_key(chart):
     result = helm_template(
-        chart, "grafanaMcp.enabled=true", "grafana-mcp.serverAuth.tokenSecret.name=my-token", "grafana-mcp.serverAuth.tokenSecret.key="
+        chart, "grafana-mcp-setup.enabled=true", "grafana-mcp.serverAuth.tokenSecret.name=my-token", "grafana-mcp.serverAuth.tokenSecret.key="
     )
     assert result.returncode != 0
     assert "grafana-mcp.serverAuth.tokenSecret.key is required" in result.stderr
@@ -393,7 +393,7 @@ def test_grafana_url_and_admin_secret_can_be_set(chart):
         chart,
         *ENABLED,
         "grafana-mcp.grafana.url=https://grafana.example.com",
-        "grafanaMcp.grafana.adminSecret=my-admin",
+        "grafana-mcp-setup.grafanaAdminSecret=my-admin",
     )
     env = env_of(named(docs, "Job", JOB)["spec"]["template"]["spec"]["containers"][0])
     assert env["GRAFANA_URL"]["value"] == "https://grafana.example.com"

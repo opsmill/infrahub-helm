@@ -72,16 +72,19 @@ of the Grafana community, version 0.37.0, installed as a dependency. (The `grafa
 hook Job. Settings are under two keys, because the values schema of the dependency rejects a key that
 it does not know:
 
-- `grafanaMcp`: the flag `enabled` and the settings of the hook Job. `grafanaMcp.enabled` is the only
-  flag: it turns on the dependency and the Job together.
+- `grafana-mcp-setup`: the flag `enabled` and the settings of the hook Job. `grafana-mcp-setup.enabled`
+  is the only flag: it turns on the dependency and the Job together.
 - `grafana-mcp`: the settings of the server, as the dependency defines them (Ingress, HTTPRoute,
   autoscaling, ServiceMonitor and others). This chart sets the options that make the server read-only.
+
+In short: `grafana-mcp` holds the settings of the upstream chart, and `grafana-mcp-setup` holds the flag
+and the token Job.
 
 Set a token that the AI assistant sends, and turn the server on:
 
 ```sh
 helm upgrade --install obs charts/infrahub-observability -n infrahub \
-  --set grafanaMcp.enabled=true \
+  --set grafana-mcp-setup.enabled=true \
   --set grafana-mcp.serverAuth.tokenSecret.name=my-grafana-mcp-token
 ```
 
@@ -97,7 +100,7 @@ What the chart creates:
 - A hook Job, after each install and upgrade, that creates the Grafana service account
   `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-grafana-token`.
   The Job logs in to Grafana as the admin user, with the admin Secret of the Grafana sub-chart or
-  `grafanaMcp.grafana.adminSecret`. It keeps a stored token that Grafana still accepts and replaces
+  `grafana-mcp-setup.grafanaAdminSecret`. It keeps a stored token that Grafana still accepts and replaces
   one that Grafana refuses. The Job and the server never print a token.
 
 The name of the Grafana token Secret is the `secretName` of the volume `grafana-token` in

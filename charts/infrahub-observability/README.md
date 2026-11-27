@@ -73,16 +73,19 @@ of the Grafana community, version 0.37.0, installed as a dependency. (The `grafa
 hook Job. Settings are under two keys, because the values schema of the dependency rejects a key that
 it does not know:
 
-- `grafanaMcp`: the flag `enabled` and the settings of the hook Job. `grafanaMcp.enabled` is the only
-  flag: it turns on the dependency and the Job together.
+- `grafana-mcp-setup`: the flag `enabled` and the settings of the hook Job. `grafana-mcp-setup.enabled`
+  is the only flag: it turns on the dependency and the Job together.
 - `grafana-mcp`: the settings of the server, as the dependency defines them (Ingress, HTTPRoute,
   autoscaling, ServiceMonitor and others). This chart sets the options that make the server read-only.
+
+In short: `grafana-mcp` holds the settings of the upstream chart, and `grafana-mcp-setup` holds the flag
+and the token Job.
 
 Set a token that the AI assistant sends, and turn the server on:
 
 ```sh
 helm upgrade --install obs charts/infrahub-observability -n infrahub \
-  --set grafanaMcp.enabled=true \
+  --set grafana-mcp-setup.enabled=true \
   --set grafana-mcp.serverAuth.tokenSecret.name=my-grafana-mcp-token
 ```
 
@@ -98,7 +101,7 @@ What the chart creates:
 - A hook Job, after each install and upgrade, that creates the Grafana service account
   `infrahub-grafana-mcp` and stores its token in the Secret `grafana-mcp-grafana-token`.
   The Job logs in to Grafana as the admin user, with the admin Secret of the Grafana sub-chart or
-  `grafanaMcp.grafana.adminSecret`. It keeps a stored token that Grafana still accepts and replaces
+  `grafana-mcp-setup.grafanaAdminSecret`. It keeps a stored token that Grafana still accepts and replaces
   one that Grafana refuses. The Job and the server never print a token.
 
 The name of the Grafana token Secret is the `secretName` of the volume `grafana-token` in
@@ -222,6 +225,13 @@ default. Delete the PVCs explicitly if you want a clean slate.
 | global.kubernetesClusterDomain | string | `"cluster.local"` | Cluster DNS domain. Used for fully-qualified service names if needed. |
 | global.podLabels | object | `{}` | Pod-level labels merged into the standard selector labels. |
 | grafana | object | `{"adminPassword":"admin","adminUser":"admin","enabled":true,"env":{"GF_LOG_LEVEL":"warn","GF_USERS_ALLOW_SIGN_UP":"false"},"ingress":{"enabled":false},"persistence":{"enabled":true,"size":"5Gi"},"service":{"type":"ClusterIP"},"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"ALL"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"ALL"}}}` | -------------------------------------------------------------------------- |
+| grafana-mcp-setup | object | `{"enabled":false,"grafanaAdminSecret":"","tokenJob":{"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"image":{"pullPolicy":"","repository":"grafana/grafana","tag":"11.1.5"},"resources":{},"securityContext":{"fsGroup":472,"runAsGroup":472,"runAsNonRoot":true,"runAsUser":472}}}` | -------------------------------------------------------------------------- |
+| grafana-mcp-setup.enabled | bool | `false` | Install the Grafana MCP server. This one flag turns on both the `grafana-mcp` dependency and the hook Job of this chart. When false, the chart creates no object for the server. |
+| grafana-mcp-setup.grafanaAdminSecret | string | `""` | Name of the Secret with the Grafana admin user and password, which the hook Job uses to create the service account. Empty: the admin Secret of the grafana sub-chart (or `grafana.admin.existingSecret` when that is set). |
+| grafana-mcp-setup.tokenJob.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context of the Job. |
+| grafana-mcp-setup.tokenJob.image | object | `{"pullPolicy":"","repository":"grafana/grafana","tag":"11.1.5"}` | Image of the hook Job. It needs curl, sed, grep and base64: the Grafana image has them. |
+| grafana-mcp-setup.tokenJob.resources | object | `{}` | Resources of the Job. |
+| grafana-mcp-setup.tokenJob.securityContext | object | `{"fsGroup":472,"runAsGroup":472,"runAsNonRoot":true,"runAsUser":472}` | Pod-level security context of the Job pod. |
 | grafana-mcp.allowedHosts | object | `{"extra":["localhost:8100","127.0.0.1:8100"]}` | Host header values that the server accepts, besides the loopback addresses and the names of the Service. A client that uses another address, such as `kubectl port-forward svc/<name> 8100:8000`, needs its host and port here. |
 | grafana-mcp.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":999,"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}}` | Container-level security context. |
 | grafana-mcp.disableWrite | bool | `true` |  |
@@ -253,13 +263,6 @@ default. Delete the PVCs explicitly if you want a clean slate.
 | grafana-mcp.volumeMounts | list | `[{"mountPath":"/var/run/grafana-mcp","name":"grafana-token","readOnly":true}]` | Volume mounts of the server. |
 | grafana-mcp.volumes | list | `[{"name":"grafana-token","secret":{"defaultMode":288,"optional":true,"secretName":"grafana-mcp-grafana-token"}}]` | Volumes of the pod. The volume named `grafana-token` must stay: the hook Job writes the Grafana token to the Secret it names, and the chart refuses to render without it. The Secret is optional so the pod starts before the Job has written it, and `helm install --wait` can reach the hook. The kubelet adds the token file 30 to 90 seconds after the Job. |
 | grafana.adminPassword | string | `"admin"` | Default password matches docker-compose dev parity. Override via `grafana.admin.existingSecret` in production. |
-| grafanaMcp | object | `{"enabled":false,"grafana":{"adminSecret":""},"serviceAccountJob":{"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"image":{"pullPolicy":"","repository":"grafana/grafana","tag":"11.1.5"},"resources":{},"securityContext":{"fsGroup":472,"runAsGroup":472,"runAsNonRoot":true,"runAsUser":472}}}` | -------------------------------------------------------------------------- |
-| grafanaMcp.enabled | bool | `false` | Install the Grafana MCP server. This one flag turns on both the `grafana-mcp` dependency and the hook Job of this chart. When false, the chart creates no object for the server. |
-| grafanaMcp.grafana.adminSecret | string | `""` | Name of the Secret with the Grafana admin user and password, which the hook Job uses to create the service account. Empty: the admin Secret of the grafana sub-chart (or `grafana.admin.existingSecret` when that is set). |
-| grafanaMcp.serviceAccountJob.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context of the Job. |
-| grafanaMcp.serviceAccountJob.image | object | `{"pullPolicy":"","repository":"grafana/grafana","tag":"11.1.5"}` | Image of the hook Job. It needs curl, sed, grep and base64: the Grafana image has them. |
-| grafanaMcp.serviceAccountJob.resources | object | `{}` | Resources of the Job. |
-| grafanaMcp.serviceAccountJob.securityContext | object | `{"fsGroup":472,"runAsGroup":472,"runAsNonRoot":true,"runAsUser":472}` | Pod-level security context of the Job pod. |
 | loki | object | `{"backend":{"replicas":0},"chunksCache":{"enabled":false},"deploymentMode":"SingleBinary","enabled":true,"gateway":{"enabled":false},"loki":{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"compaction_interval":"10m","delete_request_store":"filesystem","retention_delete_delay":"2h","retention_delete_worker_count":100,"retention_enabled":true,"working_directory":"/var/loki/compactor"},"limits_config":{"allow_structured_metadata":true,"cardinality_limit":100000,"ingestion_burst_size_mb":64,"ingestion_rate_mb":32,"max_entries_limit_per_query":10000,"max_global_streams_per_user":15000,"max_query_lookback":"24h","max_streams_per_user":20000,"per_stream_rate_limit":"3MB","per_stream_rate_limit_burst":"5MB","reject_old_samples":true,"reject_old_samples_max_age":"168h","retention_period":"24h"},"schemaConfig":{"configs":[{"from":"2024-04-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"filesystem","schema":"v13","store":"tsdb"}]},"server":{"log_level":"warn"},"storage":{"type":"filesystem"}},"lokiCanary":{"enabled":false},"read":{"replicas":0},"resultsCache":{"enabled":false},"singleBinary":{"persistence":{"enabled":true,"size":"10Gi"},"replicas":1},"test":{"enabled":false},"write":{"replicas":0}}` | -------------------------------------------------------------------------- |
 | prefectExporter | object | `{"affinity":{},"containerSecurityContext":{},"enabled":true,"extraEnv":[],"image":{"pullPolicy":"","repository":"prefecthq/prometheus-prefect-exporter","tag":"3.3.0"},"logLevel":"WARNING","nodeSelector":{},"podAnnotations":{},"prefectApiUrl":"","readinessProbe":{"failureThreshold":3,"httpGet":{"path":"/metrics","port":"metrics"},"initialDelaySeconds":10,"periodSeconds":30,"timeoutSeconds":10},"replicas":1,"resources":{},"securityContext":{"runAsNonRoot":true,"runAsUser":1000},"service":{"port":8000,"type":"ClusterIP"},"tolerations":[]}` | -------------------------------------------------------------------------- |
 | prefectExporter.containerSecurityContext | object | `{}` | Container-level security context for the prefect-exporter container. Empty by default so it stays optional; set this to satisfy cluster policies that require a container-level securityContext (e.g. allowPrivilegeEscalation, readOnlyRootFilesystem, capabilities). |

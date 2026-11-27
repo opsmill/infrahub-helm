@@ -621,7 +621,7 @@ async def observability_k8s(
         kubeconfig=kubeconfig,
         values_files=[FIXTURES_DIR / "infrahub-observability-values.yaml"],
         sets={
-            "grafanaMcp.enabled": "true",
+            "grafana-mcp-setup.enabled": "true",
             "grafana-mcp.serverAuth.token": GRAFANA_MCP_CALLER_TOKEN,
         },
         timeout="12m",
