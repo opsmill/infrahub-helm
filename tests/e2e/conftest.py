@@ -7,10 +7,13 @@ reflects the working-tree changes.
 """
 
 import asyncio
+import base64
 import json
 import os
+import secrets
 import shutil
 import subprocess
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -1044,6 +1047,214 @@ async def infrahub_custom_ca_k8s(
         "chart_path": staged_charts["infrahub"],
         "values_files": values_files,
         "sets": sets,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fixture: infrahub_sync_k8s (the standalone infrahub-sync chart)
+# ---------------------------------------------------------------------------
+SYNC_CHART = CHARTS_DIR / "infrahub-sync"
+SYNC_NAMESPACE = "infrahub-sync"
+SYNC_RELEASE = "sync"
+SYNC_CREDENTIALS_SECRET = "infrahub-sync"
+SYNC_PULL_SECRET = "infrahub-sync-registry"
+SYNC_DEFAULT_REPOSITORY = "registry.opsmill.io/opsmill/infrahub-sync"
+
+
+def _sync_registry_credentials() -> tuple[str, str] | None:
+    """Return the registry login from the environment, or None when it is not set."""
+    username = os.environ.get("HARBOR_USERNAME")
+    password = os.environ.get("HARBOR_PASSWORD")
+    if username and password:
+        return username, password
+    return None
+
+
+def _image_registry(image: str) -> str:
+    """Return the registry host of an image reference (Docker Hub when it names none)."""
+    first, _, rest = image.partition("/")
+    if rest and ("." in first or ":" in first or first == "localhost"):
+        return first
+    return "docker.io"
+
+
+def split_sync_image(image: str) -> tuple[str, str]:
+    """Split ``repository:tag`` into the chart's `image.repository` and `image.tag`."""
+    repository, _, tag = image.rpartition(":")
+    if not repository or "/" in tag:
+        raise AssertionError(f"image reference '{image}' has no tag")
+    return repository, tag
+
+
+class RegistryLoginError(Exception):
+    """`docker login` failed. The message never holds the password."""
+
+
+def _login_failure_message(registry: str, stderr: str, password: str) -> str:
+    """Describe a failed `docker login` from its stderr, with the password removed."""
+    detail = stderr.replace(password, "<password>").strip() if password else stderr.strip()
+    return f"docker login to {registry} failed: {detail or 'no error output'}"
+
+
+def _image_in_registry(image: str, credentials: tuple[str, str] | None) -> bool:
+    """Whether the registry serves the image's manifest, with the login when one is given.
+
+    A throwaway Docker config directory holds the login, so the runner's own Docker
+    configuration is neither read nor changed. A failed login raises `RegistryLoginError`,
+    so that it is reported apart from an image the registry does not serve.
+    """
+    with tempfile.TemporaryDirectory() as config:
+        docker = ["docker", "--config", config]
+        if credentials:
+            username, password = credentials
+            registry = _image_registry(image)
+            login = subprocess.run(
+                [*docker, "login", registry, "--username", username, "--password-stdin"],
+                input=password, capture_output=True, text=True, check=False, timeout=120,
+            )
+            if login.returncode != 0:
+                raise RegistryLoginError(
+                    _login_failure_message(registry, login.stderr, password)
+                )
+        inspect = subprocess.run(
+            [*docker, "manifest", "inspect", image],
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+        return inspect.returncode == 0
+
+
+@pytest.fixture(scope="session")
+def infrahub_sync_image() -> dict:
+    """Resolve the Sync image before any cluster is created.
+
+    The image is ``INFRAHUB_SYNC_E2E_IMAGE`` when set, otherwise the registry image of the
+    chart's ``appVersion``. An image in the local Docker store is imported into the
+    vcluster; any other image must be served by its registry. When the image cannot be
+    resolved and no registry login is given, the test is skipped with the reason. With a
+    login, an image that cannot be resolved fails the test.
+    """
+    app_version = yaml.safe_load((SYNC_CHART / "Chart.yaml").read_text())["appVersion"]
+    image = os.environ.get("INFRAHUB_SYNC_E2E_IMAGE") or f"{SYNC_DEFAULT_REPOSITORY}:{app_version}"
+    credentials = _sync_registry_credentials()
+
+    local = subprocess.run(
+        ["docker", "image", "inspect", image], capture_output=True, check=False
+    )
+    if local.returncode == 0:
+        return {"image": image, "local": True, "credentials": credentials}
+    try:
+        served = _image_in_registry(image, credentials)
+    except RegistryLoginError as error:
+        pytest.fail(
+            f"The Sync image {image} is not in the local Docker store, and the registry login "
+            f"of HARBOR_USERNAME failed. {error}"
+        )
+    if served:
+        return {"image": image, "local": False, "credentials": credentials}
+    if credentials:
+        pytest.fail(
+            f"The Sync image {image} is not in the local Docker store, and its registry does "
+            "not serve it with the login of HARBOR_USERNAME"
+        )
+    pytest.skip(
+        f"The Sync image {image} is not in the local Docker store, and its registry does not "
+        "serve it without a login. Set INFRAHUB_SYNC_E2E_IMAGE to a local image, or "
+        "HARBOR_USERNAME and HARBOR_PASSWORD."
+    )
+
+
+def _apply_manifest(kubeconfig: str, namespace: str, manifest: dict) -> None:
+    """Apply one manifest from stdin, so that no credential is written to a file or argv."""
+    subprocess.run(
+        ["kubectl", "apply", "-n", namespace, "--kubeconfig", kubeconfig, "-f", "-"],
+        input=json.dumps(manifest), capture_output=True, text=True, check=True,
+    )
+
+
+@pytest.fixture(scope="session")
+async def infrahub_sync_k8s(
+    infrahub_sync_image: dict, vcluster: dict, request
+) -> AsyncGenerator[dict, None]:
+    """Install the infrahub-sync chart with generated credentials.
+
+    `infrahub_sync_image` comes first in the arguments, so an image that cannot be
+    resolved skips the test before the vcluster is created. The credentials Secret is
+    created before the install and named by ``credentials.existingSecret``, as an operator
+    does. The fixture waits for the workloads to be ready; the test waits for the
+    bootstrap Job itself.
+    """
+    kubeconfig = vcluster["kubeconfig_path"]
+    namespace = SYNC_NAMESPACE
+    _register_namespace(request, namespace)
+
+    image = infrahub_sync_image["image"]
+    repository, tag = split_sync_image(image)
+    if infrahub_sync_image["local"]:
+        import_image_into_vcluster(image, vcluster["cluster_name"])
+
+    subprocess.run(
+        ["kubectl", "create", "namespace", namespace, "--kubeconfig", kubeconfig],
+        check=True,
+    )
+
+    token = secrets.token_hex(16)
+    _apply_manifest(kubeconfig, namespace, {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": SYNC_CREDENTIALS_SECRET},
+        "type": "Opaque",
+        "stringData": {
+            "INFRAHUB_SYNC_ADMIN_ACCOUNT_PASSWORD": secrets.token_hex(16),
+            "INFRAHUB_SYNC_ADMIN_ACCOUNT_TOKEN": token,
+            "INFRAHUB_SYNC_ENCRYPTION_KEY": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "INFRAHUB_SYNC_WORKER_TOKEN": secrets.token_hex(16),
+            "INFRAHUB_SYNC_PREFECT_AUTH_STRING": f"prefect:{secrets.token_hex(16)}",
+            "INFRAHUB_SYNC_S3_ACCESS_KEY": secrets.token_hex(10),
+            "INFRAHUB_SYNC_S3_SECRET_KEY": secrets.token_hex(20),
+            "INFRAHUB_SYNC_POSTGRES_ADMIN_PASSWORD": secrets.token_hex(16),
+            "INFRAHUB_SYNC_PRODUCT_PASSWORD": secrets.token_hex(16),
+            "INFRAHUB_SYNC_PREFECT_PASSWORD": secrets.token_hex(16),
+        },
+    })
+
+    sets = {
+        "credentials.existingSecret": SYNC_CREDENTIALS_SECRET,
+        "image.repository": repository,
+        "image.tag": tag,
+        "image.pullPolicy": "IfNotPresent",
+    }
+    registry_credentials = infrahub_sync_image["credentials"]
+    if registry_credentials:
+        username, password = registry_credentials
+        auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+        _apply_manifest(kubeconfig, namespace, {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {"name": SYNC_PULL_SECRET},
+            "type": "kubernetes.io/dockerconfigjson",
+            "stringData": {
+                ".dockerconfigjson": json.dumps(
+                    {"auths": {_image_registry(image): {"auth": auth}}}
+                ),
+            },
+        })
+        sets["imagePullSecrets[0].name"] = SYNC_PULL_SECRET
+
+    helm_install(
+        release=SYNC_RELEASE,
+        chart_path=SYNC_CHART,
+        namespace=namespace,
+        kubeconfig=kubeconfig,
+        sets=sets,
+    )
+
+    yield {
+        "namespace": namespace,
+        "kubeconfig_path": kubeconfig,
+        "token": token,
+        "release": SYNC_RELEASE,
+        "chart_path": SYNC_CHART,
+        "fullname": f"{SYNC_RELEASE}-infrahub-sync",
     }
 
 

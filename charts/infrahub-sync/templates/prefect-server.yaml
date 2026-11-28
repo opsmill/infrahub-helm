@@ -1,0 +1,124 @@
+{{- include "infrahub-sync.validate" . }}
+{{- $name := include "infrahub-sync.componentName" (dict "context" . "component" "prefect-server") }}
+{{- $component := .Values.prefectServer }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "prefect-server") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 4200
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "prefect-server") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "prefect-server") | nindent 4 }}
+spec:
+  replicas: 1
+  # The server migrates its database when it starts, so two servers never run at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "prefect-server") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "prefect-server") | nindent 8 }}
+        {{- with $component.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/secret: {{ include "infrahub-sync.checksum.secret" . | quote }}
+        {{- with $component.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "infrahub-sync.pod.common" (dict "context" . "values" $component) | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.postgresql.enabled }}
+      initContainers:
+        {{- include "infrahub-sync.initContainer.waitForPostgresql" . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: prefect-server
+          image: {{ include "infrahub-sync.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            {{- include "infrahub-sync.tini" . | nindent 12 }}
+            - uvicorn
+            - --host
+            - 0.0.0.0
+            - --port
+            - "4200"
+            - --factory
+            - infrahub_sync.service.prefect_server:create_prefect_app
+          ports:
+            - name: http
+              containerPort: 4200
+              protocol: TCP
+          env:
+            {{- if .Values.postgresql.enabled }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_PREFECT_PASSWORD" "key" "INFRAHUB_SYNC_PREFECT_PASSWORD") | nindent 12 }}
+            - name: PREFECT_SERVER_DATABASE_CONNECTION_URL
+              value: {{ printf "postgresql+asyncpg://%s:$(INFRAHUB_SYNC_PREFECT_PASSWORD)@%s:5432/%s" .Values.postgresql.prefectRole (include "infrahub-sync.componentName" (dict "context" . "component" "postgresql")) .Values.postgresql.prefectDatabase | quote }}
+            {{- else }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "PREFECT_SERVER_DATABASE_CONNECTION_URL" "key" "INFRAHUB_SYNC_PREFECT_DATABASE_URL") | nindent 12 }}
+            {{- end }}
+            - name: PREFECT_SERVER_API_HOST
+              value: "0.0.0.0"
+            - name: PREFECT_SERVER_API_PORT
+              value: "4200"
+            - name: PREFECT_UI_ENABLED
+              value: {{ $component.uiEnabled | toString | quote }}
+            - name: PREFECT_SERVER_UI_API_URL
+              value: "http://127.0.0.1:4200/api"
+            - name: PREFECT_SERVER_ANALYTICS_ENABLED
+              value: "false"
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "PREFECT_SERVER_API_AUTH_STRING" "key" "INFRAHUB_SYNC_PREFECT_AUTH_STRING") | nindent 12 }}
+            {{- with $component.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # Prefect leaves its health endpoint open without the API credential.
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          {{- with $component.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- include "infrahub-sync.mounts.scratch" . | nindent 12 }}
+      volumes:
+        {{- include "infrahub-sync.volumes.scratch" . | nindent 8 }}

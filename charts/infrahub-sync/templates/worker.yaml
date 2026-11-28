@@ -1,0 +1,75 @@
+{{- include "infrahub-sync.validate" . }}
+{{- $name := include "infrahub-sync.componentName" (dict "context" . "component" "worker") }}
+{{- $component := .Values.worker }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infrahub-sync.labels" (dict "context" . "component" "worker") | nindent 4 }}
+spec:
+  replicas: {{ $component.replicaCount }}
+  # One worker at a time, the only tested value.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "infrahub-sync.selectorLabels" (dict "context" . "component" "worker") | nindent 8 }}
+        {{- with $component.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- include "infrahub-sync.checksums" . | nindent 8 }}
+        {{- with $component.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- include "infrahub-sync.pod.common" (dict "context" . "values" $component) | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "infrahub-sync.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          command:
+            {{- include "infrahub-sync.tini" . | nindent 12 }}
+            - python
+            - -m
+            - infrahub_sync.service.worker
+            - --pool
+            - {{ .Values.settings.workPool | toString | quote }}
+          env:
+            {{- include "infrahub-sync.env.storage" . | nindent 12 }}
+            {{- include "infrahub-sync.env.ca" . | nindent 12 }}
+            - name: INFRAHUB_SYNC_RUN_ADMISSION_TTL_SECONDS
+              value: {{ .Values.settings.runAdmissionTtlSeconds | toString | quote }}
+            - name: PREFECT_WORKER_QUERY_SECONDS
+              value: {{ .Values.settings.workerQuerySeconds | toString | quote }}
+            - name: PREFECT_WORKER_HEARTBEAT_SECONDS
+              value: {{ .Values.settings.workerHeartbeatSeconds | toString | quote }}
+            # The worker holds no source or destination credential. For each run, it reads the
+            # values of the stored credentials that the run names from the Sync API, at this
+            # address, with the token of the `worker` account.
+            - name: INFRAHUB_SYNC_API_URL
+              value: {{ include "infrahub-sync.workerApiUrl" . | quote }}
+            {{- include "infrahub-sync.env.secretRef" (dict "context" . "name" "INFRAHUB_SYNC_WORKER_TOKEN" "key" "INFRAHUB_SYNC_WORKER_TOKEN") | nindent 12 }}
+            {{- with $component.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          # No probe, as in docker-compose.yml: the worker serves no HTTP endpoint.
+          {{- with $component.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- include "infrahub-sync.mounts.scratch" . | nindent 12 }}
+            {{- include "infrahub-sync.mounts.ca" . | nindent 12 }}
+      volumes:
+        {{- include "infrahub-sync.volumes.scratch" . | nindent 8 }}
+        {{- include "infrahub-sync.volumes.ca" . | nindent 8 }}

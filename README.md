@@ -6,6 +6,8 @@ Official repository for the Infrahub Helm charts.
 
 ## [Infrahub Enterprise](charts/infrahub-enterprise/)
 
+## [Infrahub Sync](charts/infrahub-sync/)
+
 ## Usage
 
 [Helm](https://helm.sh) must be installed to use the charts.
