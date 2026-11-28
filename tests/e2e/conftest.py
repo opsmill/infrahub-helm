@@ -554,6 +554,10 @@ async def infrahub_ha_k8s(staged_charts, install_infrahub_ha) -> str:
 # ---------------------------------------------------------------------------
 # Fixture: observability_k8s (observability chart)
 # ---------------------------------------------------------------------------
+# The token that AI assistants send to the Grafana MCP server. A value for the tests only.
+GRAFANA_MCP_CALLER_TOKEN = "e2e-grafana-mcp-caller-token-not-a-secret"
+
+
 def _ensure_observability_provisioning() -> None:
     """Sync Grafana provisioning from upstream if not already present.
 
@@ -617,6 +621,10 @@ async def observability_k8s(
         namespace=namespace,
         kubeconfig=kubeconfig,
         values_files=[FIXTURES_DIR / "infrahub-observability-values.yaml"],
+        sets={
+            "grafana-mcp-setup.enabled": "true",
+            "grafana-mcp.serverAuth.token": GRAFANA_MCP_CALLER_TOKEN,
+        },
         timeout="12m",
         dependency_update=True,
     )
@@ -627,6 +635,7 @@ async def observability_k8s(
         "release": obs_release,
         "grafana_label": "app.kubernetes.io/name=grafana",
         "grafana_auth": ("admin", "admin"),
+        "grafana_mcp_token": GRAFANA_MCP_CALLER_TOKEN,
         "server_label": "service=infrahub-server",
         "token": INFRAHUB_ADMIN_TOKEN,
     }
