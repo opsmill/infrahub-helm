@@ -168,7 +168,6 @@ infrahubTaskWorker:
       INFRAHUB_WORKFLOW_PORT: 4200
       PREFECT_API_URL: "http://prefect-server:4200/api"
       PREFECT_WORKER_QUERY_SECONDS: 3
-      PREFECT_AGENT_QUERY_INTERVAL: 3
     # -- Image pull policy for the task worker
     imagePullPolicy: Always
     # -- Image registry to use for the task worker

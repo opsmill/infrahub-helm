@@ -1,0 +1,1 @@
+Removed `PREFECT_AGENT_QUERY_INTERVAL` from the default environment of the task workers (`infrahubTaskWorker.infrahubTaskWorker.env`). The Prefect versions that Infrahub runs do not read this variable.
